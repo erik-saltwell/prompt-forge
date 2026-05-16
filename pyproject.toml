@@ -1,0 +1,52 @@
+[project]
+name = "prompt-forge-workspace"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = []
+
+[tool.uv.workspace]
+members = [
+  "packages/*",
+  "apps/*",
+]
+
+[dependency-groups]
+dev = [
+  "pytest>=8",
+  "ruff>=0.13",
+  "ty",
+]
+
+[tool.ruff]
+line-length = 140
+target-version = "py312"
+
+[tool.ruff.lint]
+select = [
+  "E",      # pycodestyle errors
+  "F",      # pyflakes
+  "I",      # import sorting
+  "UP",     # pyupgrade
+  "B",      # flake8-bugbear
+  "ANN001", # missing type annotation for function argument
+  "ANN002", # missing type annotation for *args
+  "ANN003", # missing type annotation for **kwargs
+  "ANN201", # missing return type annotation for public function
+  "ANN202", # missing return type annotation for private function
+  "ANN204", # missing return type annotation for special method
+  "ANN205", # missing return type annotation for staticmethod
+  "ANN206", # missing return type annotation for classmethod
+]
+
+[tool.ty.environment]
+root = ["./packages", "./apps"]
+
+[tool.ty.rules]
+unused-ignore-comment = "warn"
+redundant-cast = "warn"
+
+[tool.pytest.ini_options]
+testpaths = [
+  "packages",
+  "apps",
+]
