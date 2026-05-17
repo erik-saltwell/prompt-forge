@@ -9,13 +9,20 @@ from ...model.prompt_validation_error import PromptError
 from ._rules.first_heading_is_h1 import FirstHeadingIsH1
 from ._rules.markdown_not_empty import MarkdownNotEmpty
 from ._rules.no_empty_heading import NoEmptyHeading
+from ._rules.no_heading_in_list_item import NoHeadingInListItem
 from ._rules.no_heading_level_skip import NoHeadingLevelSkip
 
 _PARSER = MarkdownIt("commonmark").enable("table")
 
 
 def _load_validators() -> list[PromptValidator]:
-    return [MarkdownNotEmpty(), FirstHeadingIsH1(), NoHeadingLevelSkip(), NoEmptyHeading()]
+    return [
+        MarkdownNotEmpty(),
+        FirstHeadingIsH1(),
+        NoHeadingLevelSkip(),
+        NoEmptyHeading(),
+        NoHeadingInListItem(),
+    ]
 
 
 def _load_tokens(markdown_text: str) -> MarkdownTokenList:

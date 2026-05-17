@@ -21,6 +21,24 @@ test test test
 #
 test test test"""
 
+heading_in_list_item: str = """# heading
+- first
+- second
+  # invalid
+  test test test"""
+
+heading_in_ordered_list_item: str = """# heading
+1. first
+2. second
+   ## invalid
+   test test test"""
+
+heading_in_nested_list_item: str = """# heading
+- outer
+  - inner
+    ### invalid
+    test test test"""
+
 
 def test_find_errors_raises_file_not_found_error_when_filepath_does_not_exist(tmp_path: Path) -> None:
     filepath = tmp_path / "missing.md"
@@ -48,3 +66,9 @@ def test_first_header_is_h1() -> None:
 
 def test_empty_header() -> None:
     assert_single_error_from_string(empty_header, 3, PromptErrorType.EmptyHeading)
+
+
+def test_no_heading_in_list_item() -> None:
+    assert_single_error_from_string(heading_in_list_item, 4, PromptErrorType.HeadingInListItem)
+    assert_single_error_from_string(heading_in_ordered_list_item, 4, PromptErrorType.HeadingInListItem)
+    assert_single_error_from_string(heading_in_nested_list_item, 4, PromptErrorType.HeadingInListItem)

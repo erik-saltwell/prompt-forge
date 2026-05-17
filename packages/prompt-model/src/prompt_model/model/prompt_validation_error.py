@@ -13,6 +13,7 @@ class PromptErrorType(StrEnum):
     HeadingLevelSkip = "Heading Level Skip"
     FirstHeadingNotH1 = "First Heading Not H1"
     EmptyHeading = "Empty Heading"
+    HeadingInListItem = "Heading In List Item"
 
 
 @total_ordering
