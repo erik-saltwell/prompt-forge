@@ -12,6 +12,7 @@ class PromptErrorType(StrEnum):
     EmptyFile = "Empty File"
     HeadingLevelSkip = "Heading Level Skip"
     FirstHeadingNotH1 = "First Heading Not H1"
+    EmptyHeading = "Empty Heading"
 
 
 @total_ordering

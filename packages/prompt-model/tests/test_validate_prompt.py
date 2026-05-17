@@ -16,6 +16,11 @@ test test test
 
 ### Second Level"""
 
+empty_header: str = """# First
+test test test
+#
+test test test"""
+
 
 def test_find_errors_raises_file_not_found_error_when_filepath_does_not_exist(tmp_path: Path) -> None:
     filepath = tmp_path / "missing.md"
@@ -39,3 +44,7 @@ def test_skipped_hierarchy() -> None:
 
 def test_first_header_is_h1() -> None:
     assert_single_error_from_string(start_at_h2, 1, PromptErrorType.FirstHeadingNotH1)
+
+
+def test_empty_header() -> None:
+    assert_single_error_from_string(empty_header, 3, PromptErrorType.EmptyHeading)
