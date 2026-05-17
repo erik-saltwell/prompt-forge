@@ -1,11 +1,13 @@
 from __future__ import annotations
 
-from typing import Any, Protocol
+from typing import Protocol
+
+from markdown_it.token import Token
 
 from ..model.prompt_validation_error import PromptError
 
-type MarkdownToken = dict[str, Any]
-type MarkdownTokenList = list[MarkdownToken]
+type MarkdownToken = Token
+type MarkdownTokenList = list[Token]
 
 
 class PromptValidator(Protocol):

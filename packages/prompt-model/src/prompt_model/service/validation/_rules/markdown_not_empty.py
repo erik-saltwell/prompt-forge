@@ -6,7 +6,7 @@ from ....model.prompt_validation_error import PromptError, PromptErrorType
 
 class MarkdownNotEmpty(PromptValidator):
     def find_errors(self, tokens: MarkdownTokenList | None) -> list[PromptError]:
-        if tokens and not all(token.get("type") == "blank_line" for token in tokens):
+        if tokens:
             return []
 
         return [

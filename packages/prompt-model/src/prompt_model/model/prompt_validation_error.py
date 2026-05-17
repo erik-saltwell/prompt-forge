@@ -10,6 +10,8 @@ from .._utils import pydantic_aliases
 
 class PromptErrorType(StrEnum):
     EmptyFile = "Empty File"
+    HeadingLevelSkip = "Heading Level Skip"
+    FirstHeadingNotH1 = "First Heading Not H1"
 
 
 @total_ordering
