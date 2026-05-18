@@ -4,7 +4,7 @@ import pytest
 from prompt_model.model.prompt_validation_error import PromptErrorType
 from prompt_model.service.validation.validate_prompt import find_errors_from_file
 
-from .utils.validation_utils import assert_no_errors_from_string, assert_single_error_from_string
+from .utils.validation import check_error_from_md, check_no_errors_from_md
 
 
 def test_find_errors_raises_file_not_found_error_when_filepath_does_not_exist(tmp_path: Path) -> None:
@@ -20,7 +20,7 @@ def test_find_errors_raises_is_a_directory_error_when_filepath_is_not_a_file(tmp
 
 
 def test_empty_file() -> None:
-    assert_single_error_from_string("", 0, PromptErrorType.EmptyFile)
+    check_error_from_md("", 0, PromptErrorType.EmptyFile)
 
 
 skipped_hierarchy_1: str = """# First Level
@@ -44,9 +44,9 @@ ok_skipped_heading_inside_indented_code: str = """# real h1
 
 
 def test_skipped_hierarchy() -> None:
-    assert_single_error_from_string(skipped_hierarchy_1, 4, PromptErrorType.HeadingLevelSkip)
-    assert_no_errors_from_string(ok_skipped_heading_inside_code_block)
-    assert_no_errors_from_string(ok_skipped_heading_inside_indented_code)
+    check_error_from_md(skipped_hierarchy_1, 4, PromptErrorType.HeadingLevelSkip)
+    check_no_errors_from_md(ok_skipped_heading_inside_code_block)
+    check_no_errors_from_md(ok_skipped_heading_inside_indented_code)
 
 
 start_at_h2: str = """## First Level
@@ -56,7 +56,7 @@ test test test
 
 
 def test_first_header_is_h1() -> None:
-    assert_single_error_from_string(start_at_h2, 1, PromptErrorType.FirstHeadingNotH1)
+    check_error_from_md(start_at_h2, 1, PromptErrorType.FirstHeadingNotH1)
 
 
 empty_header: str = """# First
@@ -66,7 +66,7 @@ test test test"""
 
 
 def test_empty_header() -> None:
-    assert_single_error_from_string(empty_header, 3, PromptErrorType.EmptyHeading)
+    check_error_from_md(empty_header, 3, PromptErrorType.EmptyHeading)
 
 
 heading_in_list_item: str = """# heading
@@ -89,9 +89,9 @@ heading_in_nested_list_item: str = """# heading
 
 
 def test_no_heading_in_list_item() -> None:
-    assert_single_error_from_string(heading_in_list_item, 4, PromptErrorType.HeadingInListItem)
-    assert_single_error_from_string(heading_in_ordered_list_item, 4, PromptErrorType.HeadingInListItem)
-    assert_single_error_from_string(heading_in_nested_list_item, 4, PromptErrorType.HeadingInListItem)
+    check_error_from_md(heading_in_list_item, 4, PromptErrorType.HeadingInListItem)
+    check_error_from_md(heading_in_ordered_list_item, 4, PromptErrorType.HeadingInListItem)
+    check_error_from_md(heading_in_nested_list_item, 4, PromptErrorType.HeadingInListItem)
 
 
 empty_list_item_1: str = """# foo
@@ -125,11 +125,11 @@ test test test
 
 
 def test_no_empty_list_item() -> None:
-    assert_single_error_from_string(empty_list_item_1, 4, PromptErrorType.EmptyListItem)
-    assert_single_error_from_string(empty_list_item_2, 4, PromptErrorType.EmptyListItem)
-    assert_single_error_from_string(empty_list_item_3, 4, PromptErrorType.EmptyListItem)
-    assert_no_errors_from_string(non_empty_list_item_1)
-    assert_no_errors_from_string(non_empty_list_item_2)
+    check_error_from_md(empty_list_item_1, 4, PromptErrorType.EmptyListItem)
+    check_error_from_md(empty_list_item_2, 4, PromptErrorType.EmptyListItem)
+    check_error_from_md(empty_list_item_3, 4, PromptErrorType.EmptyListItem)
+    check_no_errors_from_md(non_empty_list_item_1)
+    check_no_errors_from_md(non_empty_list_item_2)
 
 
 sibling_lists_of_different_type_1: str = """# foo
@@ -176,12 +176,12 @@ some code
 
 
 def test_sibling_lists_of_different_type() -> None:
-    assert_single_error_from_string(sibling_lists_of_different_type_1, 4, PromptErrorType.MixedListTypeSiblings)
-    assert_single_error_from_string(sibling_lists_of_different_type_2, 4, PromptErrorType.MixedListTypeSiblings)
-    assert_single_error_from_string(sibling_lists_of_different_type_3, 5, PromptErrorType.MixedListTypeSiblings)
-    assert_single_error_from_string(sibling_lists_of_different_type_4, 4, PromptErrorType.MixedListTypeSiblings)
-    assert_no_errors_from_string(ok_siblings_lists_of_different_type_1)
-    assert_no_errors_from_string(ok_siblings_lists_of_different_type_2)
+    check_error_from_md(sibling_lists_of_different_type_1, 4, PromptErrorType.MixedListTypeSiblings)
+    check_error_from_md(sibling_lists_of_different_type_2, 4, PromptErrorType.MixedListTypeSiblings)
+    check_error_from_md(sibling_lists_of_different_type_3, 5, PromptErrorType.MixedListTypeSiblings)
+    check_error_from_md(sibling_lists_of_different_type_4, 4, PromptErrorType.MixedListTypeSiblings)
+    check_no_errors_from_md(ok_siblings_lists_of_different_type_1)
+    check_no_errors_from_md(ok_siblings_lists_of_different_type_2)
 
 
 # ---------------------------------------------------------------------------
@@ -270,15 +270,15 @@ also not recognized
 
 
 def test_ok_annotations() -> None:
-    assert_no_errors_from_string(ok_examples_on_paragraph)
-    assert_no_errors_from_string(ok_guidance_on_paragraph)
-    assert_no_errors_from_string(ok_singular_example_alias)
-    assert_no_errors_from_string(ok_guidance_with_list_body)
-    assert_no_errors_from_string(ok_one_of_each_kind_on_paragraph)
-    assert_no_errors_from_string(ok_annotation_on_list_item)
-    assert_no_errors_from_string(ok_annotation_on_nested_list_item)
-    assert_no_errors_from_string(ok_blank_line_before_annotation)
-    assert_no_errors_from_string(ok_unknown_kind_is_not_annotation)
+    check_no_errors_from_md(ok_examples_on_paragraph)
+    check_no_errors_from_md(ok_guidance_on_paragraph)
+    check_no_errors_from_md(ok_singular_example_alias)
+    check_no_errors_from_md(ok_guidance_with_list_body)
+    check_no_errors_from_md(ok_one_of_each_kind_on_paragraph)
+    check_no_errors_from_md(ok_annotation_on_list_item)
+    check_no_errors_from_md(ok_annotation_on_nested_list_item)
+    check_no_errors_from_md(ok_blank_line_before_annotation)
+    check_no_errors_from_md(ok_unknown_kind_is_not_annotation)
 
 
 # --- Bad: empty annotation body (EmptyAnnotation) -------------------------
@@ -302,9 +302,9 @@ empty_annotation_on_list_item: str = """# foo
 
 
 def test_empty_annotation() -> None:
-    assert_single_error_from_string(empty_examples_annotation, 3, PromptErrorType.EmptyAnnotation)
-    assert_single_error_from_string(empty_guidance_annotation, 3, PromptErrorType.EmptyAnnotation)
-    assert_single_error_from_string(empty_annotation_on_list_item, 3, PromptErrorType.EmptyAnnotation)
+    check_error_from_md(empty_examples_annotation, 3, PromptErrorType.EmptyAnnotation)
+    check_error_from_md(empty_guidance_annotation, 3, PromptErrorType.EmptyAnnotation)
+    check_error_from_md(empty_annotation_on_list_item, 3, PromptErrorType.EmptyAnnotation)
 
 
 # --- Bad: orphan annotation (OrphanAnnotation) ----------------------------
@@ -330,9 +330,9 @@ example
 
 
 def test_orphan_annotation() -> None:
-    assert_single_error_from_string(orphan_annotation_at_document_start, 1, PromptErrorType.OrphanAnnotation)
-    assert_single_error_from_string(orphan_annotation_after_heading, 2, PromptErrorType.OrphanAnnotation)
-    assert_single_error_from_string(orphan_annotation_in_section, 5, PromptErrorType.OrphanAnnotation)
+    check_error_from_md(orphan_annotation_at_document_start, 1, PromptErrorType.OrphanAnnotation)
+    check_error_from_md(orphan_annotation_after_heading, 2, PromptErrorType.OrphanAnnotation)
+    check_error_from_md(orphan_annotation_in_section, 5, PromptErrorType.OrphanAnnotation)
 
 
 # --- Bad: illegal host (IllegalAnnotationHost) ----------------------------
@@ -354,8 +354,8 @@ example
 
 
 def test_illegal_annotation_host() -> None:
-    assert_single_error_from_string(annotation_after_code_block, 5, PromptErrorType.IllegalAnnotationHost)
-    assert_single_error_from_string(annotation_after_blockquote, 3, PromptErrorType.IllegalAnnotationHost)
+    check_error_from_md(annotation_after_code_block, 5, PromptErrorType.IllegalAnnotationHost)
+    check_error_from_md(annotation_after_blockquote, 3, PromptErrorType.IllegalAnnotationHost)
 
 
 # --- Bad: heading inside annotation (HeadingInAnnotation) -----------------
@@ -368,7 +368,7 @@ prose
 
 
 def test_heading_in_annotation() -> None:
-    assert_single_error_from_string(heading_inside_annotation, 4, PromptErrorType.HeadingInAnnotation)
+    check_error_from_md(heading_inside_annotation, 4, PromptErrorType.HeadingInAnnotation)
 
 
 # --- Bad: nested annotation (NestedAnnotation) ----------------------------
@@ -385,7 +385,7 @@ inner
 
 
 def test_nested_annotation() -> None:
-    assert_single_error_from_string(nested_annotation, 4, PromptErrorType.NestedAnnotation)
+    check_error_from_md(nested_annotation, 4, PromptErrorType.NestedAnnotation)
 
 
 # --- Bad: more than one annotation block of the same kind on one host -----
@@ -426,6 +426,6 @@ bar
 
 
 def test_duplicate_annotation_kind() -> None:
-    assert_single_error_from_string(duplicate_examples_on_paragraph, 7, PromptErrorType.DuplicateAnnotationKind)
-    assert_single_error_from_string(duplicate_guidance_on_list_item, 7, PromptErrorType.DuplicateAnnotationKind)
-    assert_single_error_from_string(duplicate_kind_via_alias, 7, PromptErrorType.DuplicateAnnotationKind)
+    check_error_from_md(duplicate_examples_on_paragraph, 7, PromptErrorType.DuplicateAnnotationKind)
+    check_error_from_md(duplicate_guidance_on_list_item, 7, PromptErrorType.DuplicateAnnotationKind)
+    check_error_from_md(duplicate_kind_via_alias, 7, PromptErrorType.DuplicateAnnotationKind)

@@ -4,16 +4,16 @@ from prompt_model._protocols.action import Action
 from prompt_model.service.actions import SkipReason
 from prompt_model.service.parsing.parse_prompt import parse_from_string
 
-from .parsing_utils import assert_tree_matches_shorthand, assert_trees_structurally_equal
+from . import parsing as p
 
 
-def assert_action_against_shorthand(markdown: str, action: Action, shorthand: str) -> None:
+def check_action_against_sh(markdown: str, action: Action, shorthand: str) -> None:
     tree = parse_from_string(markdown)
     action.apply(tree)
-    assert_tree_matches_shorthand(tree, shorthand)
+    p.check_obj_against_sh(tree, shorthand)
 
 
-def assert_can_apply(markdown: str, action: Action, result: SkipReason | None) -> None:
+def check_action_can_apply(markdown: str, action: Action, result: SkipReason | None) -> None:
     tree = parse_from_string(markdown)
     can_apply: SkipReason | None = action.validate(tree)
     if result is None:
@@ -22,7 +22,7 @@ def assert_can_apply(markdown: str, action: Action, result: SkipReason | None) -
         assert result == can_apply
 
 
-def assert_undo(markdown: str, actions: list[Action]) -> None:
+def check_action_undo(markdown: str, actions: list[Action]) -> None:
     tree = parse_from_string(markdown)
     original = tree.model_copy(deep=True)
 
@@ -33,4 +33,4 @@ def assert_undo(markdown: str, actions: list[Action]) -> None:
     while undo_stack:
         undo_stack.pop().apply(tree)
 
-    assert_trees_structurally_equal(tree, original)
+    p.check_obj_against_obj(tree, original)

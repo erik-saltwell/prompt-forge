@@ -9,7 +9,7 @@ from prompt_model.model import (
 )
 from prompt_model.service.parsing.parse_prompt import parse_from_string
 
-from .utils.parsing_utils import assert_parses_to_shorthand, assert_trees_structurally_equal
+from .utils.parsing import check_md_against_sh, check_obj_against_obj
 
 # ---------------------------------------------------------------------------
 # Leaf blocks
@@ -19,7 +19,7 @@ single_paragraph: str = """just some prose"""
 
 
 def test_single_paragraph() -> None:
-    assert_parses_to_shorthand(single_paragraph, "p")
+    check_md_against_sh(single_paragraph, "p")
 
 
 two_paragraphs: str = """first para
@@ -28,7 +28,7 @@ second para"""
 
 
 def test_two_paragraphs() -> None:
-    assert_parses_to_shorthand(two_paragraphs, "p p")
+    check_md_against_sh(two_paragraphs, "p p")
 
 
 single_code_block: str = """some prose
@@ -39,7 +39,7 @@ print(1)
 
 
 def test_single_code_block() -> None:
-    assert_parses_to_shorthand(single_code_block, "p cb")
+    check_md_against_sh(single_code_block, "p cb")
 
 
 single_blockquote: str = """some prose
@@ -48,7 +48,7 @@ single_blockquote: str = """some prose
 
 
 def test_single_blockquote() -> None:
-    assert_parses_to_shorthand(single_blockquote, "p bq")
+    check_md_against_sh(single_blockquote, "p bq")
 
 
 single_table: str = """some prose
@@ -59,7 +59,7 @@ single_table: str = """some prose
 
 
 def test_single_table() -> None:
-    assert_parses_to_shorthand(single_table, "p t")
+    check_md_against_sh(single_table, "p t")
 
 
 # ---------------------------------------------------------------------------
@@ -70,7 +70,7 @@ single_h1: str = """# Title"""
 
 
 def test_single_h1() -> None:
-    assert_parses_to_shorthand(single_h1, "h1")
+    check_md_against_sh(single_h1, "h1")
 
 
 h1_with_paragraph: str = """# Title
@@ -78,7 +78,7 @@ some prose"""
 
 
 def test_h1_with_paragraph() -> None:
-    assert_parses_to_shorthand(h1_with_paragraph, "h1 p")
+    check_md_against_sh(h1_with_paragraph, "h1 p")
 
 
 nested_sections: str = """# A
@@ -95,7 +95,7 @@ back up"""
 
 
 def test_nested_sections() -> None:
-    assert_parses_to_shorthand(nested_sections, "h1 p h2 p h3 p h2 p")
+    check_md_against_sh(nested_sections, "h1 p h2 p h3 p h2 p")
 
 
 # ---------------------------------------------------------------------------
@@ -108,7 +108,7 @@ bullet_list: str = """# h
 
 
 def test_bullet_list() -> None:
-    assert_parses_to_shorthand(bullet_list, "h1 ul1 ul1")
+    check_md_against_sh(bullet_list, "h1 ul1 ul1")
 
 
 ordered_list: str = """# h
@@ -117,7 +117,7 @@ ordered_list: str = """# h
 
 
 def test_ordered_list() -> None:
-    assert_parses_to_shorthand(ordered_list, "h1 ol1 ol1")
+    check_md_against_sh(ordered_list, "h1 ol1 ol1")
 
 
 nested_bullet_list: str = """# h
@@ -128,7 +128,7 @@ nested_bullet_list: str = """# h
 
 
 def test_nested_bullet_list() -> None:
-    assert_parses_to_shorthand(nested_bullet_list, "h1 ul1 ul2 ul2 ul1")
+    check_md_against_sh(nested_bullet_list, "h1 ul1 ul2 ul2 ul1")
 
 
 sibling_lists_different_type: str = """# h
@@ -142,7 +142,7 @@ some prose
 
 
 def test_sibling_lists_different_type() -> None:
-    assert_parses_to_shorthand(sibling_lists_different_type, "h1 ul1 ul1 p ol1 ol1")
+    check_md_against_sh(sibling_lists_different_type, "h1 ul1 ul1 p ol1 ol1")
 
 
 # Ordered list nested inside a bullet list.
@@ -154,7 +154,7 @@ ordered_nested_in_bullet: str = """# h
 
 
 def test_ordered_nested_in_bullet() -> None:
-    assert_parses_to_shorthand(ordered_nested_in_bullet, "h1 ul1 ol2 ol2 ul1")
+    check_md_against_sh(ordered_nested_in_bullet, "h1 ul1 ol2 ol2 ul1")
 
 
 # Bullet list nested inside an ordered list.
@@ -166,7 +166,7 @@ bullet_nested_in_ordered: str = """# h
 
 
 def test_bullet_nested_in_ordered() -> None:
-    assert_parses_to_shorthand(bullet_nested_in_ordered, "h1 ol1 ul2 ul2 ol1")
+    check_md_against_sh(bullet_nested_in_ordered, "h1 ol1 ul2 ul2 ol1")
 
 
 # Three-level nesting alternating orderedness.
@@ -179,7 +179,7 @@ three_level_alternating: str = """# h
 
 
 def test_three_level_alternating() -> None:
-    assert_parses_to_shorthand(three_level_alternating, "h1 ul1 ol2 ul3 ol4 ul3")
+    check_md_against_sh(three_level_alternating, "h1 ul1 ol2 ul3 ol4 ul3")
 
 
 # A list directly under a heading (no intervening paragraph).
@@ -188,7 +188,7 @@ list_directly_under_heading: str = """# h
 
 
 def test_list_directly_under_heading() -> None:
-    assert_parses_to_shorthand(list_directly_under_heading, "h1 ul1")
+    check_md_against_sh(list_directly_under_heading, "h1 ul1")
 
 
 # A list item with a code block as a block child (the code block is silently
@@ -202,7 +202,7 @@ list_item_with_code_block_child: str = """# h
 
 
 def test_list_item_with_code_block_child() -> None:
-    assert_parses_to_shorthand(list_item_with_code_block_child, "h1 ul1 ul1")
+    check_md_against_sh(list_item_with_code_block_child, "h1 ul1 ul1")
 
 
 # A list item with a second paragraph (extra paragraph is silently skipped
@@ -216,7 +216,7 @@ list_item_with_second_paragraph: str = """# h
 
 
 def test_list_item_with_second_paragraph() -> None:
-    assert_parses_to_shorthand(list_item_with_second_paragraph, "h1 ul1 ul1")
+    check_md_against_sh(list_item_with_second_paragraph, "h1 ul1 ul1")
 
 
 # Same-type sibling lists separated by prose still form two distinct lists
@@ -232,7 +232,7 @@ separator
 
 
 def test_same_type_sibling_lists_separated_by_prose() -> None:
-    assert_parses_to_shorthand(same_type_sibling_lists_separated_by_prose, "h1 ul1 ul1 p ul1 ul1")
+    check_md_against_sh(same_type_sibling_lists_separated_by_prose, "h1 ul1 ul1 p ul1 ul1")
 
 
 # Pop back to outer depth then re-nest — verifies depth tracking resets.
@@ -245,7 +245,7 @@ list_pop_then_renest: str = """# h
 
 
 def test_list_pop_then_renest() -> None:
-    assert_parses_to_shorthand(list_pop_then_renest, "h1 ul1 ul2 ul1 ul2 ul2")
+    check_md_against_sh(list_pop_then_renest, "h1 ul1 ul2 ul1 ul2 ul2")
 
 
 # ---------------------------------------------------------------------------
@@ -260,7 +260,7 @@ an example
 
 
 def test_paragraph_with_example() -> None:
-    assert_parses_to_shorthand(paragraph_with_example, "h1 p e")
+    check_md_against_sh(paragraph_with_example, "h1 p e")
 
 
 paragraph_with_guidance: str = """# h
@@ -271,7 +271,7 @@ be concise
 
 
 def test_paragraph_with_guidance() -> None:
-    assert_parses_to_shorthand(paragraph_with_guidance, "h1 p g")
+    check_md_against_sh(paragraph_with_guidance, "h1 p g")
 
 
 paragraph_with_both: str = """# h
@@ -286,7 +286,7 @@ g
 
 
 def test_paragraph_with_both_annotations() -> None:
-    assert_parses_to_shorthand(paragraph_with_both, "h1 p e g")
+    check_md_against_sh(paragraph_with_both, "h1 p e g")
 
 
 list_item_with_example: str = """# h
@@ -298,7 +298,7 @@ list_item_with_example: str = """# h
 
 
 def test_list_item_with_example() -> None:
-    assert_parses_to_shorthand(list_item_with_example, "h1 ul1 e ul1")
+    check_md_against_sh(list_item_with_example, "h1 ul1 e ul1")
 
 
 nested_list_item_with_guidance: str = """# h
@@ -310,7 +310,7 @@ nested_list_item_with_guidance: str = """# h
 
 
 def test_nested_list_item_with_guidance() -> None:
-    assert_parses_to_shorthand(nested_list_item_with_guidance, "h1 ul1 ul2 g")
+    check_md_against_sh(nested_list_item_with_guidance, "h1 ul1 ul2 g")
 
 
 # Source-order guidance-before-examples must still emit `e` before `g` (per
@@ -327,7 +327,7 @@ short one
 
 
 def test_paragraph_guidance_before_example() -> None:
-    assert_parses_to_shorthand(paragraph_guidance_before_example, "h1 p e g")
+    check_md_against_sh(paragraph_guidance_before_example, "h1 p e g")
 
 
 # A list item carrying both an example and a guidance block.
@@ -344,7 +344,7 @@ list_item_with_both_annotations: str = """# h
 
 
 def test_list_item_with_both_annotations() -> None:
-    assert_parses_to_shorthand(list_item_with_both_annotations, "h1 ul1 e g ul1")
+    check_md_against_sh(list_item_with_both_annotations, "h1 ul1 e g ul1")
 
 
 # Multiple sibling list items, each with its own annotation.
@@ -361,7 +361,7 @@ multiple_list_items_with_annotations: str = """# h
 
 
 def test_multiple_list_items_with_annotations() -> None:
-    assert_parses_to_shorthand(multiple_list_items_with_annotations, "h1 ul1 e ul1 g ul1")
+    check_md_against_sh(multiple_list_items_with_annotations, "h1 ul1 e ul1 g ul1")
 
 
 # Singular `::: example` alias parses to the same kind as `::: examples`.
@@ -373,7 +373,7 @@ singular alias
 
 
 def test_paragraph_with_singular_example_alias() -> None:
-    assert_parses_to_shorthand(paragraph_with_singular_example_alias, "h1 p e")
+    check_md_against_sh(paragraph_with_singular_example_alias, "h1 p e")
 
 
 # Annotation body is itself a bullet list — body structure is collapsed to
@@ -387,7 +387,7 @@ some prose
 
 
 def test_annotation_body_is_list() -> None:
-    assert_parses_to_shorthand(annotation_body_is_list, "h1 p g")
+    check_md_against_sh(annotation_body_is_list, "h1 p g")
 
 
 # Two sibling paragraphs in the same section, each with its own annotation.
@@ -404,7 +404,7 @@ g
 
 
 def test_sibling_paragraphs_each_annotated() -> None:
-    assert_parses_to_shorthand(sibling_paragraphs_each_annotated, "h1 p e p g")
+    check_md_against_sh(sibling_paragraphs_each_annotated, "h1 p e p g")
 
 
 # Annotation on a deeply nested list item (depth 3).
@@ -418,7 +418,7 @@ deeply_nested_list_item_annotated: str = """# h
 
 
 def test_deeply_nested_list_item_annotated() -> None:
-    assert_parses_to_shorthand(deeply_nested_list_item_annotated, "h1 ul1 ul2 ul3 e")
+    check_md_against_sh(deeply_nested_list_item_annotated, "h1 ul1 ul2 ul3 e")
 
 
 # Annotation on a paragraph inside a sub-section.
@@ -433,7 +433,7 @@ g
 
 
 def test_annotation_on_paragraph_in_subsection() -> None:
-    assert_parses_to_shorthand(annotation_on_paragraph_in_subsection, "h1 p h2 p g")
+    check_md_against_sh(annotation_on_paragraph_in_subsection, "h1 p h2 p g")
 
 
 # ---------------------------------------------------------------------------
@@ -462,7 +462,7 @@ asdasda asdasd asdasd
 
 
 def test_sample_combined_markdown() -> None:
-    assert_parses_to_shorthand(sample_combined_markdown, "h1 p h2 ul1 ul1 ul2 ul3 ul2 ul1 p h2 cb")
+    check_md_against_sh(sample_combined_markdown, "h1 p h2 ul1 ul1 ul2 ul3 ul2 ul1 p h2 cb")
 
 
 heading_hierarchy_no_skips_ends_shallow: str = """# Top
@@ -480,7 +480,7 @@ back up"""
 
 def test_heading_hierarchy_no_skips_ends_shallow() -> None:
     sh = "h1 p h2 p h3 p h2 p"
-    assert_parses_to_shorthand(heading_hierarchy_no_skips_ends_shallow, sh)
+    check_md_against_sh(heading_hierarchy_no_skips_ends_shallow, sh)
 
 
 nested_lists_list_item_with_block_code_child: str = """# Recipe
@@ -493,7 +493,7 @@ make dinner
 
 def test_nested_lists_list_item_with_block_code_child() -> None:
     sh = "h1 ul1 ul1 cb"
-    assert_parses_to_shorthand(nested_lists_list_item_with_block_code_child, sh)
+    check_md_against_sh(nested_lists_list_item_with_block_code_child, sh)
 
 
 paragraph_with_examples_and_guidance_block: str = """# Style
@@ -509,7 +509,7 @@ prefer short sentences
 
 def test_paragraph_with_examples_and_guidance_block() -> None:
     sh = "h1 p e g"
-    assert_parses_to_shorthand(paragraph_with_examples_and_guidance_block, sh)
+    check_md_against_sh(paragraph_with_examples_and_guidance_block, sh)
 
 
 paragraph_with_examples_and_guidance_block_reversed: str = """# Style
@@ -524,7 +524,7 @@ prefer short sentences
 
 def test_paragraph_with_examples_and_guidance_block_reversed() -> None:
     sh = "h1 p e g"
-    assert_parses_to_shorthand(paragraph_with_examples_and_guidance_block_reversed, sh)
+    check_md_against_sh(paragraph_with_examples_and_guidance_block_reversed, sh)
 
 
 annotations_on_nested_lest_with_list_in_annotation: str = """# Tips
@@ -540,7 +540,7 @@ annotations_on_nested_lest_with_list_in_annotation: str = """# Tips
 
 def test_annotations_on_nested_lest_with_list_in_annotation() -> None:
     sh = "h1 ul1 ul1 e ul1"
-    assert_parses_to_shorthand(annotations_on_nested_lest_with_list_in_annotation, sh)
+    check_md_against_sh(annotations_on_nested_lest_with_list_in_annotation, sh)
 
 
 annotations_on_nested_ordered_list_with_list_in_annotation: str = """# Tips
@@ -556,7 +556,7 @@ annotations_on_nested_ordered_list_with_list_in_annotation: str = """# Tips
 
 def test_annotations_on_nested_ordered_list_with_list_in_annotation() -> None:
     sh = "h1 ol1 ol1 e ol1"
-    assert_parses_to_shorthand(annotations_on_nested_ordered_list_with_list_in_annotation, sh)
+    check_md_against_sh(annotations_on_nested_ordered_list_with_list_in_annotation, sh)
 
 
 sibling_lists_of_diff_types_sep_by_prose: str = """# Choices
@@ -574,7 +574,7 @@ avoid these:
 
 def test_sibling_lists_of_diff_types_sep_by_prose() -> None:
     sh = "h1 p ul1 ul1 p ol1 ol1"
-    assert_parses_to_shorthand(sibling_lists_of_diff_types_sep_by_prose, sh)
+    check_md_against_sh(sibling_lists_of_diff_types_sep_by_prose, sh)
 
 
 # ---------------------------------------------------------------------------
@@ -591,7 +591,7 @@ def test_text_in_heading_and_paragraph() -> None:
             Section(level=1, text="The Title", children=[Paragraph(text="some intro text")]),
         ],
     )
-    assert_trees_structurally_equal(parse_from_string(text_in_heading_and_paragraph), expected)
+    check_obj_against_obj(parse_from_string(text_in_heading_and_paragraph), expected)
 
 
 text_in_list_items: str = """# h
@@ -614,7 +614,7 @@ def test_text_in_list_items() -> None:
             )
         ],
     )
-    assert_trees_structurally_equal(parse_from_string(text_in_list_items), expected)
+    check_obj_against_obj(parse_from_string(text_in_list_items), expected)
 
 
 text_in_code_block_preserves_info_and_body: str = """# h
@@ -955,7 +955,7 @@ c"""
 
 
 def test_multiple_sibling_h1s() -> None:
-    assert_parses_to_shorthand(multiple_sibling_h1s, "h1 p h1 p h1 p")
+    check_md_against_sh(multiple_sibling_h1s, "h1 p h1 p h1 p")
     doc = parse_from_string(multiple_sibling_h1s)
     assert len(doc.children) == 3
     assert all(isinstance(c, Section) and c.level == 1 for c in doc.children)
@@ -975,7 +975,7 @@ back to top"""
 
 
 def test_pop_multiple_levels_at_once() -> None:
-    assert_parses_to_shorthand(pop_multiple_levels_at_once, "h1 p h2 p h3 p h1 p")
+    check_md_against_sh(pop_multiple_levels_at_once, "h1 p h2 p h3 p h1 p")
     doc = parse_from_string(pop_multiple_levels_at_once)
     # Two sibling h1s at the root
     assert len(doc.children) == 2
@@ -995,7 +995,7 @@ body finally"""
 
 
 def test_empty_sections_chain() -> None:
-    assert_parses_to_shorthand(empty_sections_chain, "h1 h2 h3 p")
+    check_md_against_sh(empty_sections_chain, "h1 h2 h3 p")
 
 
 successive_headings_no_body: str = """# a
@@ -1004,7 +1004,7 @@ successive_headings_no_body: str = """# a
 
 
 def test_successive_headings_no_body() -> None:
-    assert_parses_to_shorthand(successive_headings_no_body, "h1 h1 h1")
+    check_md_against_sh(successive_headings_no_body, "h1 h1 h1")
     doc = parse_from_string(successive_headings_no_body)
     assert len(doc.children) == 3
     for section in doc.children:
@@ -1022,7 +1022,7 @@ heading_less_list_only: str = """- one
 
 
 def test_heading_less_list_only() -> None:
-    assert_parses_to_shorthand(heading_less_list_only, "ul1 ul1 ul1")
+    check_md_against_sh(heading_less_list_only, "ul1 ul1 ul1")
     doc = parse_from_string(heading_less_list_only)
     assert len(doc.children) == 1
     lst = doc.children[0]
