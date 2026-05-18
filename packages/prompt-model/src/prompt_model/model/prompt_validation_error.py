@@ -14,6 +14,14 @@ class PromptErrorType(StrEnum):
     FirstHeadingNotH1 = "First Heading Not H1"
     EmptyHeading = "Empty Heading"
     HeadingInListItem = "Heading In List Item"
+    EmptyListItem = "Empty List Item"
+    MixedListTypeSiblings = "Mixed List Type Siblings"
+    EmptyAnnotation = "Empty Annotation"
+    OrphanAnnotation = "Orphan Annotation"
+    IllegalAnnotationHost = "Illegal Annotation Host"
+    HeadingInAnnotation = "Heading In Annotation"
+    NestedAnnotation = "Nested Annotation"
+    DuplicateAnnotationKind = "Duplicate Annotation Kind"
 
 
 @total_ordering

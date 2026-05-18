@@ -3,16 +3,33 @@ from __future__ import annotations
 from pathlib import Path
 
 from markdown_it import MarkdownIt
+from mdit_py_plugins.container import container_plugin
 
 from ..._protocols.prompt_validator import MarkdownTokenList, PromptValidator
 from ...model.prompt_validation_error import PromptError
+from ._rules.annotation_host_is_valid import AnnotationHostIsValid
 from ._rules.first_heading_is_h1 import FirstHeadingIsH1
 from ._rules.markdown_not_empty import MarkdownNotEmpty
+from ._rules.no_duplicate_annotation_kind import NoDuplicateAnnotationKind
+from ._rules.no_empty_annotation import NoEmptyAnnotation
 from ._rules.no_empty_heading import NoEmptyHeading
+from ._rules.no_empty_list_item import NoEmptyListItem
+from ._rules.no_heading_in_annotation import NoHeadingInAnnotation
 from ._rules.no_heading_in_list_item import NoHeadingInListItem
 from ._rules.no_heading_level_skip import NoHeadingLevelSkip
+from ._rules.no_mixed_list_type_siblings import NoMixedListTypeSiblings
+from ._rules.no_nested_annotation import NoNestedAnnotation
+from ._rules.no_orphan_annotation import NoOrphanAnnotation
 
-_PARSER = MarkdownIt("commonmark").enable("table")
+
+def _build_parser() -> MarkdownIt:
+    parser = MarkdownIt("commonmark").enable("table")
+    for name in ("example", "examples", "guidance"):
+        parser = parser.use(container_plugin, name)
+    return parser
+
+
+_PARSER = _build_parser()
 
 
 def _load_validators() -> list[PromptValidator]:
@@ -22,6 +39,14 @@ def _load_validators() -> list[PromptValidator]:
         NoHeadingLevelSkip(),
         NoEmptyHeading(),
         NoHeadingInListItem(),
+        NoEmptyListItem(),
+        NoMixedListTypeSiblings(),
+        NoEmptyAnnotation(),
+        NoOrphanAnnotation(),
+        AnnotationHostIsValid(),
+        NoHeadingInAnnotation(),
+        NoNestedAnnotation(),
+        NoDuplicateAnnotationKind(),
     ]
 
 
