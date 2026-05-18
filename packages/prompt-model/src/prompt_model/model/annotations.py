@@ -1,25 +1,27 @@
 from __future__ import annotations
 
-from enum import StrEnum
 from typing import Literal
 
-from pydantic import BaseModel
-
 from .._utils.pydantic_aliases import StrippedNonBlankStr
+from ._base import NodeType, PromptNode
 
 
-class AnnotationType(StrEnum):
-    Example = "ExampleAnnotation"
-    Guidance = "GuidanceAnnotation"
+def _fence(label: str, text: str) -> str:
+    body = text.rstrip("\n")
+    return f"::: {label}\n{body}\n:::"
 
 
-class ExampleAnnotation(BaseModel):
-    kind: Literal[AnnotationType.Example] = AnnotationType.Example
-    id: str | None = None
+class ExampleAnnotation(PromptNode):
+    node_type: Literal[NodeType.ExampleAnnotation] = NodeType.ExampleAnnotation
     text: StrippedNonBlankStr
 
+    def to_markdown(self) -> str:
+        return _fence("examples", self.text)
 
-class GuidanceAnnotation(BaseModel):
-    kind: Literal[AnnotationType.Guidance] = AnnotationType.Guidance
-    id: str | None = None
+
+class GuidanceAnnotation(PromptNode):
+    node_type: Literal[NodeType.GuidanceAnnotation] = NodeType.GuidanceAnnotation
     text: StrippedNonBlankStr
+
+    def to_markdown(self) -> str:
+        return _fence("guidance", self.text)

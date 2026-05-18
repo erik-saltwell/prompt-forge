@@ -24,7 +24,7 @@ _PARSER = _build_parser()
 def parse_from_string(markdown_text: str) -> Document:
     tokens = _PARSER.parse(markdown_text)
     root = SyntaxTreeNode(tokens)
-    doc = build_document(root)
+    doc = build_document(root, markdown_text)
     assign_ids(doc)
     return doc
 

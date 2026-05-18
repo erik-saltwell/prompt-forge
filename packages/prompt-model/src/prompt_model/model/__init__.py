@@ -1,4 +1,5 @@
-from .annotations import AnnotationType, ExampleAnnotation, GuidanceAnnotation
+from ._base import NodeType, PromptNode
+from .annotations import ExampleAnnotation, GuidanceAnnotation
 from .nodes import (
     BlockChild,
     Blockquote,
@@ -7,7 +8,6 @@ from .nodes import (
     List,
     ListItem,
     Node,
-    NodeType,
     Paragraph,
     Section,
     SectionChild,
@@ -16,7 +16,6 @@ from .nodes import (
 from .prompt_validation_error import PromptError, PromptErrorType
 
 __all__ = [
-    "AnnotationType",
     "BlockChild",
     "Blockquote",
     "CodeBlock",
@@ -30,6 +29,7 @@ __all__ = [
     "Paragraph",
     "PromptError",
     "PromptErrorType",
+    "PromptNode",
     "Section",
     "SectionChild",
     "Table",

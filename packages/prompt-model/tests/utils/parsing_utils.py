@@ -10,6 +10,7 @@ from prompt_model.model import (
     ListItem,
     Paragraph,
     Section,
+    SectionChild,
     Table,
 )
 from prompt_model.service.parsing.parse_prompt import parse_from_string
@@ -83,6 +84,96 @@ def assert_tree_matches_shorthand(tree: Document, expected: str) -> None:
 
 def assert_trees_structurally_equal(a: Document, b: Document) -> None:
     assert structural_equal(a, b), "trees are not structurally equal"
+
+
+def doc_from_shorthand(shorthand: str) -> Document:
+    """Build a Document from a shorthand token stream.
+
+    Token texts are deterministic functions of token position so that two
+    calls with the same shorthand produce structurally-equal trees.
+
+    Grammar (mirrors tree_to_shorthand):
+        h1..h6   Section at that heading level
+        p        Paragraph
+        cb       CodeBlock
+        bq       Blockquote
+        t        Table
+        ul<N>    bullet list item at depth N (lists are inferred from runs)
+        ol<N>    ordered list item at depth N
+        e        ExampleAnnotation on the most recent Paragraph/ListItem
+        g        GuidanceAnnotation on the most recent Paragraph/ListItem
+    """
+    doc = Document()
+    section_stack: list[Section] = []
+    list_stack: list[List] = []
+    last_host: Paragraph | ListItem | None = None
+
+    def container_children() -> list[SectionChild]:
+        return section_stack[-1].children if section_stack else doc.children
+
+    for idx, tok in enumerate(shorthand.split()):
+        if len(tok) == 2 and tok[0] == "h" and tok[1].isdigit():
+            level = int(tok[1])
+            list_stack.clear()
+            while section_stack and section_stack[-1].level >= level:
+                section_stack.pop()
+            section = Section(level=level, text=f"section-{idx}")
+            container_children().append(section)
+            section_stack.append(section)
+            last_host = None
+        elif tok == "p":
+            list_stack.clear()
+            para = Paragraph(text=f"paragraph-{idx}")
+            container_children().append(para)
+            last_host = para
+        elif tok == "cb":
+            list_stack.clear()
+            container_children().append(CodeBlock(text=f"code-{idx}\n", info=""))
+            last_host = None
+        elif tok == "bq":
+            list_stack.clear()
+            container_children().append(Blockquote(text=f"blockquote-{idx}"))
+            last_host = None
+        elif tok == "t":
+            list_stack.clear()
+            container_children().append(Table(text=f"table-{idx}"))
+            last_host = None
+        elif (tok.startswith("ul") or tok.startswith("ol")) and tok[2:].isdigit():
+            ordered = tok.startswith("ol")
+            depth = int(tok[2:])
+            if depth < 1:
+                raise ValueError(f"shorthand token {tok!r} at index {idx}: depth must be >= 1")
+            while len(list_stack) > depth:
+                list_stack.pop()
+            if len(list_stack) == depth and list_stack[-1].ordered != ordered:
+                list_stack.pop()
+            if len(list_stack) < depth:
+                if len(list_stack) != depth - 1:
+                    raise ValueError(f"shorthand token {tok!r} at index {idx}: skipped a list-depth level")
+                new_list = List(ordered=ordered, children=[])
+                if depth == 1:
+                    container_children().append(new_list)
+                else:
+                    parent_list = list_stack[-1]
+                    if not parent_list.children:
+                        raise ValueError(f"shorthand token {tok!r} at index {idx}: nested list has no parent item")
+                    parent_list.children[-1].children.append(new_list)
+                list_stack.append(new_list)
+            item = ListItem(text=f"item-{idx}", children=[])
+            list_stack[-1].children.append(item)
+            last_host = item
+        elif tok == "e":
+            if last_host is None:
+                raise ValueError(f"shorthand token 'e' at index {idx}: no host")
+            last_host.example = ExampleAnnotation(text=f"example-{idx}")
+        elif tok == "g":
+            if last_host is None:
+                raise ValueError(f"shorthand token 'g' at index {idx}: no host")
+            last_host.guidance = GuidanceAnnotation(text=f"guidance-{idx}")
+        else:
+            raise ValueError(f"unknown shorthand token {tok!r} at index {idx}")
+
+    return doc
 
 
 # --- internal helpers ---

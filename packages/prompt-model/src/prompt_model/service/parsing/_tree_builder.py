@@ -20,7 +20,8 @@ from ...model import (
 _ANNOTATION_TYPES: Final[frozenset[str]] = frozenset({"container_example", "container_examples", "container_guidance"})
 
 
-def build_document(root: SyntaxTreeNode) -> Document:
+def build_document(root: SyntaxTreeNode, source: str) -> Document:
+    source_lines = source.split("\n")
     doc = Document()
     section_stack: list[Section] = []
     current_host: Paragraph | ListItem | None = None
@@ -40,21 +41,21 @@ def build_document(root: SyntaxTreeNode) -> Document:
         elif _is_annotation(tn):
             _attach_annotation(current_host, tn)
         else:
-            block = _build_block(tn)
+            block = _build_block(tn, source_lines)
             container().children.append(block)
             current_host = block if isinstance(block, Paragraph) else None
 
     return doc
 
 
-def _build_block(tn: SyntaxTreeNode) -> Paragraph | List | CodeBlock | Blockquote | Table:
+def _build_block(tn: SyntaxTreeNode, source_lines: list[str]) -> Paragraph | List | CodeBlock | Blockquote | Table:
     if tn.type == "paragraph":
         return Paragraph(text=_inline_text(tn))
     if tn.type in ("bullet_list", "ordered_list"):
         ordered = tn.type == "ordered_list"
         return List(
             ordered=ordered,
-            children=[_build_list_item(child) for child in tn.children],
+            children=[_build_list_item(child, source_lines) for child in tn.children],
         )
     if tn.type == "fence":
         return CodeBlock(text=tn.content, info=tn.info or "")
@@ -63,11 +64,16 @@ def _build_block(tn: SyntaxTreeNode) -> Paragraph | List | CodeBlock | Blockquot
     if tn.type == "blockquote":
         return Blockquote(text=_flatten_text(tn))
     if tn.type == "table":
-        return Table(text=_flatten_text(tn))
+        # Preserve the original markdown source slice so the table roundtrips
+        # through to_markdown(). markdown-it's `.map` is `[start, end)` in lines.
+        if tn.map is None:
+            raise ValueError("table token is missing source map")
+        start, end = tn.map
+        return Table(text="\n".join(source_lines[start:end]))
     raise ValueError(f"unsupported block token type: {tn.type}")
 
 
-def _build_list_item(tn: SyntaxTreeNode) -> ListItem:
+def _build_list_item(tn: SyntaxTreeNode, source_lines: list[str]) -> ListItem:
     children = list(tn.children)
     text = ""
     rest_start = 0
@@ -82,7 +88,7 @@ def _build_list_item(tn: SyntaxTreeNode) -> ListItem:
         if _is_annotation(ctn):
             _attach_annotation(current_host, ctn)
             continue
-        block = _build_block(ctn)
+        block = _build_block(ctn, source_lines)
         item.children.append(block)
         current_host = block if isinstance(block, Paragraph) else None
 
