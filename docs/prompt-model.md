@@ -91,7 +91,7 @@ Reconstructs markdown from the tree:
 ## Behaviors & Rules
 
 - `blank_line` and `thematic_break` tokens are ignored during parsing — they act as separators with no node representation.
-- Inline elements (bold, italic, links, code spans) are collapsed to plain text within any block node. No inline structure is preserved in the model.
+- Inline elements (bold, italic, links, code spans) are **not separate nodes** in the model — they are part of the host block's text. Their raw source markup is preserved verbatim. Optimization actions operate on the block's text as a single string; they cannot target an inline span directly. Inline markup the author wrote (e.g. `**must follow**`) is preserved through parse/generate round-trips so semantic emphasis to the target LLM survives optimization.
 - Annotations attach **only** to `Paragraph` and `ListItem`. `Document`, `List`, `Section`, `CodeBlock`, `Blockquote`, and `Table` cannot host annotations. An annotation container whose immediately preceding non-annotation sibling is not a Paragraph or ListItem is a validation error.
 - Headings cannot appear inside list items. A heading token encountered while building a list subtree is a validation error.
 - Headings cannot appear inside annotation containers. An annotation's body is restricted to flow content (paragraphs, lists, code blocks, blockquotes, tables).
