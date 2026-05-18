@@ -11,8 +11,8 @@ import re
 
 import pytest
 
-from .utils._short_hand import doc_from_shorthand, shorthand_to_markdown, tree_to_shorthand
-from .utils._tree_comparison import structural_equal
+from ..utils._short_hand import doc_from_shorthand, shorthand_to_markdown, tree_to_shorthand
+from ..utils._tree_comparison import structural_equal
 
 # ---------------------------------------------------------------------------
 # Basic shape

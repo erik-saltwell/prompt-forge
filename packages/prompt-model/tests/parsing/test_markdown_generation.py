@@ -15,8 +15,8 @@ from prompt_model.model import (
 )
 from prompt_model.service.parsing import parse_from_string
 
-from .utils import roundtrip as rt
-from .utils.parsing import (
+from ..utils import roundtrip as rt
+from ..utils.parsing import (
     check_md_against_md,
     check_md_against_sh,
     check_obj_against_md,
