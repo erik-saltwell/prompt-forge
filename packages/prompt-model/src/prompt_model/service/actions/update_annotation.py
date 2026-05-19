@@ -4,7 +4,7 @@ import re
 from collections.abc import Iterator
 from typing import ClassVar, Literal
 
-from ..._protocols.action import Action, SkipReason
+from ..._protocols.action import Action, ApplyContext, SkipReason
 from ...model import Annotation, Document, ListItem, Paragraph, PromptNode
 from .registry import register
 
@@ -52,7 +52,7 @@ class _UpdateAnnotationBase:
             return SkipReason.AnnotationNotFound
         return None
 
-    def apply(self, tree: Document) -> Action:
+    def apply(self, tree: Document, ctx: ApplyContext | None = None) -> Action:
         ann = _find_annotation(tree, self.annotation_id, self.kind)
         assert ann is not None, "apply() called without a successful validate()"
         old_text = ann.text

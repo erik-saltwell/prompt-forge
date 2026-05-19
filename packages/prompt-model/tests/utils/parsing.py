@@ -24,12 +24,12 @@ def check_obj_against_obj(a: Document, b: Document) -> None:
     assert structural_equal(a, b), "trees are not structurally equal"
 
 
-def check_obj_against_md(node: PromptNode, expected: str) -> None:
+def check_obj_against_md(node: PromptNode, expect: str) -> None:
     """Assert that node.to_markdown() exactly equals `expected`."""
     actual = node.to_markdown()
-    assert actual == expected, f"to_markdown mismatch:\n--- expected ---\n{expected}\n--- actual ---\n{actual}"
+    assert actual == expect, f"to_markdown mismatch:\n--- expected ---\n{expect}\n--- actual ---\n{actual}"
 
 
-def check_md_against_md(markdown: str, expected: str) -> None:
+def check_md_against_md(markdown: str, expect: str) -> None:
     """Parse `markdown`, render the resulting Document, compare to `expected`."""
-    check_obj_against_md(parse_from_string(markdown), expected)
+    check_obj_against_md(parse_from_string(markdown), expect)

@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Iterator
 from typing import ClassVar, Literal
 
-from ..._protocols.action import Action, SkipReason
+from ..._protocols.action import Action, ApplyContext, SkipReason
 from ...model import (
     Annotation,
     Document,
@@ -15,6 +15,7 @@ from ...model import (
 )
 from .anchor import LocationAnchor, parse_anchor
 from .registry import register
+from .remove_annotation import RemoveExampleAction, RemoveGuidanceAction
 from .update_annotation import _BLOCK_MARKER_RE, _walk_annotatable
 
 _AnnotationKind = Literal["example", "guidance"]
@@ -26,65 +27,6 @@ def _walk_all(node: PromptNode) -> Iterator[PromptNode]:
         yield from _walk_all(child)
 
 
-class _UndoAddAnnotation:
-    """Removes a specific Annotation by reference; tears the group down if it becomes empty."""
-
-    def __init__(
-        self,
-        host: Paragraph | ListItem,
-        kind: _AnnotationKind,
-        annotation: Annotation,
-    ) -> None:
-        self._host = host
-        self._kind = kind
-        self._annotation = annotation
-
-    def _attr(self) -> str:
-        return "examples" if self._kind == "example" else "guidance"
-
-    def validate(self, tree: Document) -> SkipReason | None:
-        group = getattr(self._host, self._attr())
-        if group is None or self._annotation not in group.children:
-            return SkipReason.AnnotationNotFound
-        return None
-
-    def apply(self, tree: Document) -> Action:
-        attr = self._attr()
-        group = getattr(self._host, attr)
-        assert group is not None and self._annotation in group.children
-        group.children.remove(self._annotation)
-        if not group.children:
-            setattr(self._host, attr, None)
-        return _RedoAddAnnotation(self._host, self._kind, self._annotation)
-
-
-class _RedoAddAnnotation:
-    """Re-attaches the captured annotation; inverse of `_UndoAddAnnotation`."""
-
-    def __init__(
-        self,
-        host: Paragraph | ListItem,
-        kind: _AnnotationKind,
-        annotation: Annotation,
-    ) -> None:
-        self._host = host
-        self._kind = kind
-        self._annotation = annotation
-
-    def validate(self, tree: Document) -> SkipReason | None:
-        return None
-
-    def apply(self, tree: Document) -> Action:
-        attr = "examples" if self._kind == "example" else "guidance"
-        group = getattr(self._host, attr)
-        if group is None:
-            group_cls = ExamplesGroup if self._kind == "example" else GuidanceGroup
-            setattr(self._host, attr, group_cls(children=[self._annotation]))
-        else:
-            group.children.append(self._annotation)
-        return _UndoAddAnnotation(self._host, self._kind, self._annotation)
-
-
 class _AddAnnotationBase:
     kind: ClassVar[_AnnotationKind]
 
@@ -92,6 +34,22 @@ class _AddAnnotationBase:
         self.host_id = host_id
         self.text = text
         self.anchor = anchor
+        # Set only when this Add is constructed as the inverse of a Remove
+        # (via `_for_undo`). Carries the original Annotation object so undo
+        # restores the snapshot id, which keeps prev-sibling anchors stable
+        # across multi-action batches under LIFO undo.
+        self._captured: Annotation | None = None
+
+    @classmethod
+    def _for_undo(
+        cls,
+        host_id: str,
+        annotation: Annotation,
+        anchor: LocationAnchor | None,
+    ) -> _AddAnnotationBase:
+        action = cls(host_id, annotation.text, anchor)
+        action._captured = annotation
+        return action
 
     def _attr(self) -> str:
         return "examples" if self.kind == "example" else "guidance"
@@ -142,10 +100,18 @@ class _AddAnnotationBase:
             return SkipReason.TargetNotFound
         return self._validate_anchor(host)
 
-    def apply(self, tree: Document) -> Action:
+    def apply(self, tree: Document, ctx: ApplyContext | None = None) -> Action:
+        if ctx is None:
+            ctx = ApplyContext.from_tree(tree)
         host = self._find_host(tree)
         assert host is not None, "apply() called without a successful validate()"
-        annotation = Annotation(text=self.text)
+        if self._captured is not None:
+            # Undo path: re-insert the original Annotation with its snapshot id
+            # (which the ctx already had claimed, so no collision risk).
+            annotation = self._captured
+        else:
+            annotation = Annotation(text=self.text)
+            annotation.id = ctx.mint_annotation_id(host.id or self.host_id, self.kind)
         attr = self._attr()
         group = getattr(host, attr)
         if group is None:
@@ -153,7 +119,9 @@ class _AddAnnotationBase:
             setattr(host, attr, group_cls(children=[annotation]))
         else:
             group.children.insert(self._resolve_index(group), annotation)
-        return _UndoAddAnnotation(host, self.kind, annotation)
+        inverse_cls = RemoveExampleAction if self.kind == "example" else RemoveGuidanceAction
+        assert annotation.id is not None
+        return inverse_cls(annotation.id)
 
     def _resolve_index(self, group: ExamplesGroup | GuidanceGroup) -> int:
         if self.anchor is None or self.anchor.kind == "last_child":

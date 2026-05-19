@@ -11,7 +11,7 @@ from prompt_model.service.actions.anchor import LocationAnchor
 from prompt_model.service.parsing.parse_prompt import parse_from_string
 
 from ..utils._short_hand import doc_from_shorthand
-from ..utils.actions import Action, check_against_md, check_can_apply, check_undo
+from ..utils.actions import Action, check_against_md, check_can_apply, check_undo, check_undo_from_sh
 
 
 def test_simple_add_example() -> None:
@@ -701,3 +701,18 @@ def test_add_does_not_create_group_on_wrong_host() -> None:
     input_md = "# Title\n\nFirst paragraph.\n\nSecond paragraph.\n\n::: examples\nkeep\n:::\n"
     expected = "# Title\n\nFirst paragraph.\n\n::: guidance\nnew g\n:::\n\nSecond paragraph.\n\n::: examples\nkeep\n:::\n"
     check_against_md(input_md, AddGuidanceAction("1.1", "new g"), expected)
+
+
+def test_add_undo() -> None:
+    sh = "h1 p"
+    actions: list[Action] = [
+        AddExampleAction("1.1", "aaa", LocationAnchor(kind="first_child", target="1.1")),
+        AddExampleAction("1.1", "bbb", LocationAnchor(kind="after", target="1.1.e1")),
+        AddExampleAction("1.1", "ccc", LocationAnchor(kind="before", target="1.1.e1")),
+        AddExampleAction("1.1", "ddd", LocationAnchor(kind="after", target="1.1.e1")),
+        AddExampleAction("1.1", "eee", LocationAnchor(kind="before", target="1.1.e3")),
+        AddExampleAction("1.1", "fff", LocationAnchor(kind="after", target="1.1.e2")),
+        AddExampleAction("1.1", "ggg", LocationAnchor(kind="first_child", target="1.1")),
+        AddExampleAction("1.1", "hhh", LocationAnchor(kind="last_child", target="1.1")),
+    ]
+    check_undo_from_sh(shorthand=sh, actions=actions)
