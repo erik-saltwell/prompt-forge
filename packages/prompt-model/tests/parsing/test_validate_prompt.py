@@ -516,3 +516,36 @@ some prose
 def test_no_nested_list_in_annotation() -> None:
     check_error_from_md(annotation_with_nested_bullet_list, 5, PromptErrorType.NestedListInAnnotation)
     check_error_from_md(annotation_with_nested_ordered_list, 5, PromptErrorType.NestedListInAnnotation)
+
+
+# --- Annotation fence trapped inside a paragraph --------------------------
+# Catches the failure mode where an author writes what looks like an
+# annotation open (`::: examples`, `::: example`, `::: guidance`) but the
+# line is swallowed into the surrounding paragraph because it is indented
+# four or more spaces — markdown-it-container then never sees a container.
+
+fence_indented_four_spaces: str = """# foo
+some prose text
+    ::: examples
+example here
+:::"""
+# Expected: AnnotationFenceInParagraph at line 3.
+
+fence_indented_inside_paragraph_block: str = """# foo
+prose line one
+prose line two
+    ::: guidance
+keep it brief
+:::"""
+# Expected: AnnotationFenceInParagraph at line 4.
+
+fence_at_end_of_paragraph: str = """# foo
+prose text
+    ::: examples"""
+# Expected: AnnotationFenceInParagraph at line 3.
+
+
+def test_no_annotation_fence_in_paragraph() -> None:
+    check_error_from_md(fence_indented_four_spaces, 3, PromptErrorType.AnnotationFenceInParagraph)
+    check_error_from_md(fence_indented_inside_paragraph_block, 4, PromptErrorType.AnnotationFenceInParagraph)
+    check_error_from_md(fence_at_end_of_paragraph, 3, PromptErrorType.AnnotationFenceInParagraph)

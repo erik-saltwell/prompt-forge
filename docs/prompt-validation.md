@@ -47,6 +47,7 @@
   - A single flat unordered list (one `Annotation` per item on parse).
   Any other body shape — mixed paragraph + list, code block, blockquote, table, ordered list — is rejected. The error message identifies which disallowed block kind was seen.
 - **No nested list inside an annotation UL** (rule: `NoNestedListInAnnotation`). When an annotation directive uses the list form, each list item's content must be a single paragraph (possibly multi-line). Nested lists inside an item are rejected.
+- **No annotation fence inside a paragraph** (rule: `NoAnnotationFenceInParagraph`). A line of the form `::: examples` / `::: example` / `::: guidance` that ends up inside a paragraph's inline content (because it is indented four or more spaces, and so is treated as a lazy continuation rather than a container open) is rejected. This is the one author-intent check the validator makes: the line *looks* like a container open but silently parses as prose, so the resulting tree contradicts what the author plainly wrote. Inserting a blank line before the fence and removing leading indentation is the fix.
 - **No `:::` text outside containers is validated.** A line like `::: foo` where `foo` is not a recognized kind parses as a regular paragraph; it is not subject to annotation rules.
 
 ### Document-level rules

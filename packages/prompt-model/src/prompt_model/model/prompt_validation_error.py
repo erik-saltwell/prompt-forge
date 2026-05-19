@@ -24,6 +24,7 @@ class PromptErrorType(StrEnum):
     DuplicateAnnotationKind = "Duplicate Annotation Kind"
     IllegalAnnotationContent = "Illegal Annotation Content"
     NestedListInAnnotation = "Nested List In Annotation"
+    AnnotationFenceInParagraph = "Annotation Fence In Paragraph"
 
 
 @total_ordering

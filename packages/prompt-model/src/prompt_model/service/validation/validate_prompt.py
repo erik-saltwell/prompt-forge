@@ -11,6 +11,7 @@ from ._rules.annotation_content_is_paragraphs_or_ul import AnnotationContentIsPa
 from ._rules.annotation_host_is_valid import AnnotationHostIsValid
 from ._rules.first_heading_is_h1 import FirstHeadingIsH1
 from ._rules.markdown_not_empty import MarkdownNotEmpty
+from ._rules.no_annotation_fence_in_paragraph import NoAnnotationFenceInParagraph
 from ._rules.no_duplicate_annotation_kind import NoDuplicateAnnotationKind
 from ._rules.no_empty_annotation import NoEmptyAnnotation
 from ._rules.no_empty_heading import NoEmptyHeading
@@ -45,6 +46,7 @@ def _load_validators() -> list[PromptValidator]:
         NoMixedListTypeSiblings(),
         NoEmptyAnnotation(),
         NoOrphanAnnotation(),
+        NoAnnotationFenceInParagraph(),
         AnnotationHostIsValid(),
         NoHeadingInAnnotation(),
         NoNestedAnnotation(),
