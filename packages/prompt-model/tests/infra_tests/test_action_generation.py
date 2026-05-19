@@ -30,7 +30,7 @@ def test_one_random_action() -> None:
 #     _LOG_DIR.mkdir(parents=True, exist_ok=True)
 #     with _LOG_FILE.open("w", buffering=1) as log:
 #         for _ in range(10000):
-#             seed = random.SystemRandom().randrange(2**32)
+#             seed = random.SystemRandom().randrange(2**30 + 7)
 #             rng = random.Random(seed)
 #             try:
 #                 shorthand = sh.generate_random_shorthand(50, 6, rng)

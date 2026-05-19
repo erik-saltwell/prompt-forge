@@ -594,14 +594,14 @@ def test_interleaved_add_remove_groups_undo_restores_tree() -> None:
 
 def test_apply_add_example_with_after_anchor_on_list_item_host() -> None:
     input_md = "# Title\n\n- item one\n\n  ::: examples\n  - on item 1\n  - on item 2\n  :::\n"
-    expected = "# Title\n\n- item one\n\n  ::: examples\n  - on item 1\n  - new\n  - on item 2\n  :::\n"
+    expected = "# Title\n\n- item one\n  ::: examples\n  - on item 1\n  - new\n  - on item 2\n  :::\n"
     anchor = LocationAnchor(kind="after", target="1.1.1.e1")
     check_against_md(input_md, AddExampleAction("1.1.1", "new", anchor=anchor), expected)
 
 
 def test_apply_add_guidance_with_first_child_anchor_on_list_item_host() -> None:
     input_md = "# Title\n\n- item one\n\n  ::: guidance\n  - g1\n  - g2\n  :::\n"
-    expected = "# Title\n\n- item one\n\n  ::: guidance\n  - new\n  - g1\n  - g2\n  :::\n"
+    expected = "# Title\n\n- item one\n  ::: guidance\n  - new\n  - g1\n  - g2\n  :::\n"
     anchor = LocationAnchor(kind="first_child", target="1.1.1")
     check_against_md(input_md, AddGuidanceAction("1.1.1", "new", anchor=anchor), expected)
 

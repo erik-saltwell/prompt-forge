@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from collections.abc import Iterator
 from typing import ClassVar, Literal
 
 from ..._protocols.action import Action, ApplyContext, SkipReason
@@ -11,20 +10,14 @@ from ...model import (
     GuidanceGroup,
     ListItem,
     Paragraph,
-    PromptNode,
 )
+from ._walk import walk_all, walk_annotatable
 from .anchor import LocationAnchor, parse_anchor
 from .registry import register
 from .remove_annotation import RemoveExampleAction, RemoveGuidanceAction
-from .update_annotation import _BLOCK_MARKER_RE, _walk_annotatable
+from .update_annotation import _BLOCK_MARKER_RE
 
 _AnnotationKind = Literal["example", "guidance"]
-
-
-def _walk_all(node: PromptNode) -> Iterator[PromptNode]:
-    yield node
-    for child in getattr(node, "children", None) or ():
-        yield from _walk_all(child)
 
 
 class _AddAnnotationBase:
@@ -62,7 +55,7 @@ class _AddAnnotationBase:
         return None
 
     def _find_host(self, tree: Document) -> Paragraph | ListItem | None:
-        for node in _walk_annotatable(tree):
+        for node in walk_annotatable(tree):
             if node.id == self.host_id:
                 return node
         return None
@@ -94,7 +87,7 @@ class _AddAnnotationBase:
             return text_problem
         host = self._find_host(tree)
         if host is None:
-            for node in _walk_all(tree):
+            for node in walk_all(tree):
                 if getattr(node, "id", None) == self.host_id:
                     return SkipReason.HostNotAnnotatable
             return SkipReason.TargetNotFound

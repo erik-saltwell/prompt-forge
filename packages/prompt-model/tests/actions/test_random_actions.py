@@ -1,15 +1,22 @@
-from __future__ import annotations
+# from __future__ import annotations
 
-from pathlib import Path
+# import random
+# from pathlib import Path
 
-_LOG_DIR = Path(__file__).parent / "assets"
-_LOG_FILE = _LOG_DIR / "long_undo.log"
+# from prompt_model.service.actions import Action, ApplyContext, SkipReason, parse_action
+
+# from ..utils import _short_hand as sh
+# from ..utils import actions as act
+# from ..utils import random_actions as ra
+
+# _LOG_DIR = Path(__file__).parent / "assets"
+# _LOG_FILE = _LOG_DIR / "long_undo.log"
 
 
 # def test_random_long_undo_sequences() -> None:
 #     _LOG_DIR.mkdir(parents=True, exist_ok=True)
 #     with _LOG_FILE.open("w", buffering=1) as log:
-#         for _ in range(100000):
+#         for _ in range(10000):
 #             seed = random.SystemRandom().randrange(2**32)
 #             rng = random.Random(seed)
 #             try:

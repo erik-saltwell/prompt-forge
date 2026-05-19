@@ -135,9 +135,9 @@ def _render_list_item(item: ListItem, marker: str) -> str:
     # preceding content with no blank line, matching the CommonMark tight form.
     body = item.text
     if item.examples is not None:
-        body += "\n\n" + item.examples.to_markdown()
+        body += "\n" + item.examples.to_markdown()
     if item.guidance is not None:
-        body += "\n\n" + item.guidance.to_markdown()
+        body += "\n" + item.guidance.to_markdown()
     for child in item.children:
         if isinstance(child, List):
             body += "\n" + child.to_markdown()

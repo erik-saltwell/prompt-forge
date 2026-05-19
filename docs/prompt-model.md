@@ -98,7 +98,7 @@ For `ListItem`s, the same extraction applies to annotation containers appearing 
 ### 3. generate-conforming-prompt
 Reconstructs markdown from the tree:
 - `Section` → `{"#" * level} {text}`, followed by a blank line, followed by children separated by blank lines (MD022: headings are surrounded by blank lines)
-- `List` → each `ListItem` as `- ` or `1. ` prefix, text, then annotation groups indented under the item, then block children indented
+- `List` → each `ListItem` as `- ` or `1. ` prefix, text, then annotation groups indented under the item, then block children indented. On a `ListItem` host the annotation groups **hug** the item — no blank line between the item text and its first `::: examples`/`::: guidance` block, and no blank line between adjacent annotation blocks. This keeps the annotation visually attached to the item it documents rather than appearing to belong to the next item.
 - `Paragraph` → text, followed by `examples` group then `guidance` group as sibling blocks (separated by blank lines)
 - `CodeBlock` → fenced with info string
 - `Blockquote` → `> ` prefixed lines

@@ -33,7 +33,7 @@ Ten actions across two groups.
 | Action | Purpose |
 |---|---|
 | `rewrite_node` | Replace the text of a node. Text-only; does not change node type or structural properties. |
-| `delete_node` | Remove a node and its subtree. Accepts annotation IDs too — if the target is an example or guidance annotation, it is removed. |
+| `delete_node` | Remove a node and its subtree. Operates on node IDs only — annotation IDs must be removed via `remove_example` / `remove_guidance` (polymorphic dispatch is a v2 feature). |
 | `insert_node` | Add a new node at a location anchor. The action carries a full subtree, optionally including inline annotations. |
 | `move_node` | Relocate an existing node (with its entire subtree) to a new location anchor. |
 
@@ -106,7 +106,7 @@ Examples and guidance are first-class actions — distinct from generic node ope
 
 - **Skip-and-continue is the universal error policy.** The action stream is LLM-generated and inherently noisy. The executor is permissive: do an action if it has enough information; skip it otherwise; never abort the batch.
 - **Lenient parameter handling.** Extra fields are ignored. Missing optional fields take defaults. Missing required fields cause the single action to skip, not the batch.
-- **`delete_node` is polymorphic.** If the actor targets an annotation ID with `delete_node`, the executor honors it as an annotation removal.
+- **`delete_node` is node-only (v1).** Targeting an annotation ID with `delete_node` skips. Annotations must be removed via `remove_example` / `remove_guidance`. Polymorphic dispatch is deferred to v2.
 - **`insert_node` carries full subtrees.** Containers (Section, List, ListItem) must be inserted with their contents — empty containers do not improve a prompt and are not a supported insertion target. Subtrees may include inline `examples` and `guidance` groups on Paragraph and ListItem nodes; each group's `children` is the list of `Annotation` nodes.
 - **`move_node` moves the whole subtree.** Children come along; the action's location anchor describes where the subtree root lands.
 - **`rewrite_node` does not change node type or structural flags.** Changing `List.ordered`, `CodeBlock.info`, or section heading level is out of scope; express such intent via `delete_node` + `insert_node`.

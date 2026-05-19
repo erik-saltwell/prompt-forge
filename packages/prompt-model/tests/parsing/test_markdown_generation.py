@@ -166,7 +166,7 @@ def test_list_item_with_examples_indented() -> None:
     )
     check_obj_against_md(
         lst,
-        "- item one\n\n  ::: examples\n  ex\n  :::\n- item two",
+        "- item one\n  ::: examples\n  ex\n  :::\n- item two",
     )
 
 

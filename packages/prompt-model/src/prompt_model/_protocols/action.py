@@ -17,6 +17,8 @@ class SkipReason(StrEnum):
     DuplicateAnnotation = "duplicate_annotation"
     AnnotationNotFound = "annotation_not_found"
     InvalidContent = "invalid_content"
+    InvalidSubtree = "invalid_subtree"
+    InvalidStructure = "invalid_structure"
 
 
 class ApplyContext:
@@ -41,6 +43,21 @@ class ApplyContext:
     @classmethod
     def from_tree(cls, tree: Document) -> ApplyContext:
         return cls(_collect_ids(tree))
+
+    def mint_inserted_node_id(self) -> str:
+        """Mint a synthetic id for a node inserted mid-batch.
+
+        Node ids are normally position-derived ("2.1.3"), but a newly
+        inserted node has no natural id until assign_ids re-runs at end
+        of batch. The inverse RemoveNodeAction needs to address the new
+        node, so we stamp a synthetic id guaranteed not to collide."""
+        n = 1
+        while True:
+            candidate = f"__inserted_{n}__"
+            if candidate not in self._claimed:
+                self._claimed.add(candidate)
+                return candidate
+            n += 1
 
     def mint_annotation_id(self, host_id: str, kind: _AnnotationKind) -> str:
         prefix = "e" if kind == "example" else "g"

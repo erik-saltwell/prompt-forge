@@ -24,7 +24,7 @@ def test_update_example_replaces_paragraph_example_text() -> None:
 
 def test_update_example_replaces_listitem_example_text() -> None:
     input_md = "# Title\n\n- item one\n\n  ::: examples\n  old example\n  :::\n"
-    expected_md = "# Title\n\n- item one\n\n  ::: examples\n  fresh example\n  :::\n"
+    expected_md = "# Title\n\n- item one\n  ::: examples\n  fresh example\n  :::\n"
     action = UpdateExampleAction("1.1.1.e1", "fresh example")
     check_against_md(input_md, action, expected_md)
 
@@ -59,7 +59,7 @@ def test_update_guidance_replaces_paragraph_guidance_text() -> None:
 
 def test_update_guidance_replaces_listitem_guidance_text() -> None:
     input_md = "# Title\n\n- item one\n\n  ::: guidance\n  old guidance\n  :::\n"
-    expected_md = "# Title\n\n- item one\n\n  ::: guidance\n  fresh guidance\n  :::\n"
+    expected_md = "# Title\n\n- item one\n  ::: guidance\n  fresh guidance\n  :::\n"
     action = UpdateGuidanceAction("1.1.1.g1", "fresh guidance")
     check_against_md(input_md, action, expected_md)
 

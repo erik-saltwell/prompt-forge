@@ -4,9 +4,9 @@ from typing import ClassVar, Literal
 
 from ..._protocols.action import Action, ApplyContext, SkipReason
 from ...model import Document, ListItem, Paragraph
+from ._walk import walk_annotatable
 from .anchor import LocationAnchor
 from .registry import register
-from .update_annotation import _walk_annotatable
 
 _AnnotationKind = Literal["example", "guidance"]
 
@@ -17,7 +17,7 @@ def _attr_for(kind: _AnnotationKind) -> str:
 
 def _find_host_and_index(tree: Document, annotation_id: str, kind: _AnnotationKind) -> tuple[Paragraph | ListItem, int] | None:
     attr = _attr_for(kind)
-    for host in _walk_annotatable(tree):
+    for host in walk_annotatable(tree):
         group = getattr(host, attr)
         if group is None:
             continue
