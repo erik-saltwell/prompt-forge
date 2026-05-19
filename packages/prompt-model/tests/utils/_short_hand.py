@@ -19,6 +19,7 @@ into any product code under `src/`. Its output is markdownlint-compliant.
 
 from __future__ import annotations
 
+import random
 from dataclasses import dataclass, field
 
 from prompt_model.model import (
@@ -36,6 +37,7 @@ from prompt_model.model import (
     Table,
 )
 from prompt_model.service.parsing._id_assigner import assign_ids
+from prompt_model.service.validation import find_errors_from_string
 
 
 @dataclass
@@ -406,3 +408,105 @@ def _render_item(item: _ItemBlock, marker: str) -> str:
 
 def _indent(text: str, prefix: str) -> str:
     return "\n".join(prefix + line if line else "" for line in text.split("\n"))
+
+
+# ---------------------------------------------------------------------------
+# random shorthand generation
+# ---------------------------------------------------------------------------
+
+_ANNOTATION_PROB = 0.3
+_MAX_ANNOTATIONS_PER_GROUP = 3
+_MAX_HEADING_LEVEL = 6
+
+
+def generate_random_shorthand(
+    max_elements: int,
+    max_depth: int,
+    seed: int | None = None,
+) -> str:
+    """Generate a random shorthand string that passes both the shorthand
+    parser and the markdown validator.
+
+    `max_elements` caps the number of structural blocks (sections, paragraphs,
+    code blocks, blockquotes, tables, and list items). Annotations are
+    sprinkled on hosts independently and do not count against this budget.
+
+    `max_depth` caps both heading level (additionally clamped to 6) and list
+    nesting depth. `seed` makes generation reproducible.
+    """
+    if max_elements < 1:
+        raise ValueError("max_elements must be >= 1")
+    if max_depth < 1:
+        raise ValueError("max_depth must be >= 1")
+
+    rng = random.Random(seed)
+    max_heading_level = min(max_depth, _MAX_HEADING_LEVEL)
+    target = rng.randint(1, max_elements)
+
+    tokens: list[str] = []
+    section_stack: list[int] = []
+    list_kinds: list[str] = []
+    last_host: str | None = None
+    first_heading_emitted = False
+
+    def emit_annotations() -> None:
+        if last_host is None:
+            return
+        if rng.random() < _ANNOTATION_PROB:
+            for _ in range(rng.randint(1, _MAX_ANNOTATIONS_PER_GROUP)):
+                tokens.append("e")
+        if rng.random() < _ANNOTATION_PROB:
+            for _ in range(rng.randint(1, _MAX_ANNOTATIONS_PER_GROUP)):
+                tokens.append("g")
+
+    block_choices = ["h", "p", "cb", "bq", "t", "list"]
+
+    for _ in range(target):
+        block = rng.choice(block_choices)
+
+        if block == "h":
+            deepest = section_stack[-1] if section_stack else 0
+            if not first_heading_emitted:
+                level = 1
+            else:
+                level = rng.randint(1, min(max_heading_level, deepest + 1))
+            while section_stack and section_stack[-1] >= level:
+                section_stack.pop()
+            section_stack.append(level)
+            tokens.append(f"h{level}")
+            first_heading_emitted = True
+            list_kinds.clear()
+            last_host = None
+
+        elif block in ("p", "cb", "bq", "t"):
+            tokens.append(block)
+            list_kinds.clear()
+            if block == "p":
+                last_host = "p"
+                emit_annotations()
+            else:
+                last_host = None
+
+        else:  # list item
+            L = len(list_kinds)
+            # Legal (depth, kind) combinations:
+            #   - continue an existing run at depth d (kind must match)
+            #   - nest one level deeper at depth L+1 with any kind
+            legal: list[tuple[int, str]] = [(d, list_kinds[d - 1]) for d in range(1, L + 1)]
+            if L + 1 <= max_depth:
+                legal.append((L + 1, "u"))
+                legal.append((L + 1, "o"))
+            depth, kind = rng.choice(legal)
+            list_kinds = list_kinds[:depth]
+            if len(list_kinds) < depth:
+                list_kinds.append(kind)
+            prefix = "ul" if kind == "u" else "ol"
+            tokens.append(f"{prefix}{depth}")
+            last_host = "item"
+            emit_annotations()
+
+    shorthand = " ".join(tokens)
+    errors = find_errors_from_string(shorthand_to_markdown(shorthand))
+    if errors:
+        raise AssertionError(f"generator produced invalid shorthand {shorthand!r}: {errors}")
+    return shorthand
