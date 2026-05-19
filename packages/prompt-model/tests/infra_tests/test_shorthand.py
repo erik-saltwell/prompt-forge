@@ -18,8 +18,8 @@ def test_random_shorthand_generator_one() -> None:
 #     seed: int = 53
 #     _LOG_DIR.mkdir(parents=True, exist_ok=True)
 #     with _LOG_FILE.open("w", buffering=1) as log:
-#         for i in range(100000):
-#             shorthand: str = sh.generate_random_shorthand(max_elements=25, max_depth=6, seed=seed + 1)
+#         for idx in range(1000):
+#             shorthand: str = sh.generate_random_shorthand(max_elements=25, max_depth=6, seed=seed + idx)
 #             try:
 #                 val.check_no_errors_from_md(sh.shorthand_to_markdown(shorthand))
 #             except Exception:
