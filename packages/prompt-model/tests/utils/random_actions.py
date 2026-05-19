@@ -1,7 +1,7 @@
-"""Generate random valid action dicts against a shorthand string.
+"""Generate random valid action dicts against a parsed tree.
 
 Produces JSON-shaped action dicts (the form `parse_action` consumes) that
-will validate cleanly against the tree parsed from the input shorthand.
+will validate cleanly against the given tree at its current state.
 """
 
 from __future__ import annotations
@@ -9,9 +9,7 @@ from __future__ import annotations
 import random
 from collections.abc import Iterator
 
-from prompt_model.model import Annotation, ListItem, Paragraph, PromptNode
-
-from ._short_hand import doc_from_shorthand
+from prompt_model.model import Annotation, Document, ListItem, Paragraph, PromptNode
 
 _ACTION_KINDS = ("add", "update", "remove")
 _ANN_KINDS = ("example", "guidance")
@@ -24,14 +22,16 @@ def _walk_hosts(node: PromptNode) -> Iterator[Paragraph | ListItem]:
         yield from _walk_hosts(child)
 
 
-def generate_random_action(shorthand: str, seed: int | None = None) -> dict | None:
-    """Generate a random valid action dict for the given shorthand.
+def generate_random_action(tree: Document, rng: random.Random) -> dict | None:
+    """Generate a random valid action dict for the given tree's current state.
 
     Returns the raw JSON form (as `parse_action` consumes), or `None` when
-    the shorthand has no annotatable hosts (no paragraphs or list items).
+    the tree has no annotatable hosts (no paragraphs or list items).
+
+    Callers driving a sequence should apply each generated action to the
+    tree before calling again, so subsequent picks reflect mutations, and
+    should pass the same `rng` across calls to keep a single seed reproducible.
     """
-    rng = random.Random(seed)
-    tree = doc_from_shorthand(shorthand)
     hosts = list(_walk_hosts(tree))
     if not hosts:
         return None

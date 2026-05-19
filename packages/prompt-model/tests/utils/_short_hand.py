@@ -422,7 +422,7 @@ _MAX_HEADING_LEVEL = 6
 def generate_random_shorthand(
     max_elements: int,
     max_depth: int,
-    seed: int | None = None,
+    rng: random.Random,
 ) -> str:
     """Generate a random shorthand string that passes both the shorthand
     parser and the markdown validator.
@@ -432,14 +432,14 @@ def generate_random_shorthand(
     sprinkled on hosts independently and do not count against this budget.
 
     `max_depth` caps both heading level (additionally clamped to 6) and list
-    nesting depth. `seed` makes generation reproducible.
+    nesting depth. Callers control reproducibility by constructing `rng`
+    from a known seed.
     """
     if max_elements < 1:
         raise ValueError("max_elements must be >= 1")
     if max_depth < 1:
         raise ValueError("max_depth must be >= 1")
 
-    rng = random.Random(seed)
     max_heading_level = min(max_depth, _MAX_HEADING_LEVEL)
     target = rng.randint(1, max_elements)
 
