@@ -387,7 +387,7 @@ some prose
 
 
 def test_annotation_body_is_list() -> None:
-    check_md_against_sh(annotation_body_is_list, "h1 p g")
+    check_md_against_sh(annotation_body_is_list, "h1 p g g")
 
 
 # Two sibling paragraphs in the same section, each with its own annotation.
@@ -539,7 +539,7 @@ annotations_on_nested_lest_with_list_in_annotation: str = """# Tips
 
 
 def test_annotations_on_nested_lest_with_list_in_annotation() -> None:
-    sh = "h1 ul1 ul1 e ul1"
+    sh = "h1 ul1 ul1 e e ul1"
     check_md_against_sh(annotations_on_nested_lest_with_list_in_annotation, sh)
 
 
@@ -554,8 +554,12 @@ annotations_on_nested_ordered_list_with_list_in_annotation: str = """# Tips
 """
 
 
-def test_annotations_on_nested_ordered_list_with_list_in_annotation() -> None:
-    sh = "h1 ol1 ol1 e ol1"
+def test_ordered_list_inside_annotation_yields_no_annotations() -> None:
+    # An ordered list inside a directive is not one of the two valid body
+    # forms (paragraphs-only or single flat UL); the parser declines to
+    # extract any annotations and the validator (rule:
+    # AnnotationContentIsParagraphsOrUL) will flag the input.
+    sh = "h1 ol1 ol1 ol1"
     check_md_against_sh(annotations_on_nested_ordered_list_with_list_in_annotation, sh)
 
 
@@ -647,8 +651,9 @@ def test_text_in_annotation_body() -> None:
     assert isinstance(section, Section)
     para = section.children[0]
     assert isinstance(para, Paragraph)
-    assert para.example is not None
-    assert para.example.text == "this is the body"
+    assert para.examples is not None
+    assert len(para.examples.children) == 1
+    assert para.examples.children[0].text == "this is the body"
 
 
 # ---------------------------------------------------------------------------
@@ -750,10 +755,10 @@ def test_ids_annotations_per_kind() -> None:
     para = section.children[0]
     assert isinstance(para, Paragraph)
     assert para.id == "1.1"
-    assert para.example is not None
-    assert para.example.id == "1.1.e1"
+    assert para.examples is not None
+    assert para.examples.children[0].id == "1.1.e1"
     assert para.guidance is not None
-    assert para.guidance.id == "1.1.g1"
+    assert para.guidance.children[0].id == "1.1.g1"
 
 
 # ---------------------------------------------------------------------------
@@ -893,8 +898,9 @@ def test_annotation_body_plain_paragraph() -> None:
     assert isinstance(section, Section)
     para = section.children[0]
     assert isinstance(para, Paragraph)
-    assert para.example is not None
-    assert para.example.text == "single paragraph body"
+    assert para.examples is not None
+    assert len(para.examples.children) == 1
+    assert para.examples.children[0].text == "single paragraph body"
 
 
 annotation_body_list: str = """# h
@@ -906,17 +912,15 @@ prose
 :::"""
 
 
-def test_annotation_body_list_collapses_to_text() -> None:
+def test_annotation_body_list_yields_one_annotation_per_item() -> None:
     doc = parse_from_string(annotation_body_list)
     section = doc.children[0]
     assert isinstance(section, Section)
     para = section.children[0]
     assert isinstance(para, Paragraph)
     assert para.guidance is not None
-    body = para.guidance.text
-    assert "first" in body
-    assert "second" in body
-    assert "third" in body
+    texts = [a.text for a in para.guidance.children]
+    assert texts == ["first", "second", "third"]
 
 
 annotation_body_multi_paragraph: str = """# h
@@ -934,8 +938,9 @@ def test_annotation_body_multi_paragraph() -> None:
     assert isinstance(section, Section)
     para = section.children[0]
     assert isinstance(para, Paragraph)
-    assert para.example is not None
-    body = para.example.text
+    assert para.examples is not None
+    assert len(para.examples.children) == 1
+    body = para.examples.children[0].text
     assert "first paragraph" in body
     assert "second paragraph" in body
 

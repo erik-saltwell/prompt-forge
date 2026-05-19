@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 from prompt_model.model import (
+    Annotation,
     Blockquote,
     CodeBlock,
     Document,
-    ExampleAnnotation,
-    GuidanceAnnotation,
+    ExamplesGroup,
+    GuidanceGroup,
     List,
     ListItem,
     Paragraph,
@@ -20,15 +21,23 @@ def _children_equal(a: list, b: list) -> bool:
     return all(structural_equal(x, y) for x, y in zip(a, b, strict=True))
 
 
-def _annotations_equal(
-    a: ExampleAnnotation | GuidanceAnnotation | None,
-    b: ExampleAnnotation | GuidanceAnnotation | None,
+def _groups_equal(
+    a: ExamplesGroup | GuidanceGroup | None,
+    b: ExamplesGroup | GuidanceGroup | None,
 ) -> bool:
     if a is None and b is None:
         return True
     if a is None or b is None:
         return False
-    return type(a) is type(b) and a.text == b.text
+    if type(a) is not type(b):
+        return False
+    if len(a.children) != len(b.children):
+        return False
+    return all(_annotation_equal(x, y) for x, y in zip(a.children, b.children, strict=True))
+
+
+def _annotation_equal(a: Annotation, b: Annotation) -> bool:
+    return a.text == b.text
 
 
 def structural_equal(a: object, b: object) -> bool:
@@ -52,14 +61,14 @@ def structural_equal(a: object, b: object) -> bool:
         assert isinstance(b, ListItem)
         return (
             a.text == b.text
-            and _annotations_equal(a.example, b.example)
-            and _annotations_equal(a.guidance, b.guidance)
+            and _groups_equal(a.examples, b.examples)
+            and _groups_equal(a.guidance, b.guidance)
             and _children_equal(a.children, b.children)
         )
 
     if isinstance(a, Paragraph):
         assert isinstance(b, Paragraph)
-        return a.text == b.text and _annotations_equal(a.example, b.example) and _annotations_equal(a.guidance, b.guidance)
+        return a.text == b.text and _groups_equal(a.examples, b.examples) and _groups_equal(a.guidance, b.guidance)
 
     if isinstance(a, CodeBlock):
         assert isinstance(b, CodeBlock)

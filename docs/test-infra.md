@@ -35,14 +35,15 @@ The shorthand describes a tree as a flat sequence of tokens.
 | `t` | Table |
 | `ul<N>` | Unordered list item at nesting depth N |
 | `ol<N>` | Ordered list item at nesting depth N |
-| `e` | ExampleAnnotation on the immediately preceding `p`/`ul<N>`/`ol<N>` |
-| `g` | GuidanceAnnotation on the immediately preceding `p`/`ul<N>`/`ol<N>` |
+| `e` | Append one `Annotation` to the immediately preceding `p`/`ul<N>`/`ol<N>`'s `ExamplesGroup` (creating the group on first occurrence) |
+| `g` | Append one `Annotation` to the immediately preceding `p`/`ul<N>`/`ol<N>`'s `GuidanceGroup` (creating the group on first occurrence) |
 
 **Implicit rules:**
 - Lists are inferred. Consecutive same-depth, same-orderedness items form one list. Any non-list-item token between them starts a new list.
 - A `ul1 ol1` sequence at the same depth is two sibling lists (the parser does not merge them).
 - Section nesting follows heading levels: a heading at level N closes any open sections at level ≥ N.
-- Annotation tokens preserve order — `p e g e` means example1, guidance1, example2.
+- Annotation tokens append, they don't overwrite. `p e e e` means one paragraph with an `ExamplesGroup` of three annotations. `p e e g g` means an `ExamplesGroup` of two and a `GuidanceGroup` of two.
+- `e` and `g` may interleave freely — each appends to its kind's group on the current host. `p e g e` means an `ExamplesGroup` of two and a `GuidanceGroup` of one, regardless of source ordering.
 - The document root is implicit; the token stream *is* the body.
 
 **Out of scope for v1:** code block info strings, list-item block children, document root markers. Tests that need to assert these use exact-file comparison instead.

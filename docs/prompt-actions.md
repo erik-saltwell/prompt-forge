@@ -39,13 +39,39 @@ Ten actions across two groups.
 
 ### Annotation actions
 
+Annotations live inside annotation groups (`ExamplesGroup` or `GuidanceGroup`) attached to a `Paragraph` or `ListItem` host. See `prompt-model.md` for the model. Annotation actions operate on **individual** annotations within a group — groups themselves are never targeted directly.
+
 | Action | Purpose |
 |---|---|
-| `add_example` / `add_guidance` | Attach a new annotation to a Paragraph or ListItem. |
-| `update_example` / `update_guidance` | Replace the text of an existing annotation. |
-| `remove_example` / `remove_guidance` | Detach an annotation from its parent. |
+| `add_example` / `add_guidance` | Add a new `Annotation` to a host's group. Creates the group if the host doesn't have one yet. |
+| `update_example` / `update_guidance` | Replace the text of an existing annotation, identified by its ID. |
+| `remove_example` / `remove_guidance` | Remove an annotation from its group. If it was the last annotation, the group is removed too. |
 
 Examples and guidance are first-class actions — distinct from generic node operations — because they are the most common levers for improving a prompt and the actor LLM should be biased toward reaching for them.
+
+**JSON shapes:**
+
+- `add_example` / `add_guidance`:
+  ```json
+  {"action": "add_example", "host_id": "1.1", "text": "...", "anchor": {"after": "1.1.e2"}}
+  ```
+  `host_id` (required) — the Paragraph or ListItem to add to. `text` (required) — the annotation text. `anchor` (optional) — placement within the group; defaults to appending at the end. When provided, `anchor.target` must be an existing annotation ID in the host's group of the matching kind, or the host ID itself for `first_child`/`last_child`.
+
+- `update_example` / `update_guidance`:
+  ```json
+  {"action": "update_example", "id": "1.1.e2", "text": "..."}
+  ```
+  `id` (required) — the annotation to update. `text` (required) — the replacement text.
+
+- `remove_example` / `remove_guidance`:
+  ```json
+  {"action": "remove_example", "id": "1.1.e2"}
+  ```
+  `id` (required) — the annotation to remove. If this was the only annotation in its group, the group is removed; the host's `examples` (or `guidance`) attribute becomes `None`.
+
+**Group lifecycle.** Add auto-creates a group when the host has none. Remove auto-deletes the group when the last annotation goes. Groups themselves cannot be added, removed, or updated by any action — they have no ID and no JSON-addressable identity.
+
+**Undo IDs are fresh.** When a `remove_*` action's undo re-inserts the annotation, the restored annotation receives a **fresh** ID from a per-batch counter — not the original ID it had before removal. The per-batch counter skips any IDs already present in the frozen snapshot, so collisions are impossible. The text and position are preserved; only the addressable handle differs. This matches the broader "IDs are not durable" rule.
 
 ---
 
@@ -79,7 +105,7 @@ Examples and guidance are first-class actions — distinct from generic node ope
 - **Skip-and-continue is the universal error policy.** The action stream is LLM-generated and inherently noisy. The executor is permissive: do an action if it has enough information; skip it otherwise; never abort the batch.
 - **Lenient parameter handling.** Extra fields are ignored. Missing optional fields take defaults. Missing required fields cause the single action to skip, not the batch.
 - **`delete_node` is polymorphic.** If the actor targets an annotation ID with `delete_node`, the executor honors it as an annotation removal.
-- **`insert_node` carries full subtrees.** Containers (Section, List, ListItem) must be inserted with their contents — empty containers do not improve a prompt and are not a supported insertion target. Subtrees may include inline `examples` and `guidance` arrays on Paragraph and ListItem nodes.
+- **`insert_node` carries full subtrees.** Containers (Section, List, ListItem) must be inserted with their contents — empty containers do not improve a prompt and are not a supported insertion target. Subtrees may include inline `examples` and `guidance` groups on Paragraph and ListItem nodes; each group's `children` is the list of `Annotation` nodes.
 - **`move_node` moves the whole subtree.** Children come along; the action's location anchor describes where the subtree root lands.
 - **`rewrite_node` does not change node type or structural flags.** Changing `List.ordered`, `CodeBlock.info`, or section heading level is out of scope; express such intent via `delete_node` + `insert_node`.
 - **No promote/demote action.** Restructuring section hierarchy is expressed as `move_node`.

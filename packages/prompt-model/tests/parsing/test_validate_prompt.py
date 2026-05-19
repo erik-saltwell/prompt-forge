@@ -429,3 +429,90 @@ def test_duplicate_annotation_kind() -> None:
     check_error_from_md(duplicate_examples_on_paragraph, 7, PromptErrorType.DuplicateAnnotationKind)
     check_error_from_md(duplicate_guidance_on_list_item, 7, PromptErrorType.DuplicateAnnotationKind)
     check_error_from_md(duplicate_kind_via_alias, 7, PromptErrorType.DuplicateAnnotationKind)
+
+
+# --- Annotation content must be paragraphs-or-UL --------------------------
+
+annotation_with_code_block: str = """# foo
+some prose
+::: examples
+```python
+print(1)
+```
+:::"""
+# Expected: IllegalAnnotationContent at line 4.
+
+annotation_with_blockquote: str = """# foo
+some prose
+::: examples
+> a quote
+:::"""
+# Expected: IllegalAnnotationContent at line 4.
+
+annotation_with_ordered_list: str = """# foo
+some prose
+::: examples
+1. first
+2. second
+:::"""
+# Expected: IllegalAnnotationContent at line 4.
+
+annotation_with_mixed_paragraph_and_list: str = """# foo
+some prose
+::: examples
+some intro
+
+- first
+- second
+:::"""
+# Expected: IllegalAnnotationContent at line 4 (the paragraph).
+
+annotation_with_paragraphs_only_is_ok: str = """# foo
+some prose
+::: examples
+first paragraph
+
+second paragraph
+:::"""
+
+annotation_with_single_ul_is_ok: str = """# foo
+some prose
+::: examples
+- a
+- b
+:::"""
+
+
+def test_annotation_content_is_paragraphs_or_ul() -> None:
+    check_error_from_md(annotation_with_code_block, 4, PromptErrorType.IllegalAnnotationContent)
+    check_error_from_md(annotation_with_blockquote, 4, PromptErrorType.IllegalAnnotationContent)
+    check_error_from_md(annotation_with_ordered_list, 4, PromptErrorType.IllegalAnnotationContent)
+    check_error_from_md(annotation_with_mixed_paragraph_and_list, 4, PromptErrorType.IllegalAnnotationContent)
+    check_no_errors_from_md(annotation_with_paragraphs_only_is_ok)
+    check_no_errors_from_md(annotation_with_single_ul_is_ok)
+
+
+# --- No nested list inside an annotation UL -------------------------------
+
+annotation_with_nested_bullet_list: str = """# foo
+some prose
+::: examples
+- outer item
+  - nested inside item
+- second outer item
+:::"""
+# Expected: NestedListInAnnotation at line 5.
+
+annotation_with_nested_ordered_list: str = """# foo
+some prose
+::: examples
+- outer item
+  1. nested ordered
+  2. inside item
+:::"""
+# Expected: NestedListInAnnotation at line 5.
+
+
+def test_no_nested_list_in_annotation() -> None:
+    check_error_from_md(annotation_with_nested_bullet_list, 5, PromptErrorType.NestedListInAnnotation)
+    check_error_from_md(annotation_with_nested_ordered_list, 5, PromptErrorType.NestedListInAnnotation)

@@ -5,11 +5,12 @@ from typing import Final
 from markdown_it.tree import SyntaxTreeNode
 
 from ...model import (
+    Annotation,
     Blockquote,
     CodeBlock,
     Document,
-    ExampleAnnotation,
-    GuidanceAnnotation,
+    ExamplesGroup,
+    GuidanceGroup,
     List,
     ListItem,
     Paragraph,
@@ -102,13 +103,56 @@ def _is_annotation(tn: SyntaxTreeNode) -> bool:
 def _attach_annotation(host: Paragraph | ListItem | None, tn: SyntaxTreeNode) -> None:
     if host is None:
         return
-    body = _flatten_text(tn).strip()
-    if not body:
+    annotations = _extract_annotations(tn)
+    if not annotations:
         return
+
     if tn.type == "container_guidance":
-        host.guidance = GuidanceAnnotation(text=body)
+        if host.guidance is None:
+            host.guidance = GuidanceGroup(children=annotations)
+        else:
+            host.guidance.children.extend(annotations)
     else:
-        host.example = ExampleAnnotation(text=body)
+        if host.examples is None:
+            host.examples = ExamplesGroup(children=annotations)
+        else:
+            host.examples.children.extend(annotations)
+
+
+def _extract_annotations(tn: SyntaxTreeNode) -> list[Annotation]:
+    """Build the list of Annotations from a directive container.
+
+    Two valid forms (per the spec):
+    - One or more paragraphs → ONE annotation, paragraphs joined by `\n`.
+    - A single flat bullet list → ONE annotation per list item.
+
+    Anything else is a validation error; the parser is best-effort here so
+    downstream code sees a well-shaped tree even when validation rejects.
+    Preference order: bullet list (if any) → paragraphs.
+    """
+    bullet_lists = [c for c in tn.children if c.type == "bullet_list"]
+    if bullet_lists:
+        return _annotations_from_bullet_list(bullet_lists[0])
+
+    paragraphs = [c for c in tn.children if c.type == "paragraph"]
+    if paragraphs:
+        body = "\n".join(_inline_text(p) for p in paragraphs).strip()
+        if body:
+            return [Annotation(text=body)]
+    return []
+
+
+def _annotations_from_bullet_list(tn: SyntaxTreeNode) -> list[Annotation]:
+    out: list[Annotation] = []
+    for li in tn.children:
+        text_parts: list[str] = []
+        for child in li.children:
+            if child.type == "paragraph":
+                text_parts.append(_inline_text(child))
+        body = "\n".join(text_parts).strip()
+        if body:
+            out.append(Annotation(text=body))
+    return out
 
 
 def _inline_text(tn: SyntaxTreeNode) -> str:
@@ -128,8 +172,7 @@ def _flatten_text(tn: SyntaxTreeNode) -> str:
     """Collapse a subtree to text, joining each inline run with newlines.
 
     Inline markup is preserved (each `inline.content` is raw source). Used
-    for blockquotes, tables, and annotation bodies — block structure is
-    flattened, inline markup is kept.
+    for blockquotes — block structure is flattened, inline markup is kept.
     """
     parts: list[str] = []
 

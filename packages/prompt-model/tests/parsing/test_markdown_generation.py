@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 from prompt_model.model import (
+    Annotation,
     Blockquote,
     CodeBlock,
     Document,
-    ExampleAnnotation,
-    GuidanceAnnotation,
+    ExamplesGroup,
+    GuidanceGroup,
     List,
     ListItem,
     Paragraph,
@@ -122,19 +123,32 @@ def test_ordered_nested_in_bullet() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_example_annotation() -> None:
-    check_obj_against_md(ExampleAnnotation(text="ex body"), "::: examples\nex body\n:::")
+def test_examples_group_single() -> None:
+    check_obj_against_md(
+        ExamplesGroup(children=[Annotation(text="ex body")]),
+        "::: examples\nex body\n:::",
+    )
 
 
-def test_guidance_annotation() -> None:
-    check_obj_against_md(GuidanceAnnotation(text="be brief"), "::: guidance\nbe brief\n:::")
+def test_guidance_group_single() -> None:
+    check_obj_against_md(
+        GuidanceGroup(children=[Annotation(text="be brief")]),
+        "::: guidance\nbe brief\n:::",
+    )
 
 
-def test_paragraph_with_example_and_guidance() -> None:
+def test_examples_group_multi_uses_list_form() -> None:
+    check_obj_against_md(
+        ExamplesGroup(children=[Annotation(text="one"), Annotation(text="two"), Annotation(text="three")]),
+        "::: examples\n- one\n- two\n- three\n:::",
+    )
+
+
+def test_paragraph_with_examples_and_guidance() -> None:
     para = Paragraph(
         text="some prose",
-        example=ExampleAnnotation(text="ex"),
-        guidance=GuidanceAnnotation(text="g"),
+        examples=ExamplesGroup(children=[Annotation(text="ex")]),
+        guidance=GuidanceGroup(children=[Annotation(text="g")]),
     )
     check_obj_against_md(
         para,
@@ -142,11 +156,11 @@ def test_paragraph_with_example_and_guidance() -> None:
     )
 
 
-def test_list_item_with_example_indented() -> None:
+def test_list_item_with_examples_indented() -> None:
     lst = List(
         ordered=False,
         children=[
-            ListItem(text="item one", example=ExampleAnnotation(text="ex")),
+            ListItem(text="item one", examples=ExamplesGroup(children=[Annotation(text="ex")])),
             ListItem(text="item two"),
         ],
     )

@@ -1,5 +1,5 @@
 from ._base import NodeType, PromptNode
-from .annotations import ExampleAnnotation, GuidanceAnnotation
+from .annotations import Annotation, ExamplesGroup, GuidanceGroup
 from .nodes import (
     BlockChild,
     Blockquote,
@@ -16,12 +16,13 @@ from .nodes import (
 from .prompt_validation_error import PromptError, PromptErrorType
 
 __all__ = [
+    "Annotation",
     "BlockChild",
     "Blockquote",
     "CodeBlock",
     "Document",
-    "ExampleAnnotation",
-    "GuidanceAnnotation",
+    "ExamplesGroup",
+    "GuidanceGroup",
     "List",
     "ListItem",
     "Node",

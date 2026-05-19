@@ -23,10 +23,12 @@ def _assign(node: _IdentifiableNode, node_id: str) -> None:
     node.id = node_id
 
     if isinstance(node, (Paragraph, ListItem)):
-        if node.example is not None:
-            node.example.id = f"{node_id}.e1"
+        if node.examples is not None:
+            for n, ann in enumerate(node.examples.children, start=1):
+                ann.id = f"{node_id}.e{n}"
         if node.guidance is not None:
-            node.guidance.id = f"{node_id}.g1"
+            for n, ann in enumerate(node.guidance.children, start=1):
+                ann.id = f"{node_id}.g{n}"
 
     children = getattr(node, "children", None)
     if children:

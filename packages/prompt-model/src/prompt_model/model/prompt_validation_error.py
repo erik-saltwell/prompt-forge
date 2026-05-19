@@ -22,6 +22,8 @@ class PromptErrorType(StrEnum):
     HeadingInAnnotation = "Heading In Annotation"
     NestedAnnotation = "Nested Annotation"
     DuplicateAnnotationKind = "Duplicate Annotation Kind"
+    IllegalAnnotationContent = "Illegal Annotation Content"
+    NestedListInAnnotation = "Nested List In Annotation"
 
 
 @total_ordering

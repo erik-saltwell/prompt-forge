@@ -14,6 +14,7 @@ class SkipReason(StrEnum):
     HostNotAnnotatable = "host_not_annotatable"
     DuplicateAnnotation = "duplicate_annotation"
     AnnotationNotFound = "annotation_not_found"
+    InvalidContent = "invalid_content"
 
 
 class Action(Protocol):

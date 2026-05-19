@@ -18,13 +18,21 @@ The Prompt Model parses a markdown-formatted LLM prompt into a typed, hierarchic
 
 **Leaf node** — A node with no structural children. Content is collapsed to plain text. The four leaf types are: `Paragraph`, `CodeBlock` (with `info` for language hint), `Blockquote`, `Table`.
 
-**Annotation** — Not a node. A typed attachment on a `Paragraph` or `ListItem` that enhances it without being part of the main content. Two kinds: `ExampleAnnotation` and `GuidanceAnnotation`. Each kind is its own delimited block; a host may carry at most one block of each kind (at most one `::: examples` and at most one `::: guidance`). Multiple concrete examples or pieces of guidance go inside the single block as list items or paragraphs. Annotations have their own IDs.
+**Annotation** — A node type representing a single example or piece of guidance. An `Annotation` has only `text` and an `id`. It always lives as a child of an `ExamplesGroup` or `GuidanceGroup` — never directly on a host.
+
+**Annotation group** — A node type that holds one or more `Annotation` children. Two kinds:
+- `ExamplesGroup` — children render as the body of a `::: examples` directive.
+- `GuidanceGroup` — children render as the body of a `::: guidance` directive.
+
+Both groups have the same structure (`children: list[Annotation]`); they differ only in the directive label they emit. Groups have **no id** of their own — only their children do. A group can never be empty: when its last annotation is removed, the group itself is removed.
+
+**Annotation host** — A `Paragraph` or `ListItem`. Each host has two optional attributes: `examples: ExamplesGroup | None` and `guidance: GuidanceGroup | None`. A host may carry at most one of each. No other node type can host annotations.
 
 **Annotation block (directive container)** — Annotations are written as markdown directive containers:
 
 ```
 ::: examples
-Body text of the annotation.
+Body text of one example.
 :::
 
 ::: guidance
@@ -34,19 +42,26 @@ Body text of the annotation.
 ```
 
 The opening line is `:::` followed by a kind name (`examples` or `guidance`); the closing line is `:::`. Recognized names:
-- `examples` — canonical (plural) → `ExampleAnnotation`
-- `example` — accepted (singular alias) → `ExampleAnnotation`
-- `guidance` — canonical → `GuidanceAnnotation`
+- `examples` — canonical (plural) → `ExamplesGroup`
+- `example` — accepted (singular alias) → `ExamplesGroup`
+- `guidance` — canonical → `GuidanceGroup`
 
 The parser follows **parse-loosely, write-strictly**: both `example` and `examples` are accepted on input; the canonical generator always emits `examples`.
 
-The content between the open and close lines is the annotation's body. It is full markdown (paragraphs, lists, inline formatting, code blocks). Inline formatting is collapsed to plain text per the standard node rules; structural content (lists, code blocks) is preserved as the annotation's body markdown.
+**Directive body — two exclusive forms.** The content between the open and close lines must be **either**:
 
-**Annotation attachment rule** — An annotation container attaches to its **immediately preceding non-annotation sibling block at the same nesting level**. Multiple annotation containers may follow a single host; each attaches to the same host (the nearest preceding non-annotation sibling). An annotation container with no preceding non-annotation sibling at its nesting level is **orphan** and rejected by the validator.
+1. **Text form** — one or more paragraphs (possibly with inline markup). All paragraphs collapse into a **single** `Annotation` whose `text` is the paragraphs joined by `\n` with blank lines removed.
+2. **List form** — a single flat unordered list. Each list item becomes one `Annotation`. The item's paragraph content (which may span multiple lines via softbreaks) becomes that annotation's `text`.
 
-A single host (Paragraph or ListItem) may carry at most one `ExampleAnnotation` block and at most one `GuidanceAnnotation` block. Order between the two kinds is unconstrained.
+Anything else — mixed paragraphs and a list in the same directive, code blocks, blockquotes, tables, ordered lists, nested lists inside the list form — is a validation error.
 
-**Conforming prompt** — The canonical markdown representation generated from a parsed tree. Round-tripping a conforming prompt produces an identical tree. Annotations are always emitted as `::: examples` / `::: guidance` directive blocks (plural, lower-case).
+**Annotation attachment rule** — A directive attaches to its **immediately preceding non-annotation sibling block at the same nesting level**. The host must be a `Paragraph` or `ListItem`. Multiple directives may follow one host; each attaches to the same host. A directive with no preceding non-annotation sibling at its nesting level is **orphan** and rejected by the validator.
+
+A host may carry at most one `ExamplesGroup` and at most one `GuidanceGroup`. If the source has two directives of the same kind on the same host, the parser merges them defensively into one group and the validator emits an error.
+
+Source order between the two kinds is unconstrained. The generator always emits examples before guidance on the same host.
+
+**Conforming prompt** — The canonical markdown representation generated from a parsed tree. Round-tripping a conforming prompt produces an identical tree. Annotations are always emitted as `::: examples` / `::: guidance` directive blocks (plural, lower-case), examples before guidance on any given host.
 
 ---
 
@@ -68,23 +83,30 @@ Checks that the markdown can be cleanly parsed before attempting it. See `prompt
 **Phase 3 — List hierarchy.** Walk markdown-it's recursive list tokens to produce `ListNode` and `ListItemNode` trees. For each `ListItem`, the first inline run becomes the item's `text`; remaining block children (nested lists, paragraphs, code blocks, annotation containers) become `children`.
 
 **Phase 4 — Annotation attachment.** For every `container_<kind>_open` token (where `<kind>` is `example`, `examples`, or `guidance`):
-- Determine the kind: `example`/`examples` → `ExampleAnnotation`; `guidance` → `GuidanceAnnotation`.
-- Locate the nearest preceding **non-annotation** sibling block at the same nesting level. That block is the host. The host must be a `Paragraph` or `ListItem`; attaching to other host types is a validation error (and prevented earlier, because annotations are only legal where their preceding sibling is one of those types).
-- Extract the body content between the container's open and close tokens. The body's textual representation becomes the annotation's `text`. If the body contains structural content (e.g. an inner bullet list), each top-level child of the body produces a separate annotation entry of the same kind (mirroring the prior list-form behavior): one paragraph child → one annotation with that paragraph's text; one bullet list child → one annotation per list item.
+- Determine the kind: `example`/`examples` → `ExamplesGroup`; `guidance` → `GuidanceGroup`.
+- Locate the nearest preceding **non-annotation** sibling block at the same nesting level. That block is the host. The host must be a `Paragraph` or `ListItem`; attaching to other host types is a validation error.
+- Inspect the body content between the open and close tokens:
+  - If the body is one or more paragraphs (and nothing else): build **one** `Annotation` whose `text` is the paragraphs joined by `\n` with blank lines removed.
+  - If the body is a single flat bullet list: build **one `Annotation` per list item**, with each item's paragraph content as the annotation's `text`.
+  - Any other body shape is left to the validator to flag; the parser collects what `Annotation` nodes it can from any paragraph-or-UL children it finds.
+- Attach to the host: if `host.examples` (or `host.guidance`) is `None`, create the group and set the attribute; otherwise append the new annotations to the existing group's `children` (defensive merge — the validator will flag the duplicate-directive case).
 
-For ListItems, the same extraction applies to annotation containers appearing as block children of the item.
+For `ListItem`s, the same extraction applies to annotation containers appearing as block children of the item.
 
-**Phase 5 — ID assignment.** Depth-first traversal. Each node's `id` is its 1-based sibling position appended to its parent's id (e.g. `2.1.3`). Document has no id. Annotations receive a suffix counted **per kind across all annotations on the same host, in document order** — e.g. a host `2.3` with two examples, then one guidance, then one more example receives `2.3.e1`, `2.3.e2`, `2.3.g1`, `2.3.e3`.
+**Phase 5 — ID assignment.** Depth-first traversal. Each node's `id` is its 1-based sibling position appended to its parent's id (e.g. `2.1.3`). Document and annotation groups have no id. Each `Annotation` receives a suffix `.e<n>` (in an `ExamplesGroup`) or `.g<n>` (in a `GuidanceGroup`), where `n` is its 1-based position in the group's `children` — e.g. a host `2.3` with three examples and two guidance items has annotations `2.3.e1`, `2.3.e2`, `2.3.e3`, `2.3.g1`, `2.3.g2`.
 
 ### 3. generate-conforming-prompt
 Reconstructs markdown from the tree:
-- `Section` → `{"#" * level} {text}`, followed by children separated by blank lines
-- `List` → each `ListItem` as `- ` or `1. ` prefix, text, then annotation containers indented under the item, then block children indented
-- `Paragraph` → text, followed by annotation containers as sibling blocks (separated by blank lines)
+- `Section` → `{"#" * level} {text}`, followed by a blank line, followed by children separated by blank lines (MD022: headings are surrounded by blank lines)
+- `List` → each `ListItem` as `- ` or `1. ` prefix, text, then annotation groups indented under the item, then block children indented
+- `Paragraph` → text, followed by `examples` group then `guidance` group as sibling blocks (separated by blank lines)
 - `CodeBlock` → fenced with info string
 - `Blockquote` → `> ` prefixed lines
 - `Table` → reproduced as-is from collapsed text
-- Annotations → `::: examples` / `:::` or `::: guidance` / `:::` (canonical plural for examples), separated from siblings by blank lines
+- `ExamplesGroup` / `GuidanceGroup` — directive body chosen by child count:
+  - **Single child** → text form: `::: examples` / annotation text / `:::`
+  - **Multiple children** → list form: `::: examples` / `- <ann1>` / `- <ann2>` / … / `:::`. Multi-line annotation text in list form has continuation lines indented by 2 spaces.
+  - On any host with both groups, `examples` is emitted before `guidance`.
 
 ---
 
@@ -94,7 +116,7 @@ Reconstructs markdown from the tree:
 - Inline elements (bold, italic, links, code spans) are **not separate nodes** in the model — they are part of the host block's text. Their raw source markup is preserved verbatim. Optimization actions operate on the block's text as a single string; they cannot target an inline span directly. Inline markup the author wrote (e.g. `**must follow**`) is preserved through parse/generate round-trips so semantic emphasis to the target LLM survives optimization.
 - Annotations attach **only** to `Paragraph` and `ListItem`. `Document`, `List`, `Section`, `CodeBlock`, `Blockquote`, and `Table` cannot host annotations. An annotation container whose immediately preceding non-annotation sibling is not a Paragraph or ListItem is a validation error.
 - Headings cannot appear inside list items. A heading token encountered while building a list subtree is a validation error.
-- Headings cannot appear inside annotation containers. An annotation's body is restricted to flow content (paragraphs, lists, code blocks, blockquotes, tables).
+- Headings cannot appear inside annotation containers. An annotation's body is restricted to paragraphs or a single flat unordered list (see "Directive body — two exclusive forms" above). Other block types — code blocks, blockquotes, tables, ordered lists, nested lists inside the UL form — are validation errors.
 - Annotation containers cannot nest. An `::: examples` or `::: guidance` block inside another annotation container is a validation error.
 - Blockquote contents are always collapsed to a single plain-text body, regardless of internal structure. Any block content inside a blockquote (paragraphs, headings, lists, code) is flattened to text and joined by newlines. No validation rule restricts what may appear inside a blockquote.
 - `List` always gets its own ID segment — it is never transparent in the ID hierarchy. This prevents ID collisions when a section contains multiple sibling lists.

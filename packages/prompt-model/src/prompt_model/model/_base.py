@@ -14,8 +14,9 @@ class NodeType(StrEnum):
     CodeBlock = "CodeBlock"
     Blockquote = "Blockquote"
     Table = "Table"
-    ExampleAnnotation = "ExampleAnnotation"
-    GuidanceAnnotation = "GuidanceAnnotation"
+    Annotation = "Annotation"
+    ExamplesGroup = "ExamplesGroup"
+    GuidanceGroup = "GuidanceGroup"
 
 
 class PromptNode(BaseModel):

@@ -8,8 +8,10 @@ The shorthand grammar:
     t        Table
     ul<N>    bullet list item at depth N (lists inferred from runs)
     ol<N>    ordered list item at depth N
-    e        ExampleAnnotation on the most recent Paragraph/ListItem
-    g        GuidanceAnnotation on the most recent Paragraph/ListItem
+    e        Append one Annotation to the most recent Paragraph/ListItem's
+             ExamplesGroup (creating the group on first occurrence)
+    g        Append one Annotation to the most recent Paragraph/ListItem's
+             GuidanceGroup (creating the group on first occurrence)
 
 `shorthand_to_markdown` is an independent reimplementation that does not call
 into any product code under `src/`. Its output is markdownlint-compliant.
@@ -17,12 +19,15 @@ into any product code under `src/`. Its output is markdownlint-compliant.
 
 from __future__ import annotations
 
+from dataclasses import dataclass, field
+
 from prompt_model.model import (
+    Annotation,
     Blockquote,
     CodeBlock,
     Document,
-    ExampleAnnotation,
-    GuidanceAnnotation,
+    ExamplesGroup,
+    GuidanceGroup,
     List,
     ListItem,
     Paragraph,
@@ -30,6 +35,55 @@ from prompt_model.model import (
     SectionChild,
     Table,
 )
+from prompt_model.service.parsing._id_assigner import assign_ids
+
+
+@dataclass
+class _SectionBlock:
+    level: int
+    text: str
+    children: list[_Block] = field(default_factory=list)
+
+
+@dataclass
+class _ParagraphBlock:
+    text: str
+    examples: list[str] = field(default_factory=list)
+    guidance: list[str] = field(default_factory=list)
+
+
+@dataclass
+class _CodeBlockDict:
+    text: str
+    info: str = ""
+
+
+@dataclass
+class _BlockquoteBlock:
+    text: str
+
+
+@dataclass
+class _TableBlock:
+    idx: int
+
+
+@dataclass
+class _ListBlock:
+    ordered: bool
+    children: list[_ItemBlock] = field(default_factory=list)
+
+
+@dataclass
+class _ItemBlock:
+    text: str
+    children: list[_Block] = field(default_factory=list)
+    examples: list[str] = field(default_factory=list)
+    guidance: list[str] = field(default_factory=list)
+
+
+type _Block = _SectionBlock | _ParagraphBlock | _CodeBlockDict | _BlockquoteBlock | _TableBlock | _ListBlock
+type _HostBlock = _ParagraphBlock | _ItemBlock
 
 # ---------------------------------------------------------------------------
 # tree -> shorthand
@@ -124,14 +178,23 @@ def doc_from_shorthand(shorthand: str) -> Document:
         elif tok == "e":
             if last_host is None:
                 raise ValueError(f"shorthand token 'e' at index {idx}: no host")
-            last_host.example = ExampleAnnotation(text=f"example-{idx}")
+            ann = Annotation(text=f"example-{idx}")
+            if last_host.examples is None:
+                last_host.examples = ExamplesGroup(children=[ann])
+            else:
+                last_host.examples.children.append(ann)
         elif tok == "g":
             if last_host is None:
                 raise ValueError(f"shorthand token 'g' at index {idx}: no host")
-            last_host.guidance = GuidanceAnnotation(text=f"guidance-{idx}")
+            ann = Annotation(text=f"guidance-{idx}")
+            if last_host.guidance is None:
+                last_host.guidance = GuidanceGroup(children=[ann])
+            else:
+                last_host.guidance.children.append(ann)
         else:
             raise ValueError(f"unknown shorthand token {tok!r} at index {idx}")
 
+    assign_ids(doc)
     return doc
 
 
@@ -148,40 +211,40 @@ def shorthand_to_markdown(shorthand: str) -> str:
     bullet markers with two-space nested indent, ordered lists renumbered
     from 1, backtick fences, single trailing newline.
     """
-    blocks: list[dict] = []
-    section_stack: list[dict] = []
-    list_stack: list[dict] = []
-    last_host: dict | None = None
+    blocks: list[_Block] = []
+    section_stack: list[_SectionBlock] = []
+    list_stack: list[_ListBlock] = []
+    last_host: _HostBlock | None = None
 
-    def container() -> list[dict]:
-        return section_stack[-1]["children"] if section_stack else blocks
+    def container() -> list[_Block]:
+        return section_stack[-1].children if section_stack else blocks
 
     for idx, tok in enumerate(shorthand.split()):
         if len(tok) == 2 and tok[0] == "h" and tok[1].isdigit():
             level = int(tok[1])
             list_stack.clear()
-            while section_stack and section_stack[-1]["level"] >= level:
+            while section_stack and section_stack[-1].level >= level:
                 section_stack.pop()
-            section = {"kind": "section", "level": level, "text": f"section-{idx}", "children": []}
+            section = _SectionBlock(level=level, text=f"section-{idx}")
             container().append(section)
             section_stack.append(section)
             last_host = None
         elif tok == "p":
             list_stack.clear()
-            para = {"kind": "paragraph", "text": f"paragraph-{idx}", "example": None, "guidance": None}
+            para = _ParagraphBlock(text=f"paragraph-{idx}")
             container().append(para)
             last_host = para
         elif tok == "cb":
             list_stack.clear()
-            container().append({"kind": "code", "text": f"code-{idx}", "info": ""})
+            container().append(_CodeBlockDict(text=f"code-{idx}"))
             last_host = None
         elif tok == "bq":
             list_stack.clear()
-            container().append({"kind": "blockquote", "text": f"blockquote-{idx}"})
+            container().append(_BlockquoteBlock(text=f"blockquote-{idx}"))
             last_host = None
         elif tok == "t":
             list_stack.clear()
-            container().append({"kind": "table", "idx": idx})
+            container().append(_TableBlock(idx=idx))
             last_host = None
         elif (tok.startswith("ul") or tok.startswith("ol")) and tok[2:].isdigit():
             ordered = tok.startswith("ol")
@@ -190,29 +253,29 @@ def shorthand_to_markdown(shorthand: str) -> str:
                 raise ValueError(f"shorthand token {tok!r} at index {idx}: depth must be >= 1")
             while len(list_stack) > depth:
                 list_stack.pop()
-            if len(list_stack) == depth and list_stack[-1]["ordered"] != ordered:
+            if len(list_stack) == depth and list_stack[-1].ordered != ordered:
                 list_stack.pop()
             if len(list_stack) < depth:
                 if len(list_stack) != depth - 1:
                     raise ValueError(f"shorthand token {tok!r} at index {idx}: skipped a list-depth level")
-                new_list = {"kind": "list", "ordered": ordered, "children": []}
+                new_list = _ListBlock(ordered=ordered)
                 if depth == 1:
                     container().append(new_list)
                 else:
-                    parent_item = list_stack[-1]["children"][-1]
-                    parent_item["children"].append(new_list)
+                    parent_item = list_stack[-1].children[-1]
+                    parent_item.children.append(new_list)
                 list_stack.append(new_list)
-            item = {"kind": "item", "text": f"item-{idx}", "children": [], "example": None, "guidance": None}
-            list_stack[-1]["children"].append(item)
+            item = _ItemBlock(text=f"item-{idx}")
+            list_stack[-1].children.append(item)
             last_host = item
         elif tok == "e":
             if last_host is None:
                 raise ValueError(f"shorthand token 'e' at index {idx}: no host")
-            last_host["example"] = f"example-{idx}"
+            last_host.examples.append(f"example-{idx}")
         elif tok == "g":
             if last_host is None:
                 raise ValueError(f"shorthand token 'g' at index {idx}: no host")
-            last_host["guidance"] = f"guidance-{idx}"
+            last_host.guidance.append(f"guidance-{idx}")
         else:
             raise ValueError(f"unknown shorthand token {tok!r} at index {idx}")
 
@@ -237,7 +300,7 @@ def _emit_section_child(node: object, tokens: list[str]) -> None:
 def _emit_block(node: object, tokens: list[str]) -> None:
     if isinstance(node, Paragraph):
         tokens.append("p")
-        _emit_annotations(node.example, node.guidance, tokens)
+        _emit_annotations(node.examples, node.guidance, tokens)
     elif isinstance(node, CodeBlock):
         tokens.append("cb")
     elif isinstance(node, Blockquote):
@@ -252,7 +315,7 @@ def _emit_list(node: List, depth: int, tokens: list[str]) -> None:
     prefix = "ol" if node.ordered else "ul"
     for item in node.children:
         tokens.append(f"{prefix}{depth}")
-        _emit_annotations(item.example, item.guidance, tokens)
+        _emit_annotations(item.examples, item.guidance, tokens)
         for child in item.children:
             if isinstance(child, List):
                 _emit_list(child, depth + 1, tokens)
@@ -260,14 +323,14 @@ def _emit_list(node: List, depth: int, tokens: list[str]) -> None:
 
 
 def _emit_annotations(
-    example: ExampleAnnotation | None,
-    guidance: GuidanceAnnotation | None,
+    examples: ExamplesGroup | None,
+    guidance: GuidanceGroup | None,
     tokens: list[str],
 ) -> None:
-    if example is not None:
-        tokens.append("e")
+    if examples is not None:
+        tokens.extend("e" for _ in examples.children)
     if guidance is not None:
-        tokens.append("g")
+        tokens.extend("g" for _ in guidance.children)
 
 
 # ---------------------------------------------------------------------------
@@ -275,60 +338,62 @@ def _emit_annotations(
 # ---------------------------------------------------------------------------
 
 
-def _render_blocks(blocks: list[dict]) -> str:
+def _render_blocks(blocks: list[_Block]) -> str:
     return "\n\n".join(p for p in (_render_block(b) for b in blocks) if p)
 
 
-def _render_block(b: dict) -> str:
-    kind = b["kind"]
-    if kind == "section":
-        head = "#" * b["level"] + " " + b["text"]
-        body = _render_blocks(b["children"])
+def _render_block(b: _Block) -> str:
+    if isinstance(b, _SectionBlock):
+        head = "#" * b.level + " " + b.text
+        body = _render_blocks(b.children)
         return head + "\n\n" + body if body else head
-    if kind == "paragraph":
-        parts: list[str] = [b["text"]]
-        if b["example"]:
-            parts.append(_directive("examples", b["example"]))
-        if b["guidance"]:
-            parts.append(_directive("guidance", b["guidance"]))
+    if isinstance(b, _ParagraphBlock):
+        parts: list[str] = [b.text]
+        if b.examples:
+            parts.append(_directive("examples", b.examples))
+        if b.guidance:
+            parts.append(_directive("guidance", b.guidance))
         return "\n\n".join(parts)
-    if kind == "code":
-        return f"```{b['info']}\n{b['text']}\n```"
-    if kind == "blockquote":
-        return "\n".join(f"> {line}" if line else ">" for line in b["text"].split("\n"))
-    if kind == "table":
-        idx = b["idx"]
-        return f"| col |\n| --- |\n| cell-{idx} |"
-    if kind == "list":
+    if isinstance(b, _CodeBlockDict):
+        return f"```{b.info}\n{b.text}\n```"
+    if isinstance(b, _BlockquoteBlock):
+        return "\n".join(f"> {line}" if line else ">" for line in b.text.split("\n"))
+    if isinstance(b, _TableBlock):
+        return f"| col |\n| --- |\n| cell-{b.idx} |"
+    if isinstance(b, _ListBlock):
         return _render_list(b)
-    raise ValueError(f"unknown block kind: {kind}")
+    raise ValueError(f"unknown block: {b!r}")
 
 
-def _directive(label: str, text: str) -> str:
-    return f"::: {label}\n{text}\n:::"
+def _directive(label: str, texts: list[str]) -> str:
+    if len(texts) == 1:
+        body = texts[0]
+    else:
+        body = "\n".join(f"- {t}" for t in texts)
+    return f"::: {label}\n{body}\n:::"
 
 
-def _render_list(lst: dict) -> str:
-    loose = any(any(c["kind"] != "list" for c in item["children"]) for item in lst["children"])
+def _render_list(lst: _ListBlock) -> str:
+    loose = any(any(not isinstance(c, _ListBlock) for c in item.children) for item in lst.children)
     sep = "\n\n" if loose else "\n"
     parts: list[str] = []
-    for idx, item in enumerate(lst["children"], start=1):
-        marker = f"{idx}." if lst["ordered"] else "-"
+    for idx, item in enumerate(lst.children, start=1):
+        marker = f"{idx}." if lst.ordered else "-"
         parts.append(_render_item(item, marker))
     return sep.join(parts)
 
 
-def _render_item(item: dict, marker: str) -> str:
+def _render_item(item: _ItemBlock, marker: str) -> str:
     prefix = marker + " "
     cont = " " * len(prefix)
 
-    body = item["text"]
-    if item["example"]:
-        body += "\n\n" + _directive("examples", item["example"])
-    if item["guidance"]:
-        body += "\n\n" + _directive("guidance", item["guidance"])
-    for child in item["children"]:
-        if child["kind"] == "list":
+    body = item.text
+    if item.examples:
+        body += "\n\n" + _directive("examples", item.examples)
+    if item.guidance:
+        body += "\n\n" + _directive("guidance", item.guidance)
+    for child in item.children:
+        if isinstance(child, _ListBlock):
             body += "\n" + _render_list(child)
         else:
             body += "\n\n" + _render_block(child)

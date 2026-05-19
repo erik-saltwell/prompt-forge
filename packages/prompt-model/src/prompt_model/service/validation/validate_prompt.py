@@ -7,6 +7,7 @@ from mdit_py_plugins.container import container_plugin
 
 from ..._protocols.prompt_validator import MarkdownTokenList, PromptValidator
 from ...model.prompt_validation_error import PromptError
+from ._rules.annotation_content_is_paragraphs_or_ul import AnnotationContentIsParagraphsOrUL
 from ._rules.annotation_host_is_valid import AnnotationHostIsValid
 from ._rules.first_heading_is_h1 import FirstHeadingIsH1
 from ._rules.markdown_not_empty import MarkdownNotEmpty
@@ -19,6 +20,7 @@ from ._rules.no_heading_in_list_item import NoHeadingInListItem
 from ._rules.no_heading_level_skip import NoHeadingLevelSkip
 from ._rules.no_mixed_list_type_siblings import NoMixedListTypeSiblings
 from ._rules.no_nested_annotation import NoNestedAnnotation
+from ._rules.no_nested_list_in_annotation import NoNestedListInAnnotation
 from ._rules.no_orphan_annotation import NoOrphanAnnotation
 
 
@@ -47,6 +49,8 @@ def _load_validators() -> list[PromptValidator]:
         NoHeadingInAnnotation(),
         NoNestedAnnotation(),
         NoDuplicateAnnotationKind(),
+        AnnotationContentIsParagraphsOrUL(),
+        NoNestedListInAnnotation(),
     ]
 
 

@@ -6,7 +6,7 @@ from pydantic import Field
 
 from .._utils.pydantic_aliases import StrippedNonBlankStr
 from ._base import NodeType, PromptNode
-from .annotations import ExampleAnnotation, GuidanceAnnotation
+from .annotations import ExamplesGroup, GuidanceGroup
 
 
 def _indent(text: str, prefix: str) -> str:
@@ -20,13 +20,13 @@ def _join_blocks(parts: list[str]) -> str:
 class Paragraph(PromptNode):
     node_type: Literal[NodeType.Paragraph] = NodeType.Paragraph
     text: StrippedNonBlankStr
-    example: ExampleAnnotation | None = None
-    guidance: GuidanceAnnotation | None = None
+    examples: ExamplesGroup | None = None
+    guidance: GuidanceGroup | None = None
 
     def to_markdown(self) -> str:
         parts = [self.text]
-        if self.example is not None:
-            parts.append(self.example.to_markdown())
+        if self.examples is not None:
+            parts.append(self.examples.to_markdown())
         if self.guidance is not None:
             parts.append(self.guidance.to_markdown())
         return _join_blocks(parts)
@@ -64,8 +64,8 @@ class ListItem(PromptNode):
     node_type: Literal[NodeType.ListItem] = NodeType.ListItem
     text: StrippedNonBlankStr
     children: list[BlockChild] = Field(default_factory=list)
-    example: ExampleAnnotation | None = None
-    guidance: GuidanceAnnotation | None = None
+    examples: ExamplesGroup | None = None
+    guidance: GuidanceGroup | None = None
 
     def to_markdown(self) -> str:
         return _render_list_item(self, marker="-")
@@ -134,8 +134,8 @@ def _render_list_item(item: ListItem, marker: str) -> str:
     # text (and from each other) by a blank line. Nested Lists hug the
     # preceding content with no blank line, matching the CommonMark tight form.
     body = item.text
-    if item.example is not None:
-        body += "\n\n" + item.example.to_markdown()
+    if item.examples is not None:
+        body += "\n\n" + item.examples.to_markdown()
     if item.guidance is not None:
         body += "\n\n" + item.guidance.to_markdown()
     for child in item.children:

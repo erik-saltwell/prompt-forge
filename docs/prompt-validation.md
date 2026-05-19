@@ -41,7 +41,12 @@
 - **Orphan annotation rejected.** An annotation container with no preceding non-annotation sibling block at its nesting level is rejected. There is no host to attach to.
 - **Illegal host rejected.** The host found by the attachment rule must be a `Paragraph` or `ListItem`. If the preceding non-annotation sibling is a `CodeBlock`, `Blockquote`, `Table`, `List`, or `Section` (impossible by structure but listed for completeness), the annotation is rejected.
 - **No nested annotations.** An annotation container may not contain another annotation container in its body.
-- **At most one annotation block of each kind per host.** A host (`Paragraph` or `ListItem`) may carry at most one `ExampleAnnotation` block and at most one `GuidanceAnnotation` block. Multiple examples or multiple guidance items go *inside* the single block as list items or paragraphs. `example` and `examples` are the same kind for purposes of this rule (the alias does not let you bypass it).
+- **At most one annotation block of each kind per host.** A host (`Paragraph` or `ListItem`) may carry at most one `ExamplesGroup` block and at most one `GuidanceGroup` block. Multiple examples or multiple guidance items live *inside* the single group as separate `Annotation` children. `example` and `examples` are the same kind for purposes of this rule (the alias does not let you bypass it).
+- **Annotation content must be paragraphs-or-UL** (rule: `AnnotationContentIsParagraphsOrUL`). The body of an annotation directive must be **exactly one** of:
+  - One or more paragraphs (collapsed into a single `Annotation` on parse), **or**
+  - A single flat unordered list (one `Annotation` per item on parse).
+  Any other body shape — mixed paragraph + list, code block, blockquote, table, ordered list — is rejected. The error message identifies which disallowed block kind was seen.
+- **No nested list inside an annotation UL** (rule: `NoNestedListInAnnotation`). When an annotation directive uses the list form, each list item's content must be a single paragraph (possibly multi-line). Nested lists inside an item are rejected.
 - **No `:::` text outside containers is validated.** A line like `::: foo` where `foo` is not a recognized kind parses as a regular paragraph; it is not subject to annotation rules.
 
 ### Document-level rules
