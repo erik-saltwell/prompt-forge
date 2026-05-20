@@ -5,7 +5,6 @@ from ...model import Document, List, ListItem, PromptNode, Section
 from ._dry_run import validates_after
 from ._walk import (
     ChildContainer,
-    anchor_for_slot,
     children_of,
     find_parent_and_index,
     find_parent_of_node,
@@ -34,10 +33,7 @@ class MoveNodeAction:
     - **Source-list cleanup.** If lifting the node empties its source `List`,
       that list is also removed (empty Lists can't be reserialised).
 
-    The inverse is a single `MoveNodeAction` targeting the node back to its
-    original slot. When the source list was removed, the inverse anchor
-    points at the list's old slot in its grandparent — the auto-wrap rule
-    naturally recreates an equivalent List on the way back."""
+    """
 
     def __init__(self, node_id: str, anchor: LocationAnchor) -> None:
         self.node_id = node_id
@@ -92,13 +88,7 @@ class MoveNodeAction:
             return False
         return dest_index == source_index or dest_index == source_index + 1
 
-    def _do_move(self, tree: Document) -> Action | list[Action]:
-        """Execute the move on `tree` and return the inverse Action(s).
-
-        Used both by `apply` (on the real tree) and `validates_after`
-        (on a clone, where the inverse is discarded). Both paths resolve
-        the source and destination by id against the given tree, so the
-        clone is handled transparently."""
+    def _do_move(self, tree: Document) -> None:
         source = find_parent_and_index(tree, self.node_id)
         assert source is not None
         source_parent, source_index = source
@@ -108,27 +98,7 @@ class MoveNodeAction:
         assert dest is not None
         dest_parent, dest_index = dest
 
-        # Cleanup path: when the source list will be emptied by lifting the
-        # node, we capture a deep copy of the original source list so the
-        # inverse can restore it verbatim — preserving its id, `ordered`
-        # flag, and any sibling ListItems that don't exist (only-child
-        # case). Without this, later inverses in a batch that reference the
-        # source list's id would fail because the live tree no longer
-        # contains it (the simple MoveNode inverse would have created a
-        # fresh anonymous wrap list instead).
         will_cleanup = isinstance(source_parent, List) and len(source_parent.children) == 1
-        captured_source_list: List | None = None
-        gp_anchor: LocationAnchor | None = None
-        if will_cleanup:
-            assert isinstance(source_parent, List)
-            gp = find_parent_of_node(tree, source_parent)
-            assert gp is not None
-            gp_parent_cap, gp_index_cap = gp
-            gp_anchor = anchor_for_slot(gp_parent_cap, gp_index_cap)
-            assert gp_anchor is not None
-            captured_source_list = source_parent.model_copy(deep=True)
-
-        default_inverse_anchor = anchor_for_slot(source_parent, source_index)
         source_ordered = source_parent.ordered if isinstance(source_parent, List) else None
 
         children_of(source_parent).pop(source_index)
@@ -155,76 +125,14 @@ class MoveNodeAction:
 
         children_of(dest_parent).insert(dest_index, insertion_node)
 
-        if will_cleanup:
-            assert captured_source_list is not None
-            assert gp_anchor is not None
-            was_wrapped = insertion_node is not node
-            # Inverse locates the moved listitem by id (stable through
-            # intermediate undo/redo, including any subsequent cleanup that
-            # might deep-copy the auto-wrap). Then restores the captured
-            # source List verbatim at the gp slot.
-            return _CleanupInverse(self.node_id, was_wrapped, captured_source_list, gp_anchor)
-        assert default_inverse_anchor is not None
-        return MoveNodeAction(self.node_id, default_inverse_anchor)
-
-    def apply(self, tree: Document, ctx: ApplyContext | None = None) -> Action | list[Action]:
-        return self._do_move(tree)
+    def apply(self, tree: Document, ctx: ApplyContext | None = None) -> None:
+        self._do_move(tree)
 
 
 def _shift_section_levels(root: Section, delta: int) -> None:
     for d in walk_all(root):
         if isinstance(d, Section):
             d.level += delta
-
-
-class _CleanupInverse:
-    """Private inverse of a `MoveNodeAction` that triggered source-list
-    cleanup. Lifts the moved ListItem from wherever it currently sits
-    (located by snapshot id, which is preserved across intermediate
-    moves), removes the auto-wrap List too if one was created on the
-    forward, and restores the captured source List at the grandparent
-    slot.
-
-    Not part of the public action vocabulary: never registered, never
-    parsed from JSON, never returned by anything except `MoveNodeAction`.
-    Its own apply returns `self` because we don't expect anyone to redo
-    an undo of this shape in the same batch."""
-
-    def __init__(
-        self,
-        node_id: str,
-        was_wrapped: bool,
-        captured_source_list: List,
-        gp_anchor: LocationAnchor,
-    ) -> None:
-        self._node_id = node_id
-        self._was_wrapped = was_wrapped
-        self._captured = captured_source_list
-        self._gp_anchor = gp_anchor
-
-    def validate(self, tree: Document) -> SkipReason | None:
-        return None
-
-    def apply(self, tree: Document, ctx: ApplyContext | None = None) -> Action:
-        loc = find_parent_and_index(tree, self._node_id)
-        assert loc is not None, "_CleanupInverse: moved node not found by id"
-        parent, index = loc
-        children_of(parent).pop(index)
-
-        if self._was_wrapped:
-            # The listitem's parent was an auto-wrap List with no id; it
-            # is now empty after the lift. Remove it from its grandparent
-            # so the tree shape matches pre-forward.
-            wrap_loc = find_parent_of_node(tree, parent)
-            assert wrap_loc is not None, "_CleanupInverse: wrap parent missing"
-            wp, wi = wrap_loc
-            children_of(wp).pop(wi)
-
-        dest = resolve_anchor(tree, self._gp_anchor)
-        assert dest is not None, "_CleanupInverse: gp anchor did not resolve"
-        gp_parent, gp_index = dest
-        children_of(gp_parent).insert(gp_index, self._captured)
-        return self
 
 
 @register("move_node")

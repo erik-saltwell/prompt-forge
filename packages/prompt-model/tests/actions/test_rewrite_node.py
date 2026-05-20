@@ -70,8 +70,6 @@ a small dog
     act.check_against_md(afer_replace_text, actions[2], afer_replace_list_one)
     act.check_against_md(afer_replace_list_one, actions[3], afer_replace_list_two)
 
-    act.check_undo(input_md, actions)
-
 
 def test_replace_with_annotations_in_list() -> None:
     input_md = """# bar

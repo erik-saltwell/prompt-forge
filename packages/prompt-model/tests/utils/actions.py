@@ -1,13 +1,10 @@
 from __future__ import annotations
 
-from typing import cast
-
 from prompt_model._protocols.action import Action
 from prompt_model.service.actions import ApplyContext, SkipReason
 from prompt_model.service.parsing.parse_prompt import parse_from_string
 
 from . import parsing as p
-from ._short_hand import doc_from_shorthand
 
 
 def check_against_md(input_markdown: str, action: Action, expected_markdown: str) -> None:
@@ -29,43 +26,3 @@ def check_can_apply(markdown: str, action: Action, result: SkipReason | None) ->
         assert can_apply is None
     else:
         assert result == can_apply
-
-
-def _push_inverse(undo_stack: list[Action], inv: Action | list[Action]) -> None:
-    # Compound inverses come back in execution order; reverse before pushing
-    # so LIFO pop yields them in execution order.
-    if isinstance(inv, list):
-        for item in reversed(cast(list[Action], inv)):
-            undo_stack.append(item)
-    else:
-        undo_stack.append(inv)
-
-
-def check_undo(markdown: str, actions: list[Action]) -> None:
-    tree = parse_from_string(markdown)
-    original = tree.model_copy(deep=True)
-    ctx = ApplyContext.from_tree(tree)
-
-    undo_stack: list[Action] = []
-    for action in actions:
-        _push_inverse(undo_stack, action.apply(tree, ctx))
-
-    while undo_stack:
-        undo_stack.pop().apply(tree, ctx)
-
-    p.check_obj_against_obj(tree, original)
-
-
-def check_undo_from_sh(shorthand: str, actions: list[Action]) -> None:
-    tree = doc_from_shorthand(shorthand)
-    original = tree.model_copy(deep=True)
-    ctx = ApplyContext.from_tree(tree)
-
-    undo_stack: list[Action] = []
-    for action in actions:
-        _push_inverse(undo_stack, action.apply(tree, ctx))
-
-    while undo_stack:
-        undo_stack.pop().apply(tree, ctx)
-
-    p.check_obj_against_obj(tree, original)

@@ -66,12 +66,10 @@ class RewriteNodeAction:
             return SkipReason.TargetNotFound
         return self._validate_text(node)
 
-    def apply(self, tree: Document, ctx: ApplyContext | None = None) -> Action:
+    def apply(self, tree: Document, ctx: ApplyContext | None = None) -> None:
         node = self._resolve(tree)
         assert node is not None, "apply() called without a successful validate()"
-        old_text = node.text
         node.text = self._normalised_text(node)
-        return RewriteNodeAction(self.node_id, old_text)
 
 
 @register("rewrite_node")

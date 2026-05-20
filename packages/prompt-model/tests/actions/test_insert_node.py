@@ -1,14 +1,6 @@
 from __future__ import annotations
 
-from prompt_model.service.actions import (
-    Action,
-    AddNodeAction,
-    LocationAnchor,
-    RemoveNodeAction,
-    RewriteNodeAction,
-    SkipReason,
-    parse_action,
-)
+from prompt_model.service.actions import Action, AddNodeAction, LocationAnchor, SkipReason, parse_action
 
 from ..utils import actions as act
 
@@ -42,7 +34,6 @@ a small dog
 
     action: Action = AddNodeAction("a small dog", LocationAnchor(kind="last_child", target="1"))
     act.check_against_md(input_md, action, expected_md)
-    act.check_undo(input_md, [action])
 
 
 def test_insert_paragraph_string_shorthand() -> None:
@@ -128,29 +119,6 @@ in bar
     act.check_against_md(input_md, action, expected_md)
 
 
-def test_insert_undo_round_trip() -> None:
-    input_md = """# foo
-
-para one
-"""
-    actions: list[Action] = [
-        AddNodeAction("new", LocationAnchor(kind="after", target="1.1")),
-    ]
-    act.check_undo(input_md, actions)
-
-
-def test_insert_multiple_undo_round_trip() -> None:
-    input_md = """# foo
-
-para one
-"""
-    actions: list[Action] = [
-        AddNodeAction("alpha", LocationAnchor(kind="after", target="1.1")),
-        AddNodeAction("beta", LocationAnchor(kind="last_child", target="1")),
-    ]
-    act.check_undo(input_md, actions)
-
-
 def test_insert_invalid_anchor_target() -> None:
     action = AddNodeAction("x", LocationAnchor(kind="after", target="9.9.9"))
     act.check_can_apply("body\n", action, SkipReason.InvalidAnchor)
@@ -184,14 +152,6 @@ def test_insert_heading_level_skip_rejected() -> None:
     }
     action = AddNodeAction(payload, LocationAnchor(kind="last_child", target="1"))
     act.check_can_apply("# top\n\nbody\n", action, SkipReason.InvalidStructure)
-
-
-def test_insert_inverse_is_remove_node() -> None:
-    tree = act.parse_from_string("# foo\n\npara\n")
-    ctx = act.ApplyContext.from_tree(tree)
-    action = AddNodeAction("new", LocationAnchor(kind="after", target="1.1"))
-    inv = action.apply(tree, ctx)
-    assert isinstance(inv, RemoveNodeAction)
 
 
 # ---------- Lists & ListItems ----------
@@ -300,27 +260,6 @@ def test_insert_list_item_with_guidance() -> None:
     act.check_against_md(input_md, action, expected_md)
 
 
-def test_insert_with_annotations_undo_round_trip() -> None:
-    input_md = """# top
-
-intro
-"""
-    payload = {
-        "node_type": "Paragraph",
-        "text": "annotated",
-        "examples": {
-            "node_type": "ExamplesGroup",
-            "children": [{"node_type": "Annotation", "text": "ex one"}],
-        },
-        "guidance": {
-            "node_type": "GuidanceGroup",
-            "children": [{"node_type": "Annotation", "text": "g one"}],
-        },
-    }
-    action = AddNodeAction(payload, LocationAnchor(kind="after", target="1.1"))
-    act.check_undo(input_md, [action])
-
-
 # ---------- Other leaf types & structural flags ----------
 
 
@@ -340,7 +279,6 @@ fn main() {}
     payload = {"node_type": "CodeBlock", "text": "fn main() {}", "info": "rust"}
     action = AddNodeAction(payload, LocationAnchor(kind="after", target="1.1"))
     act.check_against_md(input_md, action, expected_md)
-    act.check_undo(input_md, [action])
 
 
 def test_insert_blockquote() -> None:
@@ -381,7 +319,6 @@ intro
     }
     action = AddNodeAction(payload, LocationAnchor(kind="after", target="1.1"))
     act.check_against_md(input_md, action, expected_md)
-    act.check_undo(input_md, [action])
 
 
 # ---------- Document-root anchor (target="") ----------
@@ -400,7 +337,6 @@ intro
 """
     action = AddNodeAction("preface", LocationAnchor(kind="first_child", target=""))
     act.check_against_md(input_md, action, expected_md)
-    act.check_undo(input_md, [action])
 
 
 def test_insert_last_child_of_document() -> None:
@@ -464,46 +400,6 @@ inserted
 """
     action = AddNodeAction("inserted", LocationAnchor(kind="after", target="1.2"))
     act.check_against_md(input_md, action, expected_md)
-
-
-# ---------- Mixed-batch undo across action types ----------
-
-
-def test_interleaved_actions_full_undo_round_trip() -> None:
-    # Exercise the synthetic-id machinery alongside snapshot-id-based
-    # actions under LIFO undo. Each forward action's inverse must resolve
-    # against whatever the tree looks like at the time the undo runs.
-    input_md = """# top
-
-para one
-
-para two
-
-para three
-"""
-    actions: list[Action] = [
-        RewriteNodeAction("1.1", "rewritten"),
-        AddNodeAction("inserted", LocationAnchor(kind="after", target="1.2")),
-        RemoveNodeAction("1.3"),
-        AddNodeAction("late add", LocationAnchor(kind="first_child", target="1")),
-    ]
-    act.check_undo(input_md, actions)
-
-
-def test_two_inserts_mint_distinct_ids() -> None:
-    # Two AddNodeActions in one batch must mint distinct synthetic ids so
-    # each RemoveNodeAction (inverse) addresses the right node.
-    input_md = """# top
-
-para one
-"""
-    tree = act.parse_from_string(input_md)
-    ctx = act.ApplyContext.from_tree(tree)
-    inv1 = AddNodeAction("alpha", LocationAnchor(kind="after", target="1.1")).apply(tree, ctx)
-    inv2 = AddNodeAction("beta", LocationAnchor(kind="last_child", target="1")).apply(tree, ctx)
-    assert isinstance(inv1, RemoveNodeAction)
-    assert isinstance(inv2, RemoveNodeAction)
-    assert inv1.node_id != inv2.node_id
 
 
 # ---------- parse_action ----------

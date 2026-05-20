@@ -3,7 +3,7 @@ from __future__ import annotations
 from ..._protocols.action import Action, ApplyContext, SkipReason
 from ...model import Document
 from ._dry_run import validates_after
-from ._walk import ChildContainer, anchor_for_slot, children_of, find_node_by_id, find_parent_and_index
+from ._walk import ChildContainer, children_of, find_node_by_id, find_parent_and_index
 from .registry import register
 
 
@@ -12,10 +12,7 @@ class RemoveNodeAction:
 
     Targets a node by snapshot id. Cannot target the Document root or any
     annotation id — annotation removal goes through remove_example /
-    remove_guidance. (delete_node is node-only in v1; see docs.)
-    The inverse is an AddNodeAction carrying the detached subtree plus an
-    anchor pointing at a surviving sibling/parent, so undo restores both
-    the subtree object (with snapshot ids intact) and its original slot."""
+    remove_guidance."""
 
     def __init__(self, node_id: str) -> None:
         self.node_id = node_id
@@ -42,22 +39,11 @@ class RemoveNodeAction:
         parent, index = located
         del children_of(parent)[index]
 
-    def apply(self, tree: Document, ctx: ApplyContext | None = None) -> Action:
-        # Local import: AddNode -> RemoveNode (forward inverse), RemoveNode
-        # -> AddNode (undo inverse) is a circular pair.
-        from .add_node import AddNodeAction
-
+    def apply(self, tree: Document, ctx: ApplyContext | None = None) -> None:
         located = self._resolve(tree)
         assert located is not None, "apply() called without a successful validate()"
         parent, index = located
-
-        anchor = anchor_for_slot(parent, index)
-        # validate() rejects removes that would leave Document empty, so a
-        # None here can only mean a Document with no siblings — already gated.
-        assert anchor is not None, "remove leaving empty Document should not pass validate()"
-
-        detached = children_of(parent).pop(index)
-        return AddNodeAction._for_undo(detached, anchor)
+        children_of(parent).pop(index)
 
 
 @register("delete_node")

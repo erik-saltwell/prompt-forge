@@ -10,7 +10,7 @@ from prompt_model.service.actions import (
 from prompt_model.service.parsing.parse_prompt import parse_from_string
 
 from ..utils._short_hand import doc_from_shorthand
-from ..utils.actions import Action, check_against_md, check_can_apply, check_undo_from_sh
+from ..utils.actions import check_against_md, check_can_apply
 
 # ---------- update_example ----------
 
@@ -383,26 +383,11 @@ def test_validate_content_check_runs_before_id_lookup() -> None:
 def test_validate_does_not_mutate_tree() -> None:
     # validate() is a pure lookup. Calling it (success or failure) must leave
     # the annotation text untouched.
-    from prompt_model.service.parsing.parse_prompt import parse_from_string
 
     tree = parse_from_string(_DOC_WITH_BOTH)
     UpdateExampleAction("1.1.e1", "replacement").validate(tree)
     UpdateExampleAction("1.1.e99", "replacement").validate(tree)
     assert tree.to_markdown() == _DOC_WITH_BOTH
-
-
-def test_undo() -> None:
-    sh = "h1 p h2 p e e e"
-    action: Action = UpdateExampleAction("1.2.1.e2", "test test test")
-    check_undo_from_sh(sh, [action])
-
-
-def test_multi_update_undo() -> None:
-    sh = "h1 p h2 p e e e"
-    action1: Action = UpdateExampleAction("1.2.1.e2", "test test test")
-    action2: Action = UpdateExampleAction("1.2.1.e2", "monster truck")
-    action3: Action = UpdateExampleAction("1.2.1.e3", "foo bars fsldkgfsdgfkl.\n aslkdasldkasd lsakjd.")
-    check_undo_from_sh(sh, [action1, action2, action3])
 
 
 # ---------- rejected list / heading markers (regression: ordered + alt bullets) ----------
@@ -502,25 +487,6 @@ def test_parse_action_tolerates_extra_unknown_keys() -> None:
     assert isinstance(result, UpdateExampleAction)
     assert result.annotation_id == "1.1.e1"
     assert result.text == "hi"
-
-
-# ---------- apply() returns a correct inverse action ----------
-
-
-def test_apply_returns_inverse_update_example_with_old_text() -> None:
-    tree = parse_from_string(_DOC_WITH_BOTH)
-    inverse = UpdateExampleAction("1.1.e1", "new").apply(tree)
-    assert isinstance(inverse, UpdateExampleAction)
-    assert inverse.annotation_id == "1.1.e1"
-    assert inverse.text == "ex one"
-
-
-def test_apply_returns_inverse_update_guidance_with_old_text() -> None:
-    tree = parse_from_string(_DOC_WITH_BOTH)
-    inverse = UpdateGuidanceAction("1.1.g1", "new").apply(tree)
-    assert isinstance(inverse, UpdateGuidanceAction)
-    assert inverse.annotation_id == "1.1.g1"
-    assert inverse.text == "g one"
 
 
 # ---------- targeting across multiple hosts ----------

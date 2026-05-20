@@ -24,17 +24,13 @@ class SkipReason(StrEnum):
 class ApplyContext:
     """Per-batch state threaded through `Action.apply()`.
 
-    Holds the set of node/annotation IDs that are "claimed" — both those
-    present in the frozen snapshot at batch start and any minted during
-    earlier `apply()` calls in the same batch. `mint_annotation_id`
-    yields a fresh ID that has never been claimed; this is what an
-    `AddExampleAction` / `AddGuidanceAction` stamps onto the freshly
-    inserted annotation so its inverse can address it by ID.
+    Holds the set of annotation IDs claimed so far in the batch.
+    `mint_annotation_id` yields a fresh ID that has never been claimed,
+    preventing collisions when multiple annotations are added in one batch.
 
     Use `ApplyContext.from_tree(tree)` to seed from a tree's current IDs.
-    Action methods accept `ctx: ApplyContext | None`; passing `None`
-    builds one ad-hoc, which is correct for one-off calls but defeats
-    the cross-action collision protection that a real batch needs.
+    Passing `None` builds one ad-hoc — correct for one-off calls but
+    skips cross-action collision protection.
     """
 
     def __init__(self, snapshot_ids: set[str] | None = None) -> None:
@@ -43,21 +39,6 @@ class ApplyContext:
     @classmethod
     def from_tree(cls, tree: Document) -> ApplyContext:
         return cls(_collect_ids(tree))
-
-    def mint_inserted_node_id(self) -> str:
-        """Mint a synthetic id for a node inserted mid-batch.
-
-        Node ids are normally position-derived ("2.1.3"), but a newly
-        inserted node has no natural id until assign_ids re-runs at end
-        of batch. The inverse RemoveNodeAction needs to address the new
-        node, so we stamp a synthetic id guaranteed not to collide."""
-        n = 1
-        while True:
-            candidate = f"__inserted_{n}__"
-            if candidate not in self._claimed:
-                self._claimed.add(candidate)
-                return candidate
-            n += 1
 
     def mint_annotation_id(self, host_id: str, kind: _AnnotationKind) -> str:
         prefix = "e" if kind == "example" else "g"
@@ -94,11 +75,4 @@ def _collect_ids(tree: Document) -> set[str]:
 class Action(Protocol):
     def validate(self, tree: Document) -> SkipReason | None: ...
 
-    def apply(self, tree: Document, ctx: ApplyContext | None = None) -> Action | list[Action]: ...
-
-    # Returning a list is the compound-inverse path: an action whose forward
-    # apply made multiple structural changes (e.g., move_node that also tore
-    # down an emptied source List) returns a list of inverse Actions in
-    # *execution order* — the first item is the first to apply when undoing.
-    # The executor / test helpers reverse the list when pushing onto the
-    # LIFO undo stack so popping yields the correct order.
+    def apply(self, tree: Document, ctx: ApplyContext | None = None) -> None: ...

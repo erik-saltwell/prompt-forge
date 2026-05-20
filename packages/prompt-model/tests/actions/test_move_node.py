@@ -2,11 +2,8 @@ from __future__ import annotations
 
 from prompt_model.model import Document, Paragraph
 from prompt_model.service.actions import (
-    Action,
-    AddExampleAction,
     LocationAnchor,
     MoveNodeAction,
-    RewriteNodeAction,
     SkipReason,
     parse_action,
 )
@@ -45,20 +42,6 @@ para two
     act.check_against_md(input_md, action, expected_md)
 
 
-def test_move_paragraph_across_sections() -> None:
-    input_md = """# a
-
-intro a
-
-## b
-
-inner b
-"""
-    # Move 'intro a' (1.1) into section b as last_child.
-    action = MoveNodeAction("1.1", _anchor("last_child", "1.2"))
-    act.check_undo(input_md, [action])
-
-
 def _parse(md: str) -> Document:
     from prompt_model.service.parsing.parse_prompt import parse_from_string
 
@@ -70,205 +53,6 @@ def test_move_section_first_child_of_document_when_already_first_is_noop() -> No
     tree = _parse("# a\n\nbody\n")
     action = MoveNodeAction("1", _anchor("first_child", ""))
     assert action.validate(tree) == SkipReason.InvalidAnchor
-
-
-def test_move_second_section_to_first_child_of_document() -> None:
-    input_md = """# a
-
-a body
-
-# b
-
-b body
-"""
-    # Move section b to first_child of Document.
-    action = MoveNodeAction("2", _anchor("first_child", ""))
-    act.check_undo(input_md, [action])
-
-
-def test_move_codeblock_after_sibling() -> None:
-    input_md = """# foo
-
-para one
-
-```py
-x = 1
-```
-
-para two
-"""
-    # Move codeblock (1.2) to after para two (1.3).
-    action = MoveNodeAction("1.2", _anchor("after", "1.3"))
-    act.check_undo(input_md, [action])
-
-
-def test_move_blockquote_into_other_section() -> None:
-    input_md = """# a
-
-> quoted
-
-## b
-
-inner
-"""
-    action = MoveNodeAction("1.1", _anchor("last_child", "1.2"))
-    act.check_undo(input_md, [action])
-
-
-def test_move_table_reordered_among_siblings() -> None:
-    input_md = """# foo
-
-para one
-
-| a | b |
-|---|---|
-| 1 | 2 |
-
-para two
-"""
-    # Move table (1.2) to first child of section.
-    action = MoveNodeAction("1.2", _anchor("first_child", "1"))
-    act.check_undo(input_md, [action])
-
-
-# =====================================================================
-# 2. Subtree integrity — children come along
-# =====================================================================
-
-
-def test_move_section_carries_nested_sections() -> None:
-    input_md = """# top
-
-## a
-
-inner a
-
-### a1
-
-deep a1
-
-## b
-
-inner b
-"""
-    # Move section a (1.1) to after section b (1.2).
-    action = MoveNodeAction("1.1", _anchor("after", "1.2"))
-    act.check_undo(input_md, [action])
-
-
-def test_move_list_carries_all_items() -> None:
-    input_md = """# foo
-
-intro
-
-- a
-- b
-- c
-"""
-    # Move list before intro.
-    action = MoveNodeAction("1.2", _anchor("before", "1.1"))
-    act.check_undo(input_md, [action])
-
-
-def test_move_listitem_with_block_children() -> None:
-    input_md = """# foo
-
-- top item
-
-  nested paragraph
-
-  - nested list a
-  - nested list b
-- sibling
-"""
-    # Move the item with nested children to after its sibling.
-    action = MoveNodeAction("1.1.1", _anchor("after", "1.1.2"))
-    act.check_undo(input_md, [action])
-
-
-# =====================================================================
-# 3. Annotation groups travel with host
-# =====================================================================
-
-
-def test_move_paragraph_with_examples_carries_them() -> None:
-    input_md = """# foo
-
-para one
-
-::: examples
-ex
-:::
-
-para two
-"""
-    # Move para one to after para two — examples should land at the end.
-    action = MoveNodeAction("1.1", _anchor("after", "1.2"))
-    act.check_undo(input_md, [action])
-
-
-def test_move_paragraph_with_guidance_carries_it() -> None:
-    input_md = """# foo
-
-para one
-
-::: guidance
-be precise
-:::
-
-para two
-"""
-    action = MoveNodeAction("1.1", _anchor("after", "1.2"))
-    act.check_undo(input_md, [action])
-
-
-def test_move_paragraph_with_both_groups_carries_both() -> None:
-    input_md = """# foo
-
-para one
-
-::: examples
-ex
-:::
-
-::: guidance
-be precise
-:::
-
-para two
-"""
-    action = MoveNodeAction("1.1", _anchor("after", "1.2"))
-    act.check_undo(input_md, [action])
-
-
-def test_move_listitem_with_annotations_within_list() -> None:
-    input_md = """# foo
-
-- a
-
-  ::: examples
-  ex for a
-  :::
-- b
-"""
-    action = MoveNodeAction("1.1.1", _anchor("after", "1.1.2"))
-    act.check_undo(input_md, [action])
-
-
-def test_move_listitem_with_annotations_to_section_auto_wraps() -> None:
-    input_md = """# foo
-
-- a
-
-  ::: examples
-  ex
-  :::
-- b
-"""
-    # Move 'a' to be first child of section; it auto-wraps in a new list
-    # and brings its examples along.
-    action = MoveNodeAction("1.1.1", _anchor("first_child", "1"))
-    act.check_undo(input_md, [action])
 
 
 def test_move_does_not_cross_pollinate_annotations() -> None:
@@ -407,25 +191,6 @@ body e
     assert action.validate(tree) == SkipReason.InvalidStructure
 
 
-def test_move_section_round_trip_restores_levels() -> None:
-    input_md = """# top
-
-## a
-
-inner
-
-### a1
-
-inner a1
-
-## b
-
-inner b
-"""
-    action = MoveNodeAction("1.1", _anchor("last_child", "1.2"))
-    act.check_undo(input_md, [action])
-
-
 # =====================================================================
 # 5. ListItem auto-wrap
 # =====================================================================
@@ -464,52 +229,6 @@ intro
     assert md.index("1. a") < md.index("intro")
 
 
-def test_auto_wrap_carries_annotations() -> None:
-    input_md = """# foo
-
-intro
-
-- a
-
-  ::: examples
-  ex
-  :::
-- b
-"""
-    action = MoveNodeAction("1.2.1", _anchor("first_child", "1"))
-    act.check_undo(input_md, [action])
-
-
-def test_auto_wrap_carries_block_children() -> None:
-    input_md = """# foo
-
-intro
-
-- top
-
-  nested para inside item
-- sibling
-"""
-    action = MoveNodeAction("1.2.1", _anchor("first_child", "1"))
-    act.check_undo(input_md, [action])
-
-
-def test_listitem_to_existing_list_no_wrap() -> None:
-    input_md = """# foo
-
-- a
-- b
-
-para
-
-- c
-- d
-"""
-    # Move 'a' (1.1.1) to after 'd' (1.3.2) — both contexts are Lists, no wrap.
-    action = MoveNodeAction("1.1.1", _anchor("after", "1.3.2"))
-    act.check_undo(input_md, [action])
-
-
 # =====================================================================
 # 6. Source-list cleanup
 # =====================================================================
@@ -532,17 +251,6 @@ intro
     assert md.index("- only") < md.index("intro")
 
 
-def test_move_only_listitem_round_trips() -> None:
-    input_md = """# foo
-
-intro
-
-- only
-"""
-    action = MoveNodeAction("1.2.1", _anchor("before", "1.1"))
-    act.check_undo(input_md, [action])
-
-
 def test_move_one_of_many_keeps_source_list() -> None:
     input_md = """# foo
 
@@ -560,37 +268,6 @@ para
     # Both 'a' and 'b' appear once.
     assert md.count("- a") == 1
     assert md.count("- b") == 1
-
-
-def test_move_only_listitem_cleanup_shifts_dest_index() -> None:
-    # Exercises the dest_index decrement when source-list cleanup pops a
-    # sibling that lay BEFORE the destination index in the same parent.
-    input_md = """# foo
-
-- only
-
-para tail
-"""
-    # Source list at 1.1, source listitem at 1.1.1. Move it to last_child of
-    # section 1. Pre-lift, section children are [list, para_tail]. After
-    # cleanup removes the now-empty list (index 0), 'para tail' shifts to
-    # index 0; dest_index was 2 (after both), needs to become 1.
-    action = MoveNodeAction("1.1.1", _anchor("last_child", "1"))
-    act.check_undo(input_md, [action])
-
-
-def test_move_deep_listitem_round_trips() -> None:
-    input_md = """# foo
-
-- outer
-
-  - inner
-- sibling
-"""
-    # Move 'inner' (deep nested listitem) to be last_child of the section.
-    # The inner list becomes empty and is cleaned up.
-    action = MoveNodeAction("1.1.1.1.1", _anchor("last_child", "1"))
-    act.check_undo(input_md, [action])
 
 
 # =====================================================================
@@ -639,36 +316,6 @@ para one
 para two
 """
     act.check_against_md(input_md, action, expected_md)
-
-
-def test_same_parent_middle_to_middle_round_trip() -> None:
-    input_md = """# foo
-
-a
-
-b
-
-c
-
-d
-
-e
-"""
-    # b → between d and e.
-    action = MoveNodeAction("1.2", _anchor("after", "1.4"))
-    act.check_undo(input_md, [action])
-
-
-def test_same_list_reorder_round_trip() -> None:
-    input_md = """# foo
-
-1. a
-2. b
-3. c
-"""
-    # Move 'a' to after 'c'.
-    action = MoveNodeAction("1.1.1", _anchor("after", "1.1.3"))
-    act.check_undo(input_md, [action])
 
 
 # =====================================================================
@@ -870,136 +517,8 @@ def test_parse_move_node_empty_id() -> None:
 
 
 # =====================================================================
-# 12. Undo / round-trip
-# =====================================================================
-
-
-def test_undo_section_move_restores_levels() -> None:
-    input_md = """# top
-
-## a
-
-inner a
-
-## b
-
-inner b
-"""
-    action = MoveNodeAction("1.1", _anchor("last_child", "1.2"))
-    act.check_undo(input_md, [action])
-
-
-def test_undo_listitem_autowrap_removes_wrap() -> None:
-    input_md = """# foo
-
-intro
-
-- a
-- b
-"""
-    action = MoveNodeAction("1.2.1", _anchor("first_child", "1"))
-    act.check_undo(input_md, [action])
-
-
-def test_undo_cleanup_recreates_source_list() -> None:
-    input_md = """# foo
-
-- only
-
-para
-"""
-    action = MoveNodeAction("1.1.1", _anchor("after", "1.2"))
-    act.check_undo(input_md, [action])
-
-
-def test_undo_multi_action_batch() -> None:
-    input_md = """# foo
-
-para one
-
-para two
-
-para three
-"""
-    actions: list[Action] = [
-        MoveNodeAction("1.1", _anchor("after", "1.3")),
-        MoveNodeAction("1.2", _anchor("before", "1.1")),
-    ]
-    act.check_undo(input_md, actions)
-
-
-def test_undo_mixed_action_batch() -> None:
-    input_md = """# foo
-
-para one
-
-para two
-"""
-    actions: list[Action] = [
-        MoveNodeAction("1.1", _anchor("after", "1.2")),
-        RewriteNodeAction("1.2", "rewritten"),
-        AddExampleAction("1.2", "an example"),
-    ]
-    act.check_undo(input_md, actions)
-
-
-# =====================================================================
 # 13. Interaction with other actions in a batch
 # =====================================================================
-
-
-def test_batch_move_then_add_example_resolves_against_snapshot() -> None:
-    # IDs resolve against the snapshot the actor saw — but our tests run
-    # actions sequentially against the (mutated) tree, so the host id for
-    # the AddExample must still exist after the move. Since move_node
-    # preserves the node's id, this works.
-    input_md = """# foo
-
-para one
-
-para two
-"""
-    actions: list[Action] = [
-        MoveNodeAction("1.1", _anchor("after", "1.2")),
-        AddExampleAction("1.1", "post-move example"),
-    ]
-    act.check_undo(input_md, actions)
-
-
-def test_batch_move_then_delete_sibling() -> None:
-    from prompt_model.service.actions import RemoveNodeAction
-
-    input_md = """# foo
-
-para one
-
-para two
-
-para three
-"""
-    actions: list[Action] = [
-        MoveNodeAction("1.1", _anchor("after", "1.3")),
-        RemoveNodeAction("1.2"),
-    ]
-    act.check_undo(input_md, actions)
-
-
-def test_batch_two_moves_referencing_snapshot_ids() -> None:
-    input_md = """# foo
-
-a
-
-b
-
-c
-"""
-    # First move a to end; second move b to beginning. After first move,
-    # b still has its original id 1.2 (apply doesn't reassign mid-batch).
-    actions: list[Action] = [
-        MoveNodeAction("1.1", _anchor("after", "1.3")),
-        MoveNodeAction("1.2", _anchor("before", "1.3")),
-    ]
-    act.check_undo(input_md, actions)
 
 
 # =====================================================================
@@ -1082,63 +601,6 @@ para
 # =====================================================================
 
 
-# --- moves of node types we underexercised ---
-
-
-def test_move_whole_list_between_sections() -> None:
-    input_md = """# a
-
-- x
-- y
-
-# b
-
-para b
-"""
-    # Move the entire List (with both items) from section a into section b.
-    action = MoveNodeAction("1.1", _anchor("last_child", "2"))
-    act.check_undo(input_md, [action])
-
-
-def test_move_list_into_listitem_as_nested() -> None:
-    input_md = """# foo
-
-- host
-
-- a
-- b
-"""
-    # ListItem.children allows List, so this is a legal direct insertion
-    # — but wait, the list to move is `1.1` (single list containing host/a/b).
-    # Re-shape: use a list and a separate paragraph-then-list to get two
-    # distinct lists.
-    input_md = """# foo
-
-- host
-
-para sep
-
-- a
-- b
-"""
-    # Move list 1.3 (a, b) to be a child of listitem 1.1.1 ('host').
-    action = MoveNodeAction("1.3", _anchor("last_child", "1.1.1"))
-    act.check_undo(input_md, [action])
-
-
-def test_move_paragraph_directly_under_document() -> None:
-    # Paragraph CAN be a direct child of Document (no Section wrapper).
-    input_md = """preamble
-
-# foo
-
-body
-"""
-    # Move 'body' (1.1) to be first_child of Document — alongside the preamble.
-    action = MoveNodeAction("2.1", _anchor("first_child", ""))
-    act.check_undo(input_md, [action])
-
-
 def test_move_codeblock_preserves_info_string() -> None:
     input_md = """# foo
 
@@ -1173,55 +635,7 @@ para
     assert "| 1 | 2 |" in md
 
 
-# --- ListItem ↔ ListItem auto-wrap target ---
-
-
-def test_move_listitem_to_another_listitem_wraps_in_inner_list() -> None:
-    input_md = """# foo
-
-- host
-
-- a
-- b
-"""
-    # Reshape to two distinct lists.
-    input_md = """# foo
-
-- host
-
-para sep
-
-- a
-- b
-"""
-    # Move 'a' to be first_child of listitem 'host' (1.1.1). ListItem can
-    # carry block children including List, so the moved item auto-wraps in
-    # a fresh List nested inside the host item.
-    action = MoveNodeAction("1.3.1", _anchor("first_child", "1.1.1"))
-    act.check_undo(input_md, [action])
-
-
 # --- Section behaviour ---
-
-
-def test_section_emptied_by_move_is_still_valid() -> None:
-    # Sections are allowed to be empty (placeholder headings); validation
-    # does not reject them. Verifying the move succeeds when it empties a
-    # source Section.
-    input_md = """# a
-
-## donor
-
-only child para
-
-# b
-
-body b
-"""
-    # Move 'only child para' (1.1.1) into section b. Section 'donor' (1.1)
-    # is left empty but valid.
-    action = MoveNodeAction("1.1.1", _anchor("last_child", "2"))
-    act.check_undo(input_md, [action])
 
 
 def test_section_h4_to_document_shifts_delta_minus_three() -> None:
@@ -1246,13 +660,6 @@ sibling body
     md = tree.to_markdown()
     # 'donor' is now a top-level heading.
     assert "\n# donor" in md
-    # And re-applying inverse restores h4.
-    tree2 = _parse(input_md)
-    inv = MoveNodeAction("1.1.1.1", _anchor("last_child", "")).apply(tree2)
-    assert not isinstance(inv, list)
-    inverse_action: Action = inv
-    inverse_action.apply(tree2)
-    assert "#### donor" in tree2.to_markdown()
 
 
 def test_section_level_delta_zero_no_change() -> None:
@@ -1280,23 +687,6 @@ inner b
 # --- annotation-heavy scenarios ---
 
 
-def test_multiline_annotation_text_survives_move() -> None:
-    input_md = """# foo
-
-para one
-
-::: examples
-first line of example
-
-second line of example
-:::
-
-para two
-"""
-    action = MoveNodeAction("1.1", _anchor("after", "1.2"))
-    act.check_undo(input_md, [action])
-
-
 def test_multiple_annotations_in_group_preserve_order() -> None:
     input_md = """# foo
 
@@ -1316,29 +706,6 @@ para two
     md = tree.to_markdown()
     # Order of examples must be first → second → third post-move.
     assert md.index("first") < md.index("second") < md.index("third")
-
-
-def test_move_between_two_annotated_hosts() -> None:
-    input_md = """# foo
-
-host A
-
-::: examples
-ex for A
-:::
-
-mover
-
-host B
-
-::: examples
-ex for B
-:::
-"""
-    # Move 'mover' (1.2) to after host B (1.3). Annotated hosts on either
-    # side must remain unaffected.
-    action = MoveNodeAction("1.2", _anchor("after", "1.3"))
-    act.check_undo(input_md, [action])
 
 
 # --- adjacency / spacing in output ---
@@ -1397,26 +764,6 @@ def test_moved_node_retains_id_within_batch() -> None:
     assert node.text == "para one"
 
 
-def test_three_step_move_chain_and_undo() -> None:
-    input_md = """# foo
-
-a
-
-b
-
-c
-
-d
-"""
-    # a → after b → after c → after d. Then undo back through all three.
-    actions: list[Action] = [
-        MoveNodeAction("1.1", _anchor("after", "1.2")),
-        MoveNodeAction("1.1", _anchor("after", "1.3")),
-        MoveNodeAction("1.1", _anchor("after", "1.4")),
-    ]
-    act.check_undo(input_md, actions)
-
-
 # --- deeper cycle detection ---
 
 
@@ -1457,98 +804,7 @@ inner b
 # --- empty source/target containers ---
 
 
-def test_move_into_empty_section() -> None:
-    # An empty Section is valid markdown (placeholder heading). Verify we
-    # can move content into it.
-    input_md = """# top
-
-## empty
-
-# other
-
-para to move
-"""
-    # Move 'para to move' (2.1) into section 'empty' (1.1).
-    action = MoveNodeAction("2.1", _anchor("last_child", "1.1"))
-    act.check_undo(input_md, [action])
-
-
 # --- auto-wrap isolation ---
-
-
-def test_undo_preserves_source_list_ordered_across_unordered_to_ordered_move() -> None:
-    # Regression: seed=1102855868 from test_random_long_undo_sequences.
-    # The only ListItem of an *unordered* List was moved into an *ordered*
-    # List. The source list was cleaned up, but the simple MoveNode inverse
-    # picked up `ordered` from the inverse's source_parent — which is the
-    # ORDERED destination List — so undo re-created an *ordered* wrapping
-    # list at the source slot, losing the original `ordered=False`.
-    # The fix is a compound inverse that captures the original source List
-    # (with its `ordered` flag) before any mutation.
-    input_md = """# foo
-
-intro
-
-- only
-
-para tail
-
-1. other a
-2. other b
-"""
-    # Source: List 1.2 (unordered) with one item 1.2.1 ('only').
-    # Destination: into ordered List 1.4 (after item 'other a' at 1.4.1).
-    action = MoveNodeAction("1.2.1", _anchor("after", "1.4.1"))
-    act.check_undo(input_md, [action])
-
-
-def test_undo_preserves_source_list_id_across_cleanup_with_wrap() -> None:
-    # Regression: seed=1876018022 from test_random_long_undo_sequences.
-    # Forward action [1] inserted a paragraph after List "1" (the only
-    # List). Action [4] moved the List's only ListItem to a non-List
-    # parent (between Document children) — cleanup + auto-wrap fired.
-    # The previous fix used a simple MoveNode inverse in the wrap case,
-    # which produced an *anonymous* wrap List at the gp slot instead of
-    # restoring the original List with id="1". A later inverse in the
-    # batch referenced id "1" and failed with `assert source is not None`.
-    # The fix uses the compound _CleanupInverse for both cleanup branches.
-    from prompt_model.service.actions import RemoveNodeAction
-
-    input_md = """1. only
-
-para tail
-"""
-    # Two-step batch:
-    # [0] move ListItem "1.1" between Document children — triggers
-    #     cleanup + wrap. The list "1" gets destroyed.
-    # [1] delete the paragraph by id "2". When undoing in LIFO order,
-    #     [1]-undo re-inserts the paragraph (fine), then [0]-undo MUST
-    #     restore List with id="1" (so the structural state matches).
-    # Even without action [1], the inverse must restore List "1" verbatim
-    # so any subsequent reference to id "1" resolves.
-    actions: list[Action] = [
-        MoveNodeAction("1.1", _anchor("after", "2")),
-        RemoveNodeAction("2"),
-    ]
-    act.check_undo(input_md, actions)
-
-
-def test_undo_preserves_source_list_ordered_across_ordered_to_unordered_move() -> None:
-    # Symmetric regression: ordered → unordered list, same risk that the
-    # simple inverse would inherit the wrong `ordered`.
-    input_md = """# foo
-
-intro
-
-1. only
-
-para tail
-
-- other a
-- other b
-"""
-    action = MoveNodeAction("1.2.1", _anchor("after", "1.4.1"))
-    act.check_undo(input_md, [action])
 
 
 def test_autowrap_does_not_swallow_neighbours() -> None:
@@ -1573,3 +829,495 @@ intro
     assert "\nintro\n" in md
     assert md.count("- a") == 1
     assert md.count("- b") == 1
+
+
+# =====================================================================
+# 16. Noop: adjacent sibling positions
+# =====================================================================
+
+
+def test_noop_before_next_sibling() -> None:
+    # Moving node "1.1" before "1.2" — insertion index is 1, source_index is
+    # 0, so dest_index == source_index + 1 → noop by _is_noop.
+    tree = _parse("# foo\n\npara one\n\npara two\n\npara three\n")
+    action = MoveNodeAction("1.1", _anchor("before", "1.2"))
+    assert action.validate(tree) == SkipReason.InvalidAnchor
+
+
+def test_noop_after_previous_sibling() -> None:
+    # Moving node "1.2" after "1.1" — insertion index is 1, source_index is
+    # 1, so dest_index == source_index → noop by _is_noop.
+    tree = _parse("# foo\n\npara one\n\npara two\n\npara three\n")
+    action = MoveNodeAction("1.2", _anchor("after", "1.1"))
+    assert action.validate(tree) == SkipReason.InvalidAnchor
+
+
+def test_noop_before_next_sibling_section() -> None:
+    # Same adjacency check for Section nodes.
+    tree = _parse("# top\n\n## a\n\nbody a\n\n## b\n\nbody b\n")
+    action = MoveNodeAction("1.1", _anchor("before", "1.2"))
+    assert action.validate(tree) == SkipReason.InvalidAnchor
+
+
+def test_noop_after_previous_sibling_section() -> None:
+    tree = _parse("# top\n\n## a\n\nbody a\n\n## b\n\nbody b\n")
+    action = MoveNodeAction("1.2", _anchor("after", "1.1"))
+    assert action.validate(tree) == SkipReason.InvalidAnchor
+
+
+# =====================================================================
+# 17. ListItem into an existing List (no auto-wrap)
+# =====================================================================
+
+
+def test_listitem_into_sibling_list_no_wrap() -> None:
+    # A ListItem moved into an existing List should land directly in that
+    # list — no extra wrapper List should be inserted.
+    # Two lists separated by a paragraph so the parser creates two distinct
+    # List nodes (blank line alone merges them into one).
+    input_md = """# foo
+
+- a
+- b
+
+sep
+
+- c
+- d
+"""
+    # Tree: list(1.1)=[a(1.1.1), b(1.1.2)], para(1.2)=sep, list(1.3)=[c(1.3.1), d(1.3.2)]
+    # Move "a" (1.1.1) before "c" (1.3.1) — dest_parent is the second List (1.3).
+    action = MoveNodeAction("1.1.1", _anchor("before", "1.3.1"))
+    tree = _parse(input_md)
+    assert action.validate(tree) is None
+    action.apply(tree)
+    md = tree.to_markdown()
+    # "a" should appear before "c" and not be wrapped in its own extra list.
+    assert md.index("- a") < md.index("- c")
+    assert md.count("- a") == 1
+    assert md.count("- b") == 1
+    assert md.count("- c") == 1
+
+
+def test_listitem_into_sibling_list_preserves_order() -> None:
+    input_md = """# foo
+
+- x
+
+sep
+
+- a
+- b
+- c
+"""
+    # Tree: list(1.1)=[x(1.1.1)], para(1.2)=sep, list(1.3)=[a(1.3.1),b(1.3.2),c(1.3.3)]
+    # Move "x" (1.1.1) as last_child of second list (1.3) — no auto-wrap.
+    action = MoveNodeAction("1.1.1", _anchor("last_child", "1.3"))
+    tree = _parse(input_md)
+    assert action.validate(tree) is None
+    action.apply(tree)
+    md = tree.to_markdown()
+    assert md.index("- a") < md.index("- b") < md.index("- c") < md.index("- x")
+    assert md.count("- x") == 1
+
+
+def test_listitem_move_no_wrap_roundtrip() -> None:
+    input_md = """# foo
+
+- a
+- b
+
+sep
+
+- c
+"""
+    # Tree: list(1.1)=[a(1.1.1),b(1.1.2)], para(1.2)=sep, list(1.3)=[c(1.3.1)]
+    action = MoveNodeAction("1.1.1", _anchor("last_child", "1.3"))
+    tree = _parse(input_md)
+    action.apply(tree)
+    md1 = tree.to_markdown()
+    tree2 = _parse(md1)
+    md2 = tree2.to_markdown()
+    assert md1 == md2
+
+
+# =====================================================================
+# 18. Source-list cleanup + grandparent dest_index adjustment
+# =====================================================================
+
+
+def test_cleanup_dest_after_removed_list() -> None:
+    # The only item in a list is moved to a position AFTER the list in the
+    # same section but NOT at the end — specifically between two other siblings.
+    # After the list is removed (cleanup) its slot shifts all subsequent indices
+    # down by one, so dest_index must be decremented a second time. Without that
+    # fix the item would land one position too far right (after para two instead
+    # of between para one and para two).
+    input_md = """# foo
+
+- only
+
+para one
+
+para two
+"""
+    # Tree: list(1.1)=[only(1.1.1)], para(1.2)=para one, para(1.3)=para two
+    # Moving "only" after "para one" (1.2): raw dest_index=2, list at gp_index=0.
+    # Cleanup removes list → gp_index=0 shift → dest_index becomes 1 → lands
+    # between para one and para two.
+    action = MoveNodeAction("1.1.1", _anchor("after", "1.2"))
+    tree = _parse(input_md)
+    assert action.validate(tree) is None
+    action.apply(tree)
+    md = tree.to_markdown()
+    # Order must be: para one → - only → para two.
+    assert md.index("para one") < md.index("- only") < md.index("para two")
+    assert md.count("- only") == 1
+
+
+def test_cleanup_dest_before_removed_list_position() -> None:
+    # Similar: move the only item to BEFORE a sibling that came AFTER the list.
+    # After cleanup, dest_index is NOT shifted (dest is before the removed list
+    # in the sibling order), so the item lands correctly before that sibling.
+    input_md = """# foo
+
+para
+
+- only
+"""
+    # "para" is 1.1, list is 1.2 (index 1), "only" is 1.2.1.
+    # Move "only" before "para" (dest_index = 0, before the list's gp_index=1
+    # so no second adjustment needed).
+    action = MoveNodeAction("1.2.1", _anchor("before", "1.1"))
+    tree = _parse(input_md)
+    assert action.validate(tree) is None
+    action.apply(tree)
+    md = tree.to_markdown()
+    assert md.index("- only") < md.index("para")
+    assert md.count("- only") == 1
+
+
+def test_cleanup_roundtrip() -> None:
+    input_md = """# foo
+
+- only
+
+para
+"""
+    action = MoveNodeAction("1.1.1", _anchor("after", "1.2"))
+    tree = _parse(input_md)
+    action.apply(tree)
+    md1 = tree.to_markdown()
+    tree2 = _parse(md1)
+    md2 = tree2.to_markdown()
+    assert md1 == md2
+
+
+# =====================================================================
+# 19. validate / apply consistency
+# =====================================================================
+
+
+def test_validate_then_apply_annotations_consistent() -> None:
+    input_md = """# foo
+
+para one
+
+::: examples
+for one
+:::
+
+para two
+"""
+    action = MoveNodeAction("1.1", _anchor("after", "1.2"))
+    tree = _parse(input_md)
+    assert action.validate(tree) is None
+    action.apply(tree)
+    md = tree.to_markdown()
+    assert "for one" in md
+    assert "para two" in md
+
+
+def test_validate_then_apply_section_level_shift_consistent() -> None:
+    input_md = """# top
+
+## a
+
+inner a
+
+## b
+
+inner b
+"""
+    action = MoveNodeAction("1.1", _anchor("last_child", "1.2"))
+    tree = _parse(input_md)
+    assert action.validate(tree) is None
+    action.apply(tree)
+    assert "### a" in tree.to_markdown()
+
+
+def test_validate_then_apply_autowrap_consistent() -> None:
+    input_md = """# foo
+
+intro
+
+- a
+- b
+"""
+    action = MoveNodeAction("1.2.1", _anchor("first_child", "1"))
+    tree = _parse(input_md)
+    assert action.validate(tree) is None
+    action.apply(tree)
+    md = tree.to_markdown()
+    assert md.index("- a") < md.index("intro")
+
+
+def test_validate_then_apply_source_cleanup_consistent() -> None:
+    input_md = """# foo
+
+- only
+
+para
+"""
+    action = MoveNodeAction("1.1.1", _anchor("after", "1.2"))
+    tree = _parse(input_md)
+    assert action.validate(tree) is None
+    action.apply(tree)
+    md = tree.to_markdown()
+    assert md.count("- only") == 1
+    assert md.index("para") < md.index("- only")
+
+
+# =====================================================================
+# 20. Cross-parent before/after — same depth, delta zero
+# =====================================================================
+
+
+def test_cross_parent_same_depth_section_level_unchanged() -> None:
+    # Move an h2 from one h1 to a sibling position next to another h1 via
+    # "before". Since the new location is still a direct child of Document,
+    # the section level should remain h1 (Document child = level 1, but the
+    # section being moved is h2, so delta stays 0... wait, moving h2 to
+    # before a sibling h1 that is also Document child would make it h1).
+    # Correct scenario: move h2 out of one h1 to be sibling of both h1s.
+    input_md = """# first
+
+## shared
+
+body
+
+# second
+
+body second
+"""
+    # "shared" (1.1, h2) moved before "second" (2, h1) — dest_parent is
+    # Document, so new level = 1, delta = -1.
+    action = MoveNodeAction("1.1", _anchor("before", "2"))
+    tree = _parse(input_md)
+    assert action.validate(tree) is None
+    action.apply(tree)
+    md = tree.to_markdown()
+    # "shared" is now a top-level h1.
+    assert "# shared" in md
+    assert "## shared" not in md
+
+
+def test_cross_parent_same_parent_depth_no_level_change() -> None:
+    # Move h2 from one position to after its last h2 sibling — both share the
+    # same h1 parent, so delta = 0 and level is unchanged.
+    input_md = """# top
+
+## a
+
+body a
+
+## b
+
+body b
+
+## c
+
+body c
+"""
+    # Move "a" (1.1) to after "c" (1.3) — same parent (top), same depth.
+    action = MoveNodeAction("1.1", _anchor("after", "1.3"))
+    tree = _parse(input_md)
+    assert action.validate(tree) is None
+    action.apply(tree)
+    md = tree.to_markdown()
+    assert "## a" in md
+    assert "### a" not in md
+    # "# a" is a substring of "## a" — check no line uses exactly h1 level.
+    assert not any(line == "# a" for line in md.splitlines())
+
+
+# =====================================================================
+# 21. Section with mixed subtree content
+# =====================================================================
+
+
+def test_move_section_with_lists_and_paragraphs() -> None:
+    input_md = """# top
+
+## a
+
+body a
+
+- item x
+- item y
+
+## b
+
+body b
+"""
+    # Move "a" (1.1) under "b" (1.2) — becomes h3, list children are intact.
+    action = MoveNodeAction("1.1", _anchor("last_child", "1.2"))
+    tree = _parse(input_md)
+    assert action.validate(tree) is None
+    action.apply(tree)
+    md = tree.to_markdown()
+    assert "### a" in md
+    assert "- item x" in md
+    assert "- item y" in md
+    assert "body a" in md
+
+
+def test_move_section_with_annotations_intact() -> None:
+    input_md = """# top
+
+## a
+
+para
+
+::: examples
+example A
+:::
+
+## b
+
+body b
+"""
+    # Move "a" (1.1) after "b" (1.2) — same parent, level unchanged, annotation travels.
+    action = MoveNodeAction("1.1", _anchor("after", "1.2"))
+    tree = _parse(input_md)
+    assert action.validate(tree) is None
+    action.apply(tree)
+    md = tree.to_markdown()
+    assert "## a" in md
+    assert "example A" in md
+    assert md.index("body b") < md.index("example A")
+
+
+def test_move_section_mixed_subtree_roundtrip() -> None:
+    input_md = """# top
+
+## a
+
+body a
+
+- x
+- y
+
+### deep
+
+deep body
+
+## b
+
+body b
+"""
+    action = MoveNodeAction("1.1", _anchor("last_child", "1.2"))
+    tree = _parse(input_md)
+    action.apply(tree)
+    md1 = tree.to_markdown()
+    tree2 = _parse(md1)
+    md2 = tree2.to_markdown()
+    assert md1 == md2
+
+
+# =====================================================================
+# 22. Deeply nested lists
+# =====================================================================
+
+
+def test_move_from_nested_listitem() -> None:
+    # A ListItem that lives inside a nested list (list inside listitem).
+    # Moving it out should auto-wrap and clean up correctly.
+    input_md = """# foo
+
+- outer
+
+  - inner a
+  - inner b
+
+para
+"""
+    # "inner a" is a listitem inside the nested list. Move it before "para".
+    # Locate it: section 1, list 1.1, listitem 1.1.1, nested list 1.1.1.1,
+    # listitem 1.1.1.1.1.
+    tree = _parse(input_md)
+    # Find the id of inner a dynamically to avoid fragile hardcoding.
+    from prompt_model.model import ListItem
+    from prompt_model.service.actions._walk import walk_all
+
+    inner_a_id = None
+    for node in walk_all(tree):
+        if isinstance(node, ListItem) and node.text == "inner a":
+            inner_a_id = node.id
+            break
+    assert inner_a_id is not None, "could not find 'inner a' node"
+
+    # Find id of para
+    from prompt_model.model import Paragraph
+
+    para_id = None
+    for node in walk_all(tree):
+        if isinstance(node, Paragraph) and node.text == "para":
+            para_id = node.id
+            break
+    assert para_id is not None
+
+    action = MoveNodeAction(inner_a_id, _anchor("before", para_id))
+    assert action.validate(tree) is None
+    action.apply(tree)
+    md = tree.to_markdown()
+    assert "inner a" in md
+    assert md.index("inner a") < md.index("para")
+
+
+def test_move_into_nested_list_as_last_child() -> None:
+    # Move a top-level ListItem into a nested List as last_child.
+    input_md = """# foo
+
+- top item
+
+- outer
+
+  - nested a
+"""
+    tree = _parse(input_md)
+    from prompt_model.model import List, ListItem
+    from prompt_model.service.actions._walk import walk_all
+
+    top_item_id = None
+    nested_list_id = None
+    for node in walk_all(tree):
+        if isinstance(node, ListItem) and node.text == "top item":
+            top_item_id = node.id
+        if isinstance(node, List):
+            for child in node.children:
+                if isinstance(child, ListItem) and child.text == "outer":
+                    # The nested list is inside this listitem's children
+                    for grandchild in getattr(child, "children", []):
+                        if isinstance(grandchild, List):
+                            nested_list_id = grandchild.id
+
+    assert top_item_id is not None
+    assert nested_list_id is not None
+
+    action = MoveNodeAction(top_item_id, _anchor("last_child", nested_list_id))
+    assert action.validate(tree) is None
+    action.apply(tree)
+    md = tree.to_markdown()
+    assert "top item" in md
+    assert "nested a" in md

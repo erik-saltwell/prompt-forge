@@ -1,12 +1,10 @@
 from __future__ import annotations
 
 from collections.abc import Iterator
-from typing import TYPE_CHECKING, cast
+from typing import cast
 
 from ...model import Document, List, ListItem, Paragraph, PromptNode, Section
-
-if TYPE_CHECKING:
-    from .anchor import LocationAnchor
+from .anchor import LocationAnchor
 
 type ChildContainer = Document | Section | List | ListItem
 
@@ -108,46 +106,6 @@ def resolve_anchor(tree: Document, anchor: LocationAnchor) -> tuple[ChildContain
         return None
     parent, index = located
     return parent, index + (1 if anchor.kind == "after" else 0)
-
-
-def anchor_for_slot(parent: ChildContainer, index: int) -> LocationAnchor | None:
-    """Build a LocationAnchor that reconstructs the slot occupied by
-    `parent.children[index]`, called *before* that occupant is removed.
-
-    The occupant at `index` is excluded from the anchor candidates — it is
-    the node being lifted out, so it cannot anchor its own slot.
-
-    Resolution order:
-    - if there is a previous sibling at `index - 1`, anchor `after` it;
-    - else if there is a next sibling at `index + 1`, anchor `before` it;
-    - else (parent will be empty after the remove) anchor `first_child` of parent.
-
-    Returns None if no anchor can be built — currently only when `parent` is
-    a Document with no surviving sibling (Document has no id)."""
-    siblings = children_of(parent)
-    from .anchor import LocationAnchor
-
-    # LocationAnchor.target accepts either a string id or a PromptNode
-    # reference. We prefer ids for stability (refs require the node object
-    # to remain reachable through undo), but fall back to refs when the
-    # target has no id — e.g., an anonymous wrap List created mid-batch by
-    # move_node, or the Document root.
-    if index > 0:
-        prev = siblings[index - 1]
-        if prev.id is not None:
-            return LocationAnchor(kind="after", target=prev.id)
-        return LocationAnchor(kind="after", target=prev)
-    if index + 1 < len(siblings):
-        nxt = siblings[index + 1]
-        if nxt.id is not None:
-            return LocationAnchor(kind="before", target=nxt.id)
-        return LocationAnchor(kind="before", target=nxt)
-    parent_id = parent.id
-    if parent_id is not None:
-        return LocationAnchor(kind="first_child", target=parent_id)
-    if isinstance(parent, Document):
-        return None
-    return LocationAnchor(kind="first_child", target=parent)
 
 
 def is_descendant(node: PromptNode, possible_ancestor: PromptNode) -> bool:

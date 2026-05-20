@@ -16,29 +16,13 @@ class AddNodeAction:
     - `str` — shorthand: becomes a Paragraph with that text.
     - `dict` — full Pydantic node shape with `node_type` discriminator.
       May include inline `examples` / `guidance` groups on Paragraph and
-      ListItem nodes.
-
-    The inverse is a RemoveNodeAction targeting the freshly inserted node
-    by synthetic id (minted at apply time) or by snapshot id (when this
-    action was constructed as the undo of a RemoveNodeAction)."""
+      ListItem nodes."""
 
     def __init__(self, subtree: object, anchor: LocationAnchor) -> None:
         self.subtree_raw = subtree
         self.anchor = anchor
-        # Set when constructed via `_for_undo` — carries the original
-        # detached PromptNode so undo restores the exact object with its
-        # snapshot ids, keeping anchors on other inverses stable under LIFO.
-        self._captured: PromptNode | None = None
-
-    @classmethod
-    def _for_undo(cls, detached: PromptNode, anchor: LocationAnchor) -> AddNodeAction:
-        action = cls(detached, anchor)
-        action._captured = detached
-        return action
 
     def _materialise(self) -> PromptNode | None:
-        if self._captured is not None:
-            return self._captured
         return build_subtree(self.subtree_raw)
 
     def validate(self, tree: Document) -> SkipReason | None:
@@ -55,7 +39,7 @@ class AddNodeAction:
             return SkipReason.InvalidStructure
         return None
 
-    def _do_insert(self, tree: Document, *, fresh: bool) -> PromptNode:
+    def _do_insert(self, tree: Document, *, fresh: bool) -> None:
         located = resolve_anchor(tree, self.anchor)
         assert located is not None
         parent, index = located
@@ -67,30 +51,9 @@ class AddNodeAction:
             # dry-run sees an independent instance.
             node = node.model_copy(deep=True)
         children_of(parent).insert(index, node)
-        return node
 
-    def apply(self, tree: Document, ctx: ApplyContext | None = None) -> Action:
-        from .remove_node import RemoveNodeAction
-
-        if ctx is None:
-            ctx = ApplyContext.from_tree(tree)
-
-        located = resolve_anchor(tree, self.anchor)
-        assert located is not None, "apply() called without a successful validate()"
-        parent, index = located
-
-        node = self._materialise()
-        assert node is not None
-
-        if self._captured is None:
-            # Forward path: use the materialised node directly and stamp a
-            # synthetic id so the returned RemoveNodeAction can address it.
-            node.id = ctx.mint_inserted_node_id()
-        # else: undo path — node already has its snapshot id.
-
-        children_of(parent).insert(index, node)
-        assert node.id is not None
-        return RemoveNodeAction(node.id)
+    def apply(self, tree: Document, ctx: ApplyContext | None = None) -> None:
+        self._do_insert(tree, fresh=False)
 
 
 @register("insert_node")

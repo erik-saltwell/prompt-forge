@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from prompt_model.model import Paragraph, Section
+from prompt_model.model import Section
 from prompt_model.service.actions import (
     AddExampleAction,
     AddGuidanceAction,
@@ -11,7 +11,7 @@ from prompt_model.service.actions.anchor import LocationAnchor
 from prompt_model.service.parsing.parse_prompt import parse_from_string
 
 from ..utils._short_hand import doc_from_shorthand
-from ..utils.actions import Action, check_against_md, check_can_apply, check_undo, check_undo_from_sh
+from ..utils.actions import Action, check_against_md, check_can_apply
 
 
 def test_simple_add_example() -> None:
@@ -300,7 +300,6 @@ def test_validate_rejects_after_anchor_pointing_at_another_hosts_annotation() ->
 
 
 def test_validate_does_not_mutate_tree() -> None:
-    from prompt_model.service.parsing.parse_prompt import parse_from_string
 
     tree = parse_from_string(_DOC_WITH_BOTH)
     AddExampleAction("1.1", "new").validate(tree)
@@ -346,11 +345,6 @@ def test_apply_add_example_with_last_child_anchor_matches_default_append() -> No
     check_against_md(_DOC_2_EXAMPLES, AddExampleAction("1.1", "appended"), expected)
 
 
-def test_undo_of_anchored_add_example_restores_original() -> None:
-    anchor = LocationAnchor(kind="after", target="1.1.e1")
-    check_undo(_DOC_3_EXAMPLES, [AddExampleAction("1.1", "inserted", anchor=anchor)])
-
-
 def test_apply_add_example_with_first_child_anchor_on_host_with_no_group() -> None:
     # Auto-create the group with the single annotation, even when an anchor
     # is specified — the anchor path must not bypass group creation.
@@ -385,11 +379,6 @@ def test_apply_add_guidance_with_last_child_anchor_matches_default_append() -> N
     expected = "# Title\n\nBody paragraph.\n\n::: guidance\n- g one\n- g two\n- appended\n:::\n"
     check_against_md(_DOC_2_GUIDANCE, AddGuidanceAction("1.1", "appended", anchor=anchor), expected)
     check_against_md(_DOC_2_GUIDANCE, AddGuidanceAction("1.1", "appended"), expected)
-
-
-def test_undo_of_anchored_add_guidance_restores_original() -> None:
-    anchor = LocationAnchor(kind="after", target="1.1.g1")
-    check_undo(_DOC_3_GUIDANCE, [AddGuidanceAction("1.1", "inserted", anchor=anchor)])
 
 
 def test_apply_add_guidance_with_first_child_anchor_on_host_with_no_group() -> None:
@@ -487,110 +476,6 @@ def test_parse_action_returns_unknown_type_for_unregistered_type() -> None:
     assert parse_action({"type": "add_nothing", "host_id": "1.1", "text": "x"}) == SkipReason.UnknownType
 
 
-# ---------- inverse action behavior (direct) ----------
-
-
-def test_apply_returns_inverse_that_removes_only_the_added_example() -> None:
-    tree = parse_from_string(_DOC_2_EXAMPLES)
-    inverse = AddExampleAction("1.1", "added", anchor=LocationAnchor(kind="after", target="1.1.e1")).apply(tree)
-    # tree currently has 3 example children
-    section = tree.children[0]
-    assert isinstance(section, Section)
-    para = section.children[0]
-    assert isinstance(para, Paragraph)
-    assert para.examples is not None
-    assert [c.text for c in para.examples.children] == ["e one", "added", "e two"]
-    # Apply the inverse — only the added one is gone, originals intact in order.
-    inverse.apply(tree)
-    assert [c.text for c in para.examples.children] == ["e one", "e two"]
-
-
-def test_inverse_tears_down_group_when_added_annotation_was_the_only_one() -> None:
-    tree = parse_from_string(_DOC_NO_ANNOTATIONS)
-    inverse = AddExampleAction("1.1", "only").apply(tree)
-    section = tree.children[0]
-    assert isinstance(section, Section)
-    para = section.children[0]
-    assert isinstance(para, Paragraph)
-    assert para.examples is not None  # group auto-created
-    inverse.apply(tree)
-    # Host's `examples` attribute must be None — not just an empty group.
-    assert para.examples is None
-
-
-def test_inverse_tears_down_guidance_group_when_only_child_removed() -> None:
-    tree = parse_from_string(_DOC_NO_ANNOTATIONS)
-    inverse = AddGuidanceAction("1.1", "only").apply(tree)
-    section = tree.children[0]
-    assert isinstance(section, Section)
-    para = section.children[0]
-    assert isinstance(para, Paragraph)
-    assert para.guidance is not None
-    inverse.apply(tree)
-    assert para.guidance is None
-
-
-def test_inverse_apply_returns_a_callable_action() -> None:
-    # The inverse's apply() must itself return an Action (a redo) — required
-    # by the protocol contract even though tests don't normally exercise it.
-    tree = parse_from_string(_DOC_NO_ANNOTATIONS)
-    inverse = AddExampleAction("1.1", "only").apply(tree)
-    redo = inverse.apply(tree)
-    assert not isinstance(redo, list)
-    redo_action: Action = redo
-    # Redoing puts the annotation back.
-    section = tree.children[0]
-    assert isinstance(section, Section)
-    para = section.children[0]
-    assert isinstance(para, Paragraph)
-    assert para.examples is None
-    redo_action.apply(tree)
-    assert para.examples is not None
-    assert [c.text for c in para.examples.children] == ["only"]
-
-
-def test_inverse_with_siblings_does_not_touch_group_attribute() -> None:
-    # Adding into a group with existing entries, then undoing, must leave the
-    # group object intact (not replaced) and other annotations untouched.
-    tree = parse_from_string(_DOC_2_EXAMPLES)
-    section = tree.children[0]
-    assert isinstance(section, Section)
-    para = section.children[0]
-    assert isinstance(para, Paragraph)
-    original_group = para.examples
-    assert original_group is not None
-    inverse = AddExampleAction("1.1", "x").apply(tree)
-    inverse.apply(tree)
-    assert para.examples is original_group
-    assert [c.text for c in original_group.children] == ["e one", "e two"]
-
-
-# ---------- multi-action undo ----------
-
-
-def test_multi_add_undo_restores_tree() -> None:
-    actions: list[Action] = [
-        AddExampleAction("1.1", "ex a"),
-        AddExampleAction("1.1", "ex b", anchor=LocationAnchor(kind="first_child", target="1.1")),
-        AddGuidanceAction("1.1", "g a"),
-        AddExampleAction("1.1", "ex c", anchor=LocationAnchor(kind="after", target="1.1.e1")),
-    ]
-    check_undo(_DOC_NO_ANNOTATIONS, actions)
-
-
-def test_interleaved_add_remove_groups_undo_restores_tree() -> None:
-    # Start from a doc with both groups already populated; pile on more adds
-    # of both kinds, then unwind. Catches inverses that resolve siblings by
-    # ID after the tree has shifted underneath them.
-    actions: list[Action] = [
-        AddExampleAction("1.1", "ex2", anchor=LocationAnchor(kind="before", target="1.1.e1")),
-        AddGuidanceAction("1.1", "g2", anchor=LocationAnchor(kind="last_child", target="1.1")),
-        AddExampleAction("1.1", "ex3"),
-        AddGuidanceAction("1.1", "g3", anchor=LocationAnchor(kind="first_child", target="1.1")),
-    ]
-    check_undo(_DOC_WITH_BOTH, actions)
-
-
 # ---------- ListItem hosts with anchors ----------
 
 
@@ -644,13 +529,6 @@ def test_apply_promotes_single_child_group_to_list_form() -> None:
     check_against_md(input_md, AddExampleAction("1.1", "added"), expected)
 
 
-def test_undo_demotes_two_child_group_back_to_text_form() -> None:
-    # Add a second child (promotes to list-form), then undo back to one child
-    # (must demote back to text-form). Captured via byte-equal round-trip.
-    input_md = "# Title\n\nBody paragraph.\n\n::: examples\nsolo\n:::\n"
-    check_undo(input_md, [AddExampleAction("1.1", "added")])
-
-
 def test_apply_promotes_single_child_guidance_group_to_list_form() -> None:
     input_md = "# Title\n\nBody paragraph.\n\n::: guidance\nsolo\n:::\n"
     expected = "# Title\n\nBody paragraph.\n\n::: guidance\n- solo\n- added\n:::\n"
@@ -678,11 +556,6 @@ def test_apply_add_example_multiline_into_list_form_group() -> None:
     check_against_md(input_md, AddExampleAction("1.1", "foo foo foo\n\nbird bird bird"), expected)
 
 
-def test_undo_of_multiline_add_round_trips() -> None:
-    input_md = "# Title\n\nBody paragraph.\n\n::: examples\n- a\n- b\n:::\n"
-    check_undo(input_md, [AddExampleAction("1.1", "line one\n\nline two")])
-
-
 # ---------- targeting across multiple hosts ----------
 
 
@@ -703,18 +576,3 @@ def test_add_does_not_create_group_on_wrong_host() -> None:
     input_md = "# Title\n\nFirst paragraph.\n\nSecond paragraph.\n\n::: examples\nkeep\n:::\n"
     expected = "# Title\n\nFirst paragraph.\n\n::: guidance\nnew g\n:::\n\nSecond paragraph.\n\n::: examples\nkeep\n:::\n"
     check_against_md(input_md, AddGuidanceAction("1.1", "new g"), expected)
-
-
-def test_add_undo() -> None:
-    sh = "h1 p"
-    actions: list[Action] = [
-        AddExampleAction("1.1", "aaa", LocationAnchor(kind="first_child", target="1.1")),
-        AddExampleAction("1.1", "bbb", LocationAnchor(kind="after", target="1.1.e1")),
-        AddExampleAction("1.1", "ccc", LocationAnchor(kind="before", target="1.1.e1")),
-        AddExampleAction("1.1", "ddd", LocationAnchor(kind="after", target="1.1.e1")),
-        AddExampleAction("1.1", "eee", LocationAnchor(kind="before", target="1.1.e3")),
-        AddExampleAction("1.1", "fff", LocationAnchor(kind="after", target="1.1.e2")),
-        AddExampleAction("1.1", "ggg", LocationAnchor(kind="first_child", target="1.1")),
-        AddExampleAction("1.1", "hhh", LocationAnchor(kind="last_child", target="1.1")),
-    ]
-    check_undo_from_sh(shorthand=sh, actions=actions)

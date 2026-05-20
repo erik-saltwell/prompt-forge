@@ -1,8 +1,6 @@
 from __future__ import annotations
 
 from prompt_model.service.actions import (
-    Action,
-    AddNodeAction,
     RemoveNodeAction,
     SkipReason,
     parse_action,
@@ -67,40 +65,6 @@ other
     act.check_against_md(input_md, RemoveNodeAction("1.2"), expected_md)
 
 
-def test_remove_round_trip_undo() -> None:
-    input_md = """# foo
-
-para one
-
-para two
-
-para three
-"""
-    actions: list[Action] = [
-        RemoveNodeAction("1.2"),
-        RemoveNodeAction("1.1"),
-    ]
-    act.check_undo(input_md, actions)
-
-
-def test_remove_section_then_paragraph_undo() -> None:
-    input_md = """# foo
-
-intro
-
-## bar
-
-inner one
-
-inner two
-"""
-    actions: list[Action] = [
-        RemoveNodeAction("1.2.1"),
-        RemoveNodeAction("1.2"),
-    ]
-    act.check_undo(input_md, actions)
-
-
 def test_remove_leaving_empty_document_rejected() -> None:
     # Removing the sole top-level child would produce empty markdown,
     # which validate-prompt rejects → skip.
@@ -115,19 +79,6 @@ def test_remove_annotation_id_rejected() -> None:
     # delete_node is node-only in v1 — annotation removal goes through remove_example.
     md = "body\n\n::: examples\nex\n:::\n"
     act.check_can_apply(md, RemoveNodeAction("1.e1"), SkipReason.TargetNotFound)
-
-
-def test_remove_inverse_is_add_node() -> None:
-    md = """# foo
-
-para one
-
-para two
-"""
-    tree = act.parse_from_string(md)
-    ctx = act.ApplyContext.from_tree(tree)
-    inv = RemoveNodeAction("1.1").apply(tree, ctx)
-    assert isinstance(inv, AddNodeAction)
 
 
 # ---------- Lists & ListItems ----------
@@ -147,14 +98,6 @@ def test_remove_list_item_from_multi_item_list() -> None:
 def test_remove_only_list_item_rejected() -> None:
     # Removing the only ListItem leaves an empty List, which is invalid.
     act.check_can_apply("- solo\n", RemoveNodeAction("1.1"), SkipReason.InvalidStructure)
-
-
-def test_remove_list_item_undo_round_trip() -> None:
-    input_md = """- a
-- b
-- c
-"""
-    act.check_undo(input_md, [RemoveNodeAction("1.2"), RemoveNodeAction("1.1")])
 
 
 # ---------- Hosts with annotations attached ----------
@@ -182,49 +125,7 @@ survivor
     act.check_against_md(input_md, RemoveNodeAction("1.1"), expected_md)
 
 
-def test_remove_paragraph_with_annotations_undo_restores_them() -> None:
-    input_md = """# top
-
-doomed
-
-::: examples
-ex one
-:::
-
-::: guidance
-g one
-:::
-
-survivor
-"""
-    act.check_undo(input_md, [RemoveNodeAction("1.1")])
-
-
-def test_remove_list_item_with_annotations_undo() -> None:
-    input_md = """# top
-
-- one
-  ::: examples
-  ex
-  :::
-- two
-"""
-    act.check_undo(input_md, [RemoveNodeAction("1.1.1")])
-
-
 # ---------- Other leaf types ----------
-
-
-def test_remove_codeblock_undo_preserves_info() -> None:
-    input_md = """# top
-
-intro
-
-```python
-print(1)
-```
-"""
-    act.check_undo(input_md, [RemoveNodeAction("1.2")])
 
 
 def test_remove_blockquote() -> None:
@@ -239,18 +140,6 @@ intro
 intro
 """
     act.check_against_md(input_md, RemoveNodeAction("1.2"), expected_md)
-
-
-def test_remove_from_ordered_list_preserves_ordering() -> None:
-    input_md = """1. first
-2. second
-3. third
-"""
-    expected_md = """1. first
-2. third
-"""
-    act.check_against_md(input_md, RemoveNodeAction("1.2"), expected_md)
-    act.check_undo(input_md, [RemoveNodeAction("1.2")])
 
 
 # ---------- parse_action ----------

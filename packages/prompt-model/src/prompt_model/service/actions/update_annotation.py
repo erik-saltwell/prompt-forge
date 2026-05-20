@@ -45,12 +45,10 @@ class _UpdateAnnotationBase:
             return SkipReason.AnnotationNotFound
         return None
 
-    def apply(self, tree: Document, ctx: ApplyContext | None = None) -> Action:
+    def apply(self, tree: Document, ctx: ApplyContext | None = None) -> None:
         ann = _find_annotation(tree, self.annotation_id, self.kind)
         assert ann is not None, "apply() called without a successful validate()"
-        old_text = ann.text
         ann.text = self.text
-        return type(self)(self.annotation_id, old_text)
 
 
 class UpdateExampleAction(_UpdateAnnotationBase):
