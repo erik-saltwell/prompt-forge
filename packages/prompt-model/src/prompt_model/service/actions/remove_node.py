@@ -3,8 +3,7 @@ from __future__ import annotations
 from ..._protocols.action import Action, ApplyContext, SkipReason
 from ...model import Document
 from ._dry_run import validates_after
-from ._walk import ChildContainer, children_of, find_node_by_id, find_parent_and_index
-from .anchor import LocationAnchor
+from ._walk import ChildContainer, anchor_for_slot, children_of, find_node_by_id, find_parent_and_index
 from .registry import register
 
 
@@ -51,25 +50,13 @@ class RemoveNodeAction:
         located = self._resolve(tree)
         assert located is not None, "apply() called without a successful validate()"
         parent, index = located
-        siblings = children_of(parent)
 
-        prev_id = siblings[index - 1].id if index > 0 else None
-        next_id = siblings[index + 1].id if index + 1 < len(siblings) else None
-        parent_id = parent.id  # Document.id is None — use first_child fallback
+        anchor = anchor_for_slot(parent, index)
+        # validate() rejects removes that would leave Document empty, so a
+        # None here can only mean a Document with no siblings — already gated.
+        assert anchor is not None, "remove leaving empty Document should not pass validate()"
 
-        detached = siblings.pop(index)
-
-        if prev_id is not None:
-            anchor: LocationAnchor = LocationAnchor(kind="after", target=prev_id)
-        elif next_id is not None:
-            anchor = LocationAnchor(kind="before", target=next_id)
-        else:
-            # No siblings: anchor by parent. Document has id=None but the
-            # validate step rejects "remove last child of Document" (would
-            # produce empty markdown), so parent_id is non-None here.
-            assert parent_id is not None, "remove leaving empty Document should not pass validate()"
-            anchor = LocationAnchor(kind="first_child", target=parent_id)
-
+        detached = children_of(parent).pop(index)
         return AddNodeAction._for_undo(detached, anchor)
 
 

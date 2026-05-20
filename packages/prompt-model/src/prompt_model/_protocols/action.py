@@ -94,4 +94,11 @@ def _collect_ids(tree: Document) -> set[str]:
 class Action(Protocol):
     def validate(self, tree: Document) -> SkipReason | None: ...
 
-    def apply(self, tree: Document, ctx: ApplyContext | None = None) -> Action: ...
+    def apply(self, tree: Document, ctx: ApplyContext | None = None) -> Action | list[Action]: ...
+
+    # Returning a list is the compound-inverse path: an action whose forward
+    # apply made multiple structural changes (e.g., move_node that also tore
+    # down an emptied source List) returns a list of inverse Actions in
+    # *execution order* — the first item is the first to apply when undoing.
+    # The executor / test helpers reverse the list when pushing onto the
+    # LIFO undo stack so popping yields the correct order.

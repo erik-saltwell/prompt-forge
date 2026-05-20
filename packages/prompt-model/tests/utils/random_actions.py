@@ -107,6 +107,10 @@ def _sample_structural(
         if addressable:
             ops.append("sibling_insert")
             ops.append("delete")
+        # move needs both a source (any addressable structural node) and a
+        # destination anchor (sibling or child of any addressable/container).
+        if addressable and (containers or addressable):
+            ops.append("move")
         if not ops:
             return None
         op = rng.choice(ops)
@@ -135,11 +139,30 @@ def _sample_structural(
                 "subtree": text,
                 "anchor": {kind: tid},
             }
-        else:  # delete
+        elif op == "delete":
             target_node = rng.choice(addressable)
             tid = getattr(target_node, "id", None)
             assert isinstance(tid, str)
             raw = {"type": "delete_node", "id": tid}
+        else:  # move
+            source_node = rng.choice(addressable)
+            sid = getattr(source_node, "id", None)
+            assert isinstance(sid, str)
+            anchor_kind = rng.choice(("after", "before", "first_child", "last_child"))
+            if anchor_kind in ("after", "before"):
+                anchor_target_node = rng.choice(addressable)
+                atid = getattr(anchor_target_node, "id", None)
+                assert isinstance(atid, str)
+                anchor_target = atid
+            else:
+                parent = rng.choice(containers)
+                if isinstance(parent, Document):
+                    anchor_target = ""
+                else:
+                    pid = getattr(parent, "id", None)
+                    assert isinstance(pid, str)
+                    anchor_target = pid
+            raw = {"type": "move_node", "id": sid, "anchor": {anchor_kind: anchor_target}}
 
         if _validates(raw, tree):
             return raw

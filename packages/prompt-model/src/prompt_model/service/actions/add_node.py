@@ -4,48 +4,9 @@ from ..._protocols.action import Action, ApplyContext, SkipReason
 from ...model import Document, PromptNode
 from ._dry_run import validates_after
 from ._subtree import build_subtree
-from ._walk import ChildContainer, child_container, children_of, find_node_by_id, find_parent_and_index, walk_all
+from ._walk import children_of, resolve_anchor
 from .anchor import LocationAnchor
 from .registry import register
-
-
-def _resolve_anchor(tree: Document, anchor: LocationAnchor) -> tuple[ChildContainer, int] | None:
-    """Map an anchor to (parent_container, insertion_index) over the parent's
-    `children` list. Returns None if the target doesn't resolve or the
-    parent isn't a container."""
-    target = anchor.target
-    if anchor.kind in ("first_child", "last_child"):
-        parent: ChildContainer | None
-        if isinstance(target, str):
-            # Empty-string target is the Document root convention — Document
-            # has no id, so this is the only way to address it as a parent.
-            parent = tree if target == "" else child_container(find_node_by_id(tree, target))
-        else:
-            parent = child_container(target) if target in walk_all(tree) else None
-        if parent is None:
-            return None
-        children = children_of(parent)
-        return (parent, 0) if anchor.kind == "first_child" else (parent, len(children))
-
-    located: tuple[ChildContainer, int] | None
-    if isinstance(target, str):
-        located = find_parent_and_index(tree, target)
-    else:
-        located = None
-        for p in walk_all(tree):
-            container = child_container(p)
-            if container is None:
-                continue
-            for i, c in enumerate(children_of(container)):
-                if c is target:
-                    located = (container, i)
-                    break
-            if located is not None:
-                break
-    if located is None:
-        return None
-    parent, index = located
-    return parent, index + (1 if anchor.kind == "after" else 0)
 
 
 class AddNodeAction:
@@ -84,7 +45,7 @@ class AddNodeAction:
         node = self._materialise()
         if node is None:
             return SkipReason.InvalidSubtree
-        if _resolve_anchor(tree, self.anchor) is None:
+        if resolve_anchor(tree, self.anchor) is None:
             return SkipReason.InvalidAnchor
 
         def mutate(t: Document) -> None:
@@ -95,7 +56,7 @@ class AddNodeAction:
         return None
 
     def _do_insert(self, tree: Document, *, fresh: bool) -> PromptNode:
-        located = _resolve_anchor(tree, self.anchor)
+        located = resolve_anchor(tree, self.anchor)
         assert located is not None
         parent, index = located
         node = self._materialise()
@@ -114,7 +75,7 @@ class AddNodeAction:
         if ctx is None:
             ctx = ApplyContext.from_tree(tree)
 
-        located = _resolve_anchor(tree, self.anchor)
+        located = resolve_anchor(tree, self.anchor)
         assert located is not None, "apply() called without a successful validate()"
         parent, index = located
 

@@ -10,10 +10,10 @@ from ...model import (
     List,
     ListItem,
     Paragraph,
-    PromptNode,
     Section,
     Table,
 )
+from ._walk import has_empty_container
 
 _InsertableNode = Annotated[
     Section | List | ListItem | Paragraph | CodeBlock | Blockquote | Table,
@@ -46,17 +46,7 @@ def build_subtree(
             node = _ADAPTER.validate_python(raw)
         except ValidationError:
             return None
-        if _has_empty_container(node):
+        if has_empty_container(node):
             return None
         return node
     return None
-
-
-def _has_empty_container(node: PromptNode) -> bool:
-    """Containers (Section, List) must carry contents — per insert_node
-    contract. ListItem has its own `text` so an item with no body children
-    is still meaningful and is allowed."""
-    if isinstance(node, (Section, List)) and not node.children:
-        return True
-    children = getattr(node, "children", None) or ()
-    return any(_has_empty_container(c) for c in children)

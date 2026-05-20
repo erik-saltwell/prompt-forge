@@ -536,13 +536,15 @@ def test_inverse_apply_returns_a_callable_action() -> None:
     tree = parse_from_string(_DOC_NO_ANNOTATIONS)
     inverse = AddExampleAction("1.1", "only").apply(tree)
     redo = inverse.apply(tree)
+    assert not isinstance(redo, list)
+    redo_action: Action = redo
     # Redoing puts the annotation back.
     section = tree.children[0]
     assert isinstance(section, Section)
     para = section.children[0]
     assert isinstance(para, Paragraph)
     assert para.examples is None
-    redo.apply(tree)
+    redo_action.apply(tree)
     assert para.examples is not None
     assert [c.text for c in para.examples.children] == ["only"]
 

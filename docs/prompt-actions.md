@@ -108,7 +108,21 @@ Examples and guidance are first-class actions — distinct from generic node ope
 - **Lenient parameter handling.** Extra fields are ignored. Missing optional fields take defaults. Missing required fields cause the single action to skip, not the batch.
 - **`delete_node` is node-only (v1).** Targeting an annotation ID with `delete_node` skips. Annotations must be removed via `remove_example` / `remove_guidance`. Polymorphic dispatch is deferred to v2.
 - **`insert_node` carries full subtrees.** Containers (Section, List, ListItem) must be inserted with their contents — empty containers do not improve a prompt and are not a supported insertion target. Subtrees may include inline `examples` and `guidance` groups on Paragraph and ListItem nodes; each group's `children` is the list of `Annotation` nodes.
-- **`move_node` moves the whole subtree.** Children come along; the action's location anchor describes where the subtree root lands.
+- **`move_node` moves the whole subtree.** Children come along (including any `examples` / `guidance` groups on host nodes); the action's location anchor describes where the subtree root lands.
+- **`move_node` is node-only (v1).** Targeting an annotation ID with `move_node` skips, same as `delete_node`. Polymorphic dispatch is deferred to v2.
+- **`move_node` JSON shape.** `{"action": "move_node", "id": "<node_id>", "anchor": {...}}`. Both fields required.
+- **`move_node` skip conditions.**
+  - Target ID does not resolve to a node, or resolves to an annotation, the Document root, or an annotation group.
+  - Anchor does not resolve.
+  - Anchor target is the moved node itself or a descendant of it (cycle).
+  - The resolved destination would equal the node's current slot (no-op).
+  - Type/host rules below are violated.
+- **`move_node` type/host rules.**
+  - `ListItem` may land only as a child of a `List`. If the resolved destination is a non-`List` parent (e.g., a `Section`), the executor **auto-wraps** the moved `ListItem` in a fresh `List` whose `ordered` flag is **inherited from the source list**.
+  - Non-`ListItem` nodes may not land directly under a `List`.
+  - `Section` and annotation groups are never the moved node themselves under v1 type rules — `Section` *can* be moved structurally, but its `level` is **auto-adjusted to fit the new parent's section depth** (rather than left literal and risking a level-skip validation error). Annotation groups have no ID and cannot be addressed.
+- **`move_node` source cleanup.** If removing the node leaves its source `List` empty, the now-empty `List` is also removed (an empty `List` cannot be reserialised to conforming markdown).
+- **`move_node` inverse.** The inverse is another `move_node` whose anchor reconstructs the original slot via a surviving neighbour (`after` / `before`) or `first_child` / `last_child` of the original parent when no neighbour survives. If the source `List` was removed as part of cleanup, the inverse must re-create that `List` (i.e., the inverse is a small compound — restore the source `List`, then move the node back into it).
 - **`rewrite_node` does not change node type or structural flags.** Changing `List.ordered`, `CodeBlock.info`, or section heading level is out of scope; express such intent via `delete_node` + `insert_node`.
 - **No promote/demote action.** Restructuring section hierarchy is expressed as `move_node`.
 - **No split/merge action.** Reshaping is expressed via `delete_node` + `insert_node`.

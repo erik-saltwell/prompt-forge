@@ -166,12 +166,14 @@ def test_inverse_apply_returns_callable_redo() -> None:
     tree = parse_from_string("# Title\n\nBody paragraph.\n\n::: examples\nsolo\n:::\n")
     inverse = RemoveExampleAction("1.1.e1").apply(tree)
     redo = inverse.apply(tree)
+    assert not isinstance(redo, list)
+    redo_action: Action = redo
     section = tree.children[0]
     assert isinstance(section, Section)
     para = section.children[0]
     assert isinstance(para, Paragraph)
     assert para.examples is not None
-    redo.apply(tree)
+    redo_action.apply(tree)
     assert para.examples is None
 
 
