@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from prompt_model.model import (
+from prompt_model.prompt import (
     Annotation,
     Blockquote,
     CodeBlock,

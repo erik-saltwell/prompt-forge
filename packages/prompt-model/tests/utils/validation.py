@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from prompt_model.model import PromptError, PromptErrorType
-from prompt_model.service.validation import find_errors_from_string
+from prompt_model.prompt import PromptError, PromptErrorType
+from prompt_model.prompt.validation import find_errors_from_string
 
 
 def check_errors_from_md(markdown_text: str, expected_errors: list[PromptError]) -> None:

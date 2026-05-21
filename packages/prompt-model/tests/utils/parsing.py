@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from prompt_model.model import (
+from prompt_model.prompt import (
     Document,
     PromptNode,
 )
-from prompt_model.service.parsing.parse_prompt import parse_from_string
+from prompt_model.prompt.parsing.parse_prompt import parse_from_string
 
 from ._short_hand import tree_to_shorthand
 from ._tree_comparison import structural_equal

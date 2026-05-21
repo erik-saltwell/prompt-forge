@@ -22,7 +22,7 @@ from __future__ import annotations
 import random
 from dataclasses import dataclass, field
 
-from prompt_model.model import (
+from prompt_model.prompt import (
     Annotation,
     Blockquote,
     CodeBlock,
@@ -36,8 +36,8 @@ from prompt_model.model import (
     SectionChild,
     Table,
 )
-from prompt_model.service.parsing._id_assigner import assign_ids
-from prompt_model.service.validation import find_errors_from_string
+from prompt_model.prompt.parsing._id_assigner import assign_ids
+from prompt_model.prompt.validation import find_errors_from_string
 
 
 @dataclass

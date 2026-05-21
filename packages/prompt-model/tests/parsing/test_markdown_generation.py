@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from prompt_model.model import (
+from prompt_model.prompt import (
     Annotation,
     Blockquote,
     CodeBlock,
@@ -14,7 +14,7 @@ from prompt_model.model import (
     Paragraph,
     Section,
 )
-from prompt_model.service.parsing import parse_from_string
+from prompt_model.prompt.parsing import parse_from_string
 
 from ..utils import roundtrip as rt
 from ..utils.parsing import (

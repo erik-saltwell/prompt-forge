@@ -3,8 +3,8 @@ from __future__ import annotations
 import random
 from pathlib import Path
 
-from prompt_model._protocols import SkipReason
-from prompt_model.service.actions import Action, parse_action
+from prompt_model.actions import Action, parse_action
+from prompt_model.actions.protocol import SkipReason
 
 from ..utils import _short_hand as sh
 from ..utils import random_actions as ra

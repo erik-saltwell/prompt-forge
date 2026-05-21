@@ -1,4 +1,4 @@
-from prompt_model.model import (
+from prompt_model.prompt import (
     Blockquote,
     CodeBlock,
     Document,
@@ -7,7 +7,7 @@ from prompt_model.model import (
     Paragraph,
     Section,
 )
-from prompt_model.service.parsing.parse_prompt import parse_from_string
+from prompt_model.prompt.parsing.parse_prompt import parse_from_string
 
 from ..utils.parsing import check_md_against_sh, check_obj_against_obj
 

@@ -1,14 +1,14 @@
 from __future__ import annotations
 
-from prompt_model.model import Section
-from prompt_model.service.actions import (
+from prompt_model.actions import (
     AddExampleAction,
     AddGuidanceAction,
     SkipReason,
     parse_action,
 )
-from prompt_model.service.actions.anchor import LocationAnchor
-from prompt_model.service.parsing.parse_prompt import parse_from_string
+from prompt_model.actions.anchor import LocationAnchor
+from prompt_model.prompt import Section
+from prompt_model.prompt.parsing.parse_prompt import parse_from_string
 
 from ..utils._short_hand import doc_from_shorthand
 from ..utils.actions import Action, check_against_md, check_can_apply
@@ -521,7 +521,7 @@ def test_apply_add_example_on_nested_list_item_host() -> None:
     # Walk to the inner item and confirm the new annotation landed correctly.
     section = tree.children[0]
     assert isinstance(section, Section)
-    from prompt_model.model import List, ListItem
+    from prompt_model.prompt import List, ListItem
 
     outer_list = section.children[0]
     assert isinstance(outer_list, List)

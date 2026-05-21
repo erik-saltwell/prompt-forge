@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from prompt_model.service.parsing.parse_prompt import parse_from_string
+from prompt_model.prompt.parsing.parse_prompt import parse_from_string
 
 from ._short_hand import doc_from_shorthand, tree_to_shorthand
 from .parsing import check_obj_against_obj, check_obj_against_sh

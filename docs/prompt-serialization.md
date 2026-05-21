@@ -85,6 +85,8 @@ intro text
 
 The critic prompt explains the overlay in one sentence: *"Each block is preceded by an HTML comment containing its ID, e.g. `<!-- 1.2.3 -->`. When you cite a node in your findings, use that ID."* The critic is also told the markdown otherwise reads exactly as the target LLM will see it.
 
+The critic LLM's structured output conforms to `MetricResult` — see `critic-metric-interface.md` for the schema (score, assessment, issue signals with cited IDs, preserve list).
+
 ### Why HTML comments specifically
 
 - Markdown-it parses them as comments — they have zero rendered effect, so if a critic ever pipes the prompt back through markdown rendering nothing changes.
@@ -187,4 +189,5 @@ A test should assert that for every `Document` in the test corpus, the set of ID
 - Anthropic — *Prompt Engineering Guide, "Use XML tags."* Source of the XML-for-Claude recommendation.
 - `prompt-model.md` — Node types, ID assignment, parsing pipeline.
 - `prompt-actions.md` — The action vocabulary the actor emits.
+- `critic-metric-interface.md` — The `MetricResult` shape returned by critic LLM calls.
 - `prompt-validation.md` — The validation rules every rendered form must respect on round-trip.

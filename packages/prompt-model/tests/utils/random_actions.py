@@ -8,7 +8,8 @@ from __future__ import annotations
 
 import random
 
-from prompt_model.model import (
+from prompt_model.actions import SkipReason, parse_action
+from prompt_model.prompt import (
     Annotation,
     Blockquote,
     CodeBlock,
@@ -19,7 +20,6 @@ from prompt_model.model import (
     Section,
     Table,
 )
-from prompt_model.service.actions import SkipReason, parse_action
 
 _ACTION_KINDS = ("add", "update", "remove")
 _ANN_KINDS = ("example", "guidance")

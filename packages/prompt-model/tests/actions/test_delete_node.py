@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from prompt_model.service.actions import (
+from prompt_model.actions import (
     RemoveNodeAction,
     SkipReason,
     parse_action,

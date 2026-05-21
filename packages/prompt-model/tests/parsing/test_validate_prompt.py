@@ -1,8 +1,8 @@
 from pathlib import Path
 
 import pytest
-from prompt_model.model.prompt_validation_error import PromptErrorType
-from prompt_model.service.validation.validate_prompt import find_errors_from_file
+from prompt_model.prompt.validation.validate_prompt import find_errors_from_file
+from prompt_model.prompt.validation_error import PromptErrorType
 
 from ..utils.validation import check_error_from_md, check_no_errors_from_md
 
