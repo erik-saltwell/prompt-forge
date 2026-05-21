@@ -151,6 +151,59 @@ The actor prompt declares: *"The prompt is rendered as XML. The text inside each
 
 ---
 
+## Actor Output Shape
+
+### Layout
+
+The actor returns a single JSON object — an `ActionBatch` — conforming to a Pydantic schema declared on the API call. Two top-level fields, in this order:
+
+- `reasoning: str` — short rationale for the batch as a whole. Declared first so structured-output generation produces the reasoning before the action list, conditioning the actions on it.
+- `actions: list[Action]` — the typed action list.
+
+`Action` is a Pydantic discriminated union over the ten action variants from `prompt-actions.md`. The discriminator is the `action: Literal["…"]` tag on each variant. Each variant is a **flat** `BaseModel` — fields live at the top level (no nested `params` object), matching the JSON shapes already documented in `prompt-actions.md`.
+
+`InsertNode.subtree` is `str` only — markdown form. The Pydantic-dict escape hatch mentioned in `prompt-actions.md` is not exposed in the actor schema; everything the dict form could express is reachable through plain markdown (info strings, ordered-list markers, heading levels).
+
+### Example
+
+```json
+{
+  "reasoning": "The intro paragraph 1.1 is vague about audience; tightening it and adding one example.",
+  "actions": [
+    {"action": "rewrite_node", "id": "1.1", "text": "Write for senior engineers reviewing legacy code."},
+    {"action": "add_example", "host_id": "1.1", "text": "Treat unfamiliar abbreviations as a flag."}
+  ]
+}
+```
+
+### Actor system prompt convention
+
+In addition to the input convention above, the actor prompt declares: *"Return a single object with a `reasoning` string and an `actions` list. Each action follows the schema for its `action` tag — see `prompt-actions.md`."* The structured-output schema enforces the rest.
+
+### Extended thinking
+
+The API call enables Anthropic extended thinking. Internal deliberation happens in the thinking channel; `reasoning` is reserved for the short, post-deliberation summary visible in the structured output. Per-action rationale fields are explicitly **not** in the schema — they produce filler and inflate token cost without improving output quality.
+
+### Lenient element parsing
+
+The envelope is parsed strictly. The `actions` list is parsed leniently via a `model_validator(mode="before")` on `ActionBatch`: elements that fail variant validation are dropped from the list (with a reason recorded for the executor's skipped-actions report) rather than failing the whole batch. The full schema is still sent to Anthropic so provider-side constrained generation steers the model toward valid action shapes — the lenient validator is a belt-and-braces guard, not a substitute.
+
+### Why this shape
+
+- **Discriminated union over flat variants** matches the JSON shapes already in `prompt-actions.md`, and is the structured-output pattern Claude is most heavily post-trained on (tool-use schemas are exactly this shape).
+- **Reasoning before actions** uses generation order as a conditioning lever — a free quality lift over the same fields in the opposite order.
+- **Minimal envelope** (just `reasoning` and `actions`) keeps every envelope token load-bearing. No confidence score, no preserve-acknowledgement echo, no focused-node-id echo — those are debuggable post-hoc from the action list itself.
+- **Single-provider for now.** The schema is designed for Claude. The discriminated-union shape ports cleanly to GPT and Gemini structured output if cross-provider portability becomes a requirement.
+
+### Behaviours & rules specific to the output shape
+
+- **Field order matters.** `reasoning` must be declared before `actions` in the schema.
+- **Empty batches are expressed as `actions: []`.** No separate `no_changes_needed` flag. The `reasoning` explains why no edits were made.
+- **`Add{Example,Guidance}` `target`/`position` are both optional in the schema, with permissive executor handling.** If the actor supplies only `target`, the executor defaults `position`. If only `position` is supplied with no `target`, the executor appends at end and ignores `position`. The "both or neither" co-dependency from `prompt-actions.md` is not enforced at the schema level.
+- **Unknown action names cannot occur under constrained generation,** but if one ever slips through, the lenient validator drops the element with reason `"unknown action"` and the rest of the batch proceeds.
+
+---
+
 ## ID Generation Symmetry
 
 Both renderings traverse the tree post-`assign_ids` (see `prompt-model.md` — Phase 5). They read the existing `id` attribute on each node; they do not re-mint. This guarantees:

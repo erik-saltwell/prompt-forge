@@ -1,6 +1,22 @@
 from .add_annotation import AddExampleAction, AddGuidanceAction
 from .add_node import AddNodeAction
 from .anchor import LocationAnchor, NodeRef, NodeTarget, parse_anchor
+from .inputs import (
+    ActionBatch,
+    ActionInput,
+    AddExampleInput,
+    AddGuidanceInput,
+    DeleteNodeInput,
+    InsertNodeInput,
+    MoveNodeInput,
+    RemoveExampleInput,
+    RemoveGuidanceInput,
+    RewriteNodeInput,
+    UpdateExampleInput,
+    UpdateGuidanceInput,
+    to_action,
+    to_actions,
+)
 from .move_node import MoveNodeAction
 from .protocol import Action, ApplyContext, SkipReason
 from .registry import parse_action, register
@@ -29,4 +45,18 @@ __all__ = [
     "RemoveGuidanceAction",
     "RemoveNodeAction",
     "RewriteNodeAction",
+    "ActionBatch",
+    "ActionInput",
+    "RewriteNodeInput",
+    "DeleteNodeInput",
+    "InsertNodeInput",
+    "MoveNodeInput",
+    "AddExampleInput",
+    "AddGuidanceInput",
+    "UpdateExampleInput",
+    "UpdateGuidanceInput",
+    "RemoveExampleInput",
+    "RemoveGuidanceInput",
+    "to_action",
+    "to_actions",
 ]

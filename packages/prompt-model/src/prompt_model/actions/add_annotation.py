@@ -2,6 +2,9 @@ from __future__ import annotations
 
 from typing import ClassVar, Literal
 
+from pydantic import BaseModel, Field
+
+from .._utils import pydantic_aliases as py_types
 from ..prompt import (
     Annotation,
     Document,
@@ -15,6 +18,8 @@ from .anchor import LocationAnchor, parse_anchor
 from .protocol import Action, ApplyContext, SkipReason
 from .registry import register
 from .update_annotation import _BLOCK_MARKER_RE
+
+_AnchorPosition = Literal["before", "after", "inside"]
 
 _AnnotationKind = Literal["example", "guidance"]
 
@@ -148,3 +153,46 @@ def _build_add_example(raw: dict) -> Action | SkipReason:
 @register("add_guidance")
 def _build_add_guidance(raw: dict) -> Action | SkipReason:
     return _build(AddGuidanceAction, raw)
+
+
+def _permissive_anchor(target: str | None, position: _AnchorPosition | None) -> LocationAnchor | None:
+    """Build an anchor from optional target/position fields.
+
+    Per the brainstorm decision: schema-level optionality + executor-level
+    permissive handling. Target without position defaults position to "after".
+    Position without target ignores both and appends at end.
+    """
+    if target is None:
+        return None
+    return LocationAnchor(target=target, position=position or "after")
+
+
+class _AddAnnotationInputBase(BaseModel):
+    host_id: py_types.NonBlankStr = Field(description="Id of the Paragraph or ListItem to attach the annotation to.")
+    text: py_types.NonBlankStr = Field(description="The annotation text.")
+    target: py_types.NonBlankStr | None = Field(
+        default=None,
+        description=("Optional placement anchor: an annotation id in the host's group, or the host id itself when position is 'inside'."),
+    )
+    position: _AnchorPosition | None = Field(
+        default=None,
+        description="Optional placement relative to target. Omit both target and position to append at end.",
+    )
+
+
+class AddExampleInput(_AddAnnotationInputBase):
+    """LLM-output schema for `add_example`. Converts to AddExampleAction."""
+
+    action: Literal["add_example"]
+
+    def to_action(self) -> Action:
+        return AddExampleAction(self.host_id, self.text, _permissive_anchor(self.target, self.position))
+
+
+class AddGuidanceInput(_AddAnnotationInputBase):
+    """LLM-output schema for `add_guidance`. Converts to AddGuidanceAction."""
+
+    action: Literal["add_guidance"]
+
+    def to_action(self) -> Action:
+        return AddGuidanceAction(self.host_id, self.text, _permissive_anchor(self.target, self.position))

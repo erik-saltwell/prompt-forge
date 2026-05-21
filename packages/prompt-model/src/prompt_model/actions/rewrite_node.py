@@ -1,7 +1,11 @@
 from __future__ import annotations
 
 import re
+from typing import Literal
 
+from pydantic import BaseModel, Field
+
+from .._utils import pydantic_aliases as py_types
 from ..prompt import (
     Blockquote,
     CodeBlock,
@@ -81,3 +85,14 @@ def _build_rewrite_node(raw: dict) -> Action | SkipReason:
     if not isinstance(text, str) or not text.strip():
         return SkipReason.MissingRequired
     return RewriteNodeAction(node_id, text)
+
+
+class RewriteNodeInput(BaseModel):
+    """LLM-output schema for `rewrite_node`. Converts to RewriteNodeAction."""
+
+    action: Literal["rewrite_node"]
+    id: py_types.NonBlankStr = Field(description="Hierarchical id of the node whose text to replace.")
+    text: py_types.NonBlankStr = Field(description="The new text content for the node.")
+
+    def to_action(self) -> Action:
+        return RewriteNodeAction(self.id, self.text)

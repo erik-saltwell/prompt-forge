@@ -1,5 +1,10 @@
 from __future__ import annotations
 
+from typing import Literal
+
+from pydantic import BaseModel, Field
+
+from .._utils import pydantic_aliases as py_types
 from ..prompt import Document
 from ._dry_run import validates_after
 from ._walk import ChildContainer, children_of, find_node_by_id, find_parent_and_index
@@ -52,3 +57,13 @@ def _build_delete_node(raw: dict) -> Action | SkipReason:
     if not isinstance(node_id, str) or not node_id:
         return SkipReason.MissingRequired
     return RemoveNodeAction(node_id)
+
+
+class DeleteNodeInput(BaseModel):
+    """LLM-output schema for `delete_node`. Converts to RemoveNodeAction."""
+
+    action: Literal["delete_node"]
+    id: py_types.NonBlankStr = Field(description="Hierarchical id of the node (and its subtree) to remove.")
+
+    def to_action(self) -> Action:
+        return RemoveNodeAction(self.id)

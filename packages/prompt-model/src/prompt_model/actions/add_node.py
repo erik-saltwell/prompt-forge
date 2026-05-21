@@ -1,5 +1,10 @@
 from __future__ import annotations
 
+from typing import Literal
+
+from pydantic import BaseModel, Field
+
+from .._utils import pydantic_aliases as py_types
 from ..prompt import Document, List, ListItem, PromptNode
 from ._dry_run import validates_after
 from ._subtree import build_subtrees
@@ -7,6 +12,8 @@ from ._walk import ChildContainer, children_of, resolve_anchor
 from .anchor import LocationAnchor
 from .protocol import Action, ApplyContext, SkipReason
 from .registry import register
+
+_AnchorPosition = Literal["before", "after", "inside"]
 
 
 class AddNodeAction:
@@ -124,3 +131,23 @@ def _build_insert_node(raw: dict) -> Action | SkipReason:
     if anchor is None:
         return SkipReason.MissingRequired
     return AddNodeAction(subtree, anchor)
+
+
+class InsertNodeInput(BaseModel):
+    """LLM-output schema for `insert_node`. Converts to AddNodeAction.
+
+    `subtree` is markdown-only per the brainstorm decision — the Pydantic-dict
+    escape hatch from prompt-actions.md is intentionally not exposed here.
+    """
+
+    action: Literal["insert_node"]
+    target: py_types.NonBlankStr = Field(description="Hierarchical id of the anchor node to position relative to.")
+    position: _AnchorPosition = Field(
+        description="Placement relative to target: 'before'/'after' (sibling) or 'inside' (only child of an empty target)."
+    )
+    subtree: py_types.NonBlankStr = Field(
+        description="Markdown source for the subtree to insert. Multi-block markdown splats into adjacent roots."
+    )
+
+    def to_action(self) -> Action:
+        return AddNodeAction(self.subtree, LocationAnchor(target=self.target, position=self.position))

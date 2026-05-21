@@ -1,5 +1,10 @@
 from __future__ import annotations
 
+from typing import Literal
+
+from pydantic import BaseModel, Field
+
+from .._utils import pydantic_aliases as py_types
 from ..prompt import Document, List, ListItem, PromptNode, Section
 from ._dry_run import validates_after
 from ._walk import (
@@ -15,6 +20,8 @@ from ._walk import (
 from .anchor import LocationAnchor, parse_anchor
 from .protocol import Action, ApplyContext, SkipReason
 from .registry import register
+
+_AnchorPosition = Literal["before", "after", "inside"]
 
 
 class MoveNodeAction:
@@ -144,3 +151,17 @@ def _build_move_node(raw: dict) -> Action | SkipReason:
     if anchor is None:
         return SkipReason.MissingRequired
     return MoveNodeAction(node_id, anchor)
+
+
+class MoveNodeInput(BaseModel):
+    """LLM-output schema for `move_node`. Converts to MoveNodeAction."""
+
+    action: Literal["move_node"]
+    id: py_types.NonBlankStr = Field(description="Hierarchical id of the node to move.")
+    target: py_types.NonBlankStr = Field(description="Hierarchical id of the anchor node to position relative to.")
+    position: _AnchorPosition = Field(
+        description="Placement relative to target: 'before'/'after' (sibling) or 'inside' (only child of an empty target)."
+    )
+
+    def to_action(self) -> Action:
+        return MoveNodeAction(self.id, LocationAnchor(target=self.target, position=self.position))

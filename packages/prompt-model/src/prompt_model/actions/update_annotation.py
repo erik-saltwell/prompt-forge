@@ -3,6 +3,9 @@ from __future__ import annotations
 import re
 from typing import ClassVar, Literal
 
+from pydantic import BaseModel, Field
+
+from .._utils import pydantic_aliases as py_types
 from ..prompt import Annotation, Document
 from ._walk import walk_annotatable
 from .protocol import Action, ApplyContext, SkipReason
@@ -77,3 +80,25 @@ def _build_update_example(raw: dict) -> Action | SkipReason:
 @register("update_guidance")
 def _build_update_guidance(raw: dict) -> Action | SkipReason:
     return _build(UpdateGuidanceAction, raw)
+
+
+class UpdateExampleInput(BaseModel):
+    """LLM-output schema for `update_example`. Converts to UpdateExampleAction."""
+
+    action: Literal["update_example"]
+    id: py_types.NonBlankStr = Field(description="Id of the example annotation to update.")
+    text: py_types.NonBlankStr = Field(description="Replacement text for the annotation.")
+
+    def to_action(self) -> Action:
+        return UpdateExampleAction(self.id, self.text)
+
+
+class UpdateGuidanceInput(BaseModel):
+    """LLM-output schema for `update_guidance`. Converts to UpdateGuidanceAction."""
+
+    action: Literal["update_guidance"]
+    id: py_types.NonBlankStr = Field(description="Id of the guidance annotation to update.")
+    text: py_types.NonBlankStr = Field(description="Replacement text for the annotation.")
+
+    def to_action(self) -> Action:
+        return UpdateGuidanceAction(self.id, self.text)
