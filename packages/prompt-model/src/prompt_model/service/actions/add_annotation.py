@@ -47,11 +47,16 @@ class _AddAnnotationBase:
         if self.anchor is None:
             return None
         target = self.anchor.target
-        if self.anchor.kind in ("first_child", "last_child"):
+        if self.anchor.position == "inside":
             if isinstance(target, str):
                 if target != self.host_id:
                     return SkipReason.InvalidAnchor
             elif target is not host:
+                return SkipReason.InvalidAnchor
+            # inside is strict: only valid when the host has no group of the
+            # relevant kind (empty groups are not a normal state).
+            group = getattr(host, self._attr())
+            if group is not None and group.children:
                 return SkipReason.InvalidAnchor
             return None
         group = getattr(host, self._attr())
@@ -92,15 +97,17 @@ class _AddAnnotationBase:
             group.children.insert(self._resolve_index(group), annotation)
 
     def _resolve_index(self, group: ExamplesGroup | GuidanceGroup) -> int:
-        if self.anchor is None or self.anchor.kind == "last_child":
+        if self.anchor is None:
             return len(group.children)
-        if self.anchor.kind == "first_child":
+        if self.anchor.position == "inside":
+            # inside is only valid when the group was empty/missing — the
+            # group passed here was just freshly created, so index 0.
             return 0
         target = self.anchor.target
         for i, ann in enumerate(group.children):
             matches = ann.id == target if isinstance(target, str) else ann is target
             if matches:
-                return i + 1 if self.anchor.kind == "after" else i
+                return i + 1 if self.anchor.position == "after" else i
         return len(group.children)
 
 
@@ -115,16 +122,19 @@ class AddGuidanceAction(_AddAnnotationBase):
 def _build(cls: type[_AddAnnotationBase], raw: dict) -> Action | SkipReason:
     host_id = raw.get("host_id")
     text = raw.get("text")
-    anchor_raw = raw.get("anchor")
     if not isinstance(host_id, str) or not host_id:
         return SkipReason.MissingRequired
     if not isinstance(text, str) or not text.strip():
         return SkipReason.MissingRequired
+    # target + position are optional (both must appear together, or both
+    # absent). If exactly one is present, treat as malformed → skip.
+    has_target = "target" in raw
+    has_position = "position" in raw
     anchor: LocationAnchor | None = None
-    if anchor_raw is not None:
-        if not isinstance(anchor_raw, dict):
+    if has_target or has_position:
+        if not (has_target and has_position):
             return SkipReason.MissingRequired
-        anchor = parse_anchor(anchor_raw)
+        anchor = parse_anchor(raw)
         if anchor is None:
             return SkipReason.MissingRequired
     return cls(host_id, text, anchor)

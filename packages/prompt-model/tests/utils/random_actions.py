@@ -42,18 +42,18 @@ def _walk_collect(
     list[PromptNode],
 ]:
     """Single-pass traversal collecting every list `generate_random_action`
-    needs. Returns (hosts, rewritable, containers, addressable).
+    needs. Returns (hosts, rewritable, empty_containers, addressable).
 
     - hosts: nodes that can carry annotations.
     - rewritable: nodes whose text can be rewritten.
-    - containers: nodes that accept children (Document + any node with a
-      `children` list), used as parents for first_child/last_child inserts.
+    - empty_containers: addressable nodes (Section/List/ListItem) whose
+      `children` list is empty — valid targets for `position=inside`.
     - addressable: non-Document nodes with a string id, used as targets for
       before/after inserts and delete_node.
     """
     hosts: list[Paragraph | ListItem] = []
     rewritable: list[_Rewritable] = []
-    containers: list[PromptNode] = []
+    empty_containers: list[PromptNode] = []
     addressable: list[PromptNode] = []
     stack: list[PromptNode] = [tree]
     while stack:
@@ -62,18 +62,17 @@ def _walk_collect(
             hosts.append(node)
         if isinstance(node, (Section, Paragraph, ListItem, CodeBlock, Blockquote, Table)):
             rewritable.append(node)
-        if isinstance(node, Document):
-            containers.append(node)
-        else:
+        if not isinstance(node, Document):
             node_id = getattr(node, "id", None)
             if isinstance(node_id, str):
                 addressable.append(node)
-                if isinstance(getattr(node, "children", None), list):
-                    containers.append(node)
+                children = getattr(node, "children", None)
+                if isinstance(children, list) and not children:
+                    empty_containers.append(node)
         children = getattr(node, "children", None)
         if children:
             stack.extend(children)
-    return hosts, rewritable, containers, addressable
+    return hosts, rewritable, empty_containers, addressable
 
 
 def _validates(raw: dict, tree: Document) -> bool:
@@ -89,7 +88,7 @@ def _validates(raw: dict, tree: Document) -> bool:
 
 def _sample_structural(
     tree: Document,
-    containers: list[PromptNode],
+    empty_containers: list[PromptNode],
     addressable: list[PromptNode],
     rng: random.Random,
 ) -> dict | None:
@@ -102,42 +101,36 @@ def _sample_structural(
     """
     for _ in range(_STRUCTURAL_RETRIES):
         ops: list[str] = []
-        if containers:
-            ops.append("child_insert")
         if addressable:
             ops.append("sibling_insert")
             ops.append("delete")
-        # move needs both a source (any addressable structural node) and a
-        # destination anchor (sibling or child of any addressable/container).
-        if addressable and (containers or addressable):
             ops.append("move")
+        if empty_containers:
+            ops.append("inside_insert")
         if not ops:
             return None
         op = rng.choice(ops)
         text = f"generated-text-{rng.randint(0, 10**9)}"
-        if op == "child_insert":
-            parent = rng.choice(containers)
-            if isinstance(parent, Document):
-                parent_target = ""
-            else:
-                pid = getattr(parent, "id", None)
-                assert isinstance(pid, str)
-                parent_target = pid
-            kind = rng.choice(("first_child", "last_child"))
+        if op == "inside_insert":
+            parent = rng.choice(empty_containers)
+            pid = getattr(parent, "id", None)
+            assert isinstance(pid, str)
             raw: dict = {
                 "type": "insert_node",
                 "subtree": text,
-                "anchor": {kind: parent_target},
+                "target": pid,
+                "position": "inside",
             }
         elif op == "sibling_insert":
             target_node = rng.choice(addressable)
             tid = getattr(target_node, "id", None)
             assert isinstance(tid, str)
-            kind = rng.choice(("after", "before"))
+            position = rng.choice(("after", "before"))
             raw = {
                 "type": "insert_node",
                 "subtree": text,
-                "anchor": {kind: tid},
+                "target": tid,
+                "position": position,
             }
         elif op == "delete":
             target_node = rng.choice(addressable)
@@ -148,21 +141,26 @@ def _sample_structural(
             source_node = rng.choice(addressable)
             sid = getattr(source_node, "id", None)
             assert isinstance(sid, str)
-            anchor_kind = rng.choice(("after", "before", "first_child", "last_child"))
-            if anchor_kind in ("after", "before"):
+            position_choices = ["after", "before"]
+            if empty_containers:
+                position_choices.append("inside")
+            position = rng.choice(position_choices)
+            if position == "inside":
+                parent = rng.choice(empty_containers)
+                pid = getattr(parent, "id", None)
+                assert isinstance(pid, str)
+                anchor_target = pid
+            else:
                 anchor_target_node = rng.choice(addressable)
                 atid = getattr(anchor_target_node, "id", None)
                 assert isinstance(atid, str)
                 anchor_target = atid
-            else:
-                parent = rng.choice(containers)
-                if isinstance(parent, Document):
-                    anchor_target = ""
-                else:
-                    pid = getattr(parent, "id", None)
-                    assert isinstance(pid, str)
-                    anchor_target = pid
-            raw = {"type": "move_node", "id": sid, "anchor": {anchor_kind: anchor_target}}
+            raw = {
+                "type": "move_node",
+                "id": sid,
+                "target": anchor_target,
+                "position": position,
+            }
 
         if _validates(raw, tree):
             return raw
@@ -190,8 +188,8 @@ def generate_random_action(tree: Document, rng: random.Random) -> dict | None:
     tree before calling again, so subsequent picks reflect mutations, and
     should pass the same `rng` across calls to keep a single seed reproducible.
     """
-    hosts, rewritable, containers, addressable = _walk_collect(tree)
-    structural_possible = bool(containers or addressable)
+    hosts, rewritable, empty_containers, addressable = _walk_collect(tree)
+    structural_possible = bool(addressable) or bool(empty_containers)
     if not hosts and not rewritable and not structural_possible:
         return None
 
@@ -223,7 +221,7 @@ def generate_random_action(tree: Document, rng: random.Random) -> dict | None:
         action_kind, ann_kind = rng.choice(candidates)
         if action_kind != "structural":
             break
-        sampled = _sample_structural(tree, containers, addressable, rng)
+        sampled = _sample_structural(tree, empty_containers, addressable, rng)
         if sampled is not None:
             return sampled
         candidates = [c for c in candidates if c[0] != "structural"]
@@ -242,20 +240,22 @@ def generate_random_action(tree: Document, rng: random.Random) -> dict | None:
         host = rng.choice(hosts)
         assert host.id is not None
         group = host.examples if ann_kind == "example" else host.guidance
-        anchor_choices: list[dict | None] = [
-            None,
-            {"first_child": host.id},
-            {"last_child": host.id},
-        ]
+        # Always allow no-anchor (defaults to append). Allow `inside host` only
+        # when the relevant group is empty/missing — matches the strict 'inside'
+        # constraint enforced by _validate_anchor.
+        anchor_choices: list[dict | None] = [None]
+        if group is None or not group.children:
+            anchor_choices.append({"target": host.id, "position": "inside"})
         if group is not None and group.children:
             for ann in group.children:
                 assert ann.id is not None
-                anchor_choices.append({"before": ann.id})
-                anchor_choices.append({"after": ann.id})
+                anchor_choices.append({"target": ann.id, "position": "before"})
+                anchor_choices.append({"target": ann.id, "position": "after"})
         anchor = rng.choice(anchor_choices)
         raw: dict = {"type": type_str, "host_id": host.id, "text": text}
         if anchor is not None:
-            raw["anchor"] = anchor
+            raw["target"] = anchor["target"]
+            raw["position"] = anchor["position"]
         return raw
 
     _, ann = rng.choice(existing[ann_kind])

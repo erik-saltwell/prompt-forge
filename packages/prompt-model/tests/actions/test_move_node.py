@@ -12,8 +12,8 @@ from prompt_model.service.actions.anchor import AnchorKind
 from ..utils import actions as act
 
 
-def _anchor(kind: AnchorKind, target: str) -> LocationAnchor:
-    return LocationAnchor(kind=kind, target=target)
+def _anchor(position: AnchorKind, target: str) -> LocationAnchor:
+    return LocationAnchor(position=position, target=target)
 
 
 # =====================================================================
@@ -48,10 +48,11 @@ def _parse(md: str) -> Document:
     return parse_from_string(md)
 
 
-def test_move_section_first_child_of_document_when_already_first_is_noop() -> None:
-    # Empty-string target is the Document-root convention used by resolve_anchor.
+def test_move_section_before_self_at_document_root_is_noop() -> None:
+    # The Document root has a single section; trying to move it before itself
+    # is a no-op (covered by the before-self _is_noop branch).
     tree = _parse("# a\n\nbody\n")
-    action = MoveNodeAction("1", _anchor("first_child", ""))
+    action = MoveNodeAction("1", _anchor("before", "1"))
     assert action.validate(tree) == SkipReason.InvalidAnchor
 
 
@@ -113,8 +114,8 @@ inner a
 
 inner b
 """
-    # Move a as last_child of b — a becomes h3.
-    action = MoveNodeAction("1.1", _anchor("last_child", "1.2"))
+    # Move a after b's last existing child ('inner b' = 1.2.1) — a becomes h3.
+    action = MoveNodeAction("1.1", _anchor("after", "1.2.1"))
     tree = _parse(input_md)
     action.apply(tree)
     md = tree.to_markdown()
@@ -130,8 +131,8 @@ def test_move_section_h3_to_document_becomes_h1() -> None:
 
 deep body
 """
-    # Move 'deep' (1.1.1) to be last_child of Document (sibling of top).
-    action = MoveNodeAction("1.1.1", _anchor("last_child", ""))
+    # Move 'deep' (1.1.1) to be a sibling after top (1) — at document root.
+    action = MoveNodeAction("1.1.1", _anchor("after", "1"))
     tree = _parse(input_md)
     action.apply(tree)
     md = tree.to_markdown()
@@ -154,8 +155,8 @@ deep a1
 
 inner b
 """
-    # Move 'a' under 'b' — a becomes h3, a1 becomes h4.
-    action = MoveNodeAction("1.1", _anchor("last_child", "1.2"))
+    # Move 'a' under 'b' (after b's last child 'inner b' = 1.2.1) — a becomes h3, a1 becomes h4.
+    action = MoveNodeAction("1.1", _anchor("after", "1.2.1"))
     tree = _parse(input_md)
     action.apply(tree)
     md = tree.to_markdown()
@@ -186,7 +187,8 @@ body e
 """
     # Move 'donor' (1.1, h2) under 'e' (2.1.1.1.1.1, h6 in a different
     # branch — no cycle). Donor would need to become h7 — invalid. Skip.
-    action = MoveNodeAction("1.1", _anchor("last_child", "2.1.1.1.1.1"))
+    # Anchor after 'body e' (2.1.1.1.1.1.1) which is e's only existing child.
+    action = MoveNodeAction("1.1", _anchor("after", "2.1.1.1.1.1.1"))
     tree = _parse(input_md)
     assert action.validate(tree) == SkipReason.InvalidStructure
 
@@ -204,7 +206,8 @@ intro
 - a
 - b
 """
-    action = MoveNodeAction("1.2.1", _anchor("first_child", "1"))
+    # 'first child of section 1' = 'before intro' (1.1).
+    action = MoveNodeAction("1.2.1", _anchor("before", "1.1"))
     tree = _parse(input_md)
     action.apply(tree)
     md = tree.to_markdown()
@@ -220,7 +223,8 @@ intro
 1. a
 2. b
 """
-    action = MoveNodeAction("1.2.1", _anchor("first_child", "1"))
+    # 'first child of section 1' = 'before intro' (1.1).
+    action = MoveNodeAction("1.2.1", _anchor("before", "1.1"))
     tree = _parse(input_md)
     action.apply(tree)
     md = tree.to_markdown()
@@ -259,8 +263,8 @@ def test_move_one_of_many_keeps_source_list() -> None:
 
 para
 """
-    # Move 'a' to last_child of section; list still has 'b'.
-    action = MoveNodeAction("1.1.1", _anchor("last_child", "1"))
+    # Move 'a' to last_child of section (after 'para' = 1.2); list still has 'b'.
+    action = MoveNodeAction("1.1.1", _anchor("after", "1.2"))
     tree = _parse(input_md)
     action.apply(tree)
     md = tree.to_markdown()
@@ -335,21 +339,10 @@ def test_noop_before_self() -> None:
     assert action.validate(tree) == SkipReason.InvalidAnchor
 
 
-def test_noop_first_child_when_already_first() -> None:
+def test_before_first_existing_sibling_is_real_move() -> None:
+    # Moving 1.2 to before 1.1 — different position, real move.
     tree = _parse("# foo\n\npara one\n\npara two\n")
-    action = MoveNodeAction("1.1", _anchor("first_child", "1"))
-    assert action.validate(tree) == SkipReason.InvalidAnchor
-
-
-def test_noop_last_child_when_already_last() -> None:
-    tree = _parse("# foo\n\npara one\n\npara two\n")
-    action = MoveNodeAction("1.2", _anchor("last_child", "1"))
-    assert action.validate(tree) == SkipReason.InvalidAnchor
-
-
-def test_first_child_when_not_first_is_real_move() -> None:
-    tree = _parse("# foo\n\npara one\n\npara two\n")
-    action = MoveNodeAction("1.2", _anchor("first_child", "1"))
+    action = MoveNodeAction("1.2", _anchor("before", "1.1"))
     assert action.validate(tree) is None
 
 
@@ -366,7 +359,8 @@ def test_cycle_section_into_own_descendant() -> None:
 deep body
 """
     tree = _parse(input_md)
-    action = MoveNodeAction("1", _anchor("last_child", "1.1"))
+    # Move 'top' (1) under 'inner' (1.1) — after inner's body (1.1.1). Cycle.
+    action = MoveNodeAction("1", _anchor("after", "1.1.1"))
     assert action.validate(tree) == SkipReason.InvalidAnchor
 
 
@@ -382,7 +376,7 @@ def test_cycle_list_after_own_listitem() -> None:
     assert action.validate(tree) == SkipReason.InvalidAnchor
 
 
-def test_cycle_first_child_of_self() -> None:
+def test_cycle_before_own_child() -> None:
     input_md = """# top
 
 ## inner
@@ -390,8 +384,9 @@ def test_cycle_first_child_of_self() -> None:
 body
 """
     tree = _parse(input_md)
-    # first_child of self — the parent resolved is the node itself.
-    action = MoveNodeAction("1", _anchor("first_child", "1"))
+    # Move 'top' (1) to before its own child 'inner' (1.1).
+    # Dest parent resolves to 1 itself → cycle.
+    action = MoveNodeAction("1", _anchor("before", "1.1"))
     assert action.validate(tree) == SkipReason.InvalidAnchor
 
 
@@ -410,13 +405,15 @@ ex
 :::
 """
     tree = _parse(input_md)
-    action = MoveNodeAction("1.1.e1", _anchor("last_child", "1"))
+    # Destination doesn't matter — source is an annotation id and skips first.
+    action = MoveNodeAction("1.1.e1", _anchor("after", "1.1"))
     assert action.validate(tree) == SkipReason.TargetNotFound
 
 
 def test_missing_id_skipped() -> None:
     tree = _parse("# foo\n\npara\n")
-    action = MoveNodeAction("9.9", _anchor("last_child", "1"))
+    # Source id absent — destination doesn't matter.
+    action = MoveNodeAction("9.9", _anchor("after", "1.1"))
     assert action.validate(tree) == SkipReason.TargetNotFound
 
 
@@ -428,7 +425,8 @@ para
 - a
 """
     tree = _parse(input_md)
-    action = MoveNodeAction("1.1", _anchor("last_child", "1.2"))
+    # Move para into list (after the only list item 1.2.1) — invalid structure.
+    action = MoveNodeAction("1.1", _anchor("after", "1.2.1"))
     assert action.validate(tree) == SkipReason.InvalidStructure
 
 
@@ -440,9 +438,9 @@ intro
 - item
 """
     tree = _parse(input_md)
-    # Top section into listitem inside it — also a cycle, but either skip
-    # reason is acceptable.
-    action = MoveNodeAction("1", _anchor("last_child", "1.2.1"))
+    # Top section into a leaf listitem (1.2.1 has no children) via 'inside'.
+    # ListItem 1.2.1 is a descendant of section 1 → cycle.
+    action = MoveNodeAction("1", _anchor("inside", "1.2.1"))
     assert action.validate(tree) in (SkipReason.InvalidAnchor, SkipReason.InvalidStructure)
 
 
@@ -456,7 +454,8 @@ x = 1
 - a
 """
     tree = _parse(input_md)
-    action = MoveNodeAction("1.1", _anchor("last_child", "1.2"))
+    # Move codeblock (1.1) into list (1.2) after its only item 1.2.1 → invalid.
+    action = MoveNodeAction("1.1", _anchor("after", "1.2.1"))
     assert action.validate(tree) == SkipReason.InvalidStructure
 
 
@@ -472,30 +471,41 @@ def test_invalid_anchor_target_skipped() -> None:
 
 
 def test_parse_move_node_well_formed() -> None:
-    result = parse_action({"type": "move_node", "id": "1.1", "anchor": {"after": "1.2"}})
+    result = parse_action({"type": "move_node", "id": "1.1", "target": "1.2", "position": "after"})
     assert isinstance(result, MoveNodeAction)
     assert result.node_id == "1.1"
-    assert result.anchor.kind == "after"
+    assert result.anchor.position == "after"
     assert result.anchor.target == "1.2"
 
 
+def test_parse_move_node_inside_position() -> None:
+    result = parse_action({"type": "move_node", "id": "1.1", "target": "2", "position": "inside"})
+    assert isinstance(result, MoveNodeAction)
+    assert result.anchor.position == "inside"
+
+
 def test_parse_move_node_missing_id() -> None:
-    result = parse_action({"type": "move_node", "anchor": {"after": "1.2"}})
+    result = parse_action({"type": "move_node", "target": "1.2", "position": "after"})
     assert result == SkipReason.MissingRequired
 
 
-def test_parse_move_node_missing_anchor() -> None:
-    result = parse_action({"type": "move_node", "id": "1.1"})
+def test_parse_move_node_missing_target() -> None:
+    result = parse_action({"type": "move_node", "id": "1.1", "position": "after"})
     assert result == SkipReason.MissingRequired
 
 
-def test_parse_move_node_anchor_not_dict() -> None:
-    result = parse_action({"type": "move_node", "id": "1.1", "anchor": "after 1.2"})
+def test_parse_move_node_missing_position() -> None:
+    result = parse_action({"type": "move_node", "id": "1.1", "target": "1.2"})
     assert result == SkipReason.MissingRequired
 
 
-def test_parse_move_node_unknown_anchor_key() -> None:
-    result = parse_action({"type": "move_node", "id": "1.1", "anchor": {"sibling": "1.2"}})
+def test_parse_move_node_invalid_position_value() -> None:
+    result = parse_action({"type": "move_node", "id": "1.1", "target": "1.2", "position": "sibling"})
+    assert result == SkipReason.MissingRequired
+
+
+def test_parse_move_node_empty_target() -> None:
+    result = parse_action({"type": "move_node", "id": "1.1", "target": "", "position": "after"})
     assert result == SkipReason.MissingRequired
 
 
@@ -504,7 +514,8 @@ def test_parse_move_node_extra_fields_ignored() -> None:
         {
             "type": "move_node",
             "id": "1.1",
-            "anchor": {"after": "1.2"},
+            "target": "1.2",
+            "position": "after",
             "extra": "ignored",
         }
     )
@@ -512,7 +523,7 @@ def test_parse_move_node_extra_fields_ignored() -> None:
 
 
 def test_parse_move_node_empty_id() -> None:
-    result = parse_action({"type": "move_node", "id": "", "anchor": {"after": "1.2"}})
+    result = parse_action({"type": "move_node", "id": "", "target": "1.2", "position": "after"})
     assert result == SkipReason.MissingRequired
 
 
@@ -554,7 +565,8 @@ inner
 
 inner b
 """
-    action = MoveNodeAction("1.1", _anchor("last_child", "1.2"))
+    # Move 'a' (1.1) under 'b' (1.2), after b's last child 'inner b' (1.2.1).
+    action = MoveNodeAction("1.1", _anchor("after", "1.2.1"))
     tree = _parse(input_md)
     action.apply(tree)
     md1 = tree.to_markdown()
@@ -571,7 +583,8 @@ intro
 - a
 - b
 """
-    action = MoveNodeAction("1.2.1", _anchor("first_child", "1"))
+    # First child of section 1 = before 'intro' (1.1).
+    action = MoveNodeAction("1.2.1", _anchor("before", "1.1"))
     tree = _parse(input_md)
     action.apply(tree)
     md1 = tree.to_markdown()
@@ -653,8 +666,8 @@ donor body
 
 sibling body
 """
-    # Move 'donor' (h4) to last_child of Document — should become h1 (delta = -3).
-    action = MoveNodeAction("1.1.1.1", _anchor("last_child", ""))
+    # Move 'donor' (h4) to be a sibling after top (1) at document root — should become h1 (delta = -3).
+    action = MoveNodeAction("1.1.1.1", _anchor("after", "1"))
     tree = _parse(input_md)
     action.apply(tree)
     md = tree.to_markdown()
@@ -731,8 +744,8 @@ host B
 for B
 :::
 """
-    # Move 'middle' (1.2) to first_child of section, leaving A and B adjacent.
-    action = MoveNodeAction("1.2", _anchor("first_child", "1"))
+    # Move 'middle' (1.2) to before 'host A' (1.1), leaving A and B adjacent.
+    action = MoveNodeAction("1.2", _anchor("before", "1.1"))
     tree = _parse(input_md)
     action.apply(tree)
     md = tree.to_markdown()
@@ -777,8 +790,8 @@ def test_cycle_deep_descendant() -> None:
 deepest body
 """
     tree = _parse(input_md)
-    # Move 'top' (1) under 'deep' (1.1.1) — two levels deep.
-    action = MoveNodeAction("1", _anchor("last_child", "1.1.1"))
+    # Move 'top' (1) after 'deepest body' (1.1.1.1) — two levels deep. Cycle.
+    action = MoveNodeAction("1", _anchor("after", "1.1.1.1"))
     assert action.validate(tree) == SkipReason.InvalidAnchor
 
 
@@ -911,8 +924,8 @@ sep
 - c
 """
     # Tree: list(1.1)=[x(1.1.1)], para(1.2)=sep, list(1.3)=[a(1.3.1),b(1.3.2),c(1.3.3)]
-    # Move "x" (1.1.1) as last_child of second list (1.3) — no auto-wrap.
-    action = MoveNodeAction("1.1.1", _anchor("last_child", "1.3"))
+    # Move "x" (1.1.1) after c (1.3.3) — lands in list 1.3, no auto-wrap.
+    action = MoveNodeAction("1.1.1", _anchor("after", "1.3.3"))
     tree = _parse(input_md)
     assert action.validate(tree) is None
     action.apply(tree)
@@ -932,7 +945,8 @@ sep
 - c
 """
     # Tree: list(1.1)=[a(1.1.1),b(1.1.2)], para(1.2)=sep, list(1.3)=[c(1.3.1)]
-    action = MoveNodeAction("1.1.1", _anchor("last_child", "1.3"))
+    # Move a (1.1.1) after c (1.3.1) — lands in list 1.3.
+    action = MoveNodeAction("1.1.1", _anchor("after", "1.3.1"))
     tree = _parse(input_md)
     action.apply(tree)
     md1 = tree.to_markdown()
@@ -1049,7 +1063,8 @@ inner a
 
 inner b
 """
-    action = MoveNodeAction("1.1", _anchor("last_child", "1.2"))
+    # 'last_child of 1.2' = 'after 1.2.1' (inner b).
+    action = MoveNodeAction("1.1", _anchor("after", "1.2.1"))
     tree = _parse(input_md)
     assert action.validate(tree) is None
     action.apply(tree)
@@ -1064,7 +1079,8 @@ intro
 - a
 - b
 """
-    action = MoveNodeAction("1.2.1", _anchor("first_child", "1"))
+    # 'first_child of section 1' = 'before intro' (1.1).
+    action = MoveNodeAction("1.2.1", _anchor("before", "1.1"))
     tree = _parse(input_md)
     assert action.validate(tree) is None
     action.apply(tree)
@@ -1170,8 +1186,8 @@ body a
 
 body b
 """
-    # Move "a" (1.1) under "b" (1.2) — becomes h3, list children are intact.
-    action = MoveNodeAction("1.1", _anchor("last_child", "1.2"))
+    # Move "a" (1.1) under "b" (1.2), after b's body 'body b' (1.2.1) — becomes h3.
+    action = MoveNodeAction("1.1", _anchor("after", "1.2.1"))
     tree = _parse(input_md)
     assert action.validate(tree) is None
     action.apply(tree)
@@ -1226,7 +1242,8 @@ deep body
 
 body b
 """
-    action = MoveNodeAction("1.1", _anchor("last_child", "1.2"))
+    # 'last_child of b (1.2)' = 'after body b' (1.2.1).
+    action = MoveNodeAction("1.1", _anchor("after", "1.2.1"))
     tree = _parse(input_md)
     action.apply(tree)
     md1 = tree.to_markdown()
@@ -1286,7 +1303,7 @@ para
 
 
 def test_move_into_nested_list_as_last_child() -> None:
-    # Move a top-level ListItem into a nested List as last_child.
+    # Move a top-level ListItem into a nested List, after its last existing item.
     input_md = """# foo
 
 - top item
@@ -1300,24 +1317,73 @@ def test_move_into_nested_list_as_last_child() -> None:
     from prompt_model.service.actions._walk import walk_all
 
     top_item_id = None
-    nested_list_id = None
+    nested_last_item_id = None
     for node in walk_all(tree):
         if isinstance(node, ListItem) and node.text == "top item":
             top_item_id = node.id
         if isinstance(node, List):
             for child in node.children:
                 if isinstance(child, ListItem) and child.text == "outer":
-                    # The nested list is inside this listitem's children
                     for grandchild in getattr(child, "children", []):
-                        if isinstance(grandchild, List):
-                            nested_list_id = grandchild.id
+                        if isinstance(grandchild, List) and grandchild.children:
+                            nested_last_item_id = grandchild.children[-1].id
 
     assert top_item_id is not None
-    assert nested_list_id is not None
+    assert nested_last_item_id is not None
 
-    action = MoveNodeAction(top_item_id, _anchor("last_child", nested_list_id))
+    action = MoveNodeAction(top_item_id, _anchor("after", nested_last_item_id))
     assert action.validate(tree) is None
     action.apply(tree)
     md = tree.to_markdown()
     assert "top item" in md
     assert "nested a" in md
+
+
+# =====================================================================
+# 23. position=inside — empty-container destinations
+# =====================================================================
+
+
+def test_move_into_empty_listitem_via_inside() -> None:
+    # A leaf ListItem has no children. Move a paragraph from elsewhere into
+    # it via position=inside — should land as its only child.
+    input_md = """# foo
+
+donor para
+
+- host item
+"""
+    tree = _parse(input_md)
+    # Section 1: [donor para (1.1), list 1.2 [host item (1.2.1)]]
+    # 'host item' (1.2.1) is a leaf ListItem with no children — valid 'inside' target.
+    action = MoveNodeAction("1.1", _anchor("inside", "1.2.1"))
+    assert action.validate(tree) is None
+    action.apply(tree)
+    md = tree.to_markdown()
+    # donor para should now be nested under the listitem (and gone from section level).
+    assert "donor para" in md
+    assert "host item" in md
+
+
+def test_move_inside_non_empty_container_rejected() -> None:
+    # Section "1.1" already has a body paragraph — cannot use 'inside'.
+    input_md = """# top
+
+## a
+
+inner a
+
+## b
+
+inner b
+"""
+    tree = _parse(input_md)
+    action = MoveNodeAction("1.2", _anchor("inside", "1.1"))
+    assert action.validate(tree) == SkipReason.InvalidAnchor
+
+
+def test_move_inside_non_container_target_rejected() -> None:
+    # Paragraph is not a ChildContainer — 'inside' must reject.
+    tree = _parse("# foo\n\npara one\n\npara two\n")
+    action = MoveNodeAction("1.2", _anchor("inside", "1.1"))
+    assert action.validate(tree) == SkipReason.InvalidAnchor

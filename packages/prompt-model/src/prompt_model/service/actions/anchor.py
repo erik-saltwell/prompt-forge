@@ -9,21 +9,18 @@ from ...model import PromptNode
 type NodeRef = PromptNode
 type NodeTarget = str | PromptNode
 
-AnchorKind = Literal["after", "before", "first_child", "last_child"]
+AnchorKind = Literal["before", "after", "inside"]
 
-_ONE_KEY_TO_KIND: dict[str, AnchorKind] = {
-    "after": "after",
-    "before": "before",
-    "first_child": "first_child",
-    "last_child": "last_child",
-}
+_VALID_POSITIONS: frozenset[str] = frozenset(("before", "after", "inside"))
 
 
 class LocationAnchor(BaseModel):
     """Where to place a node, relative to an existing target.
 
-    - `after` / `before` — sibling-relative; target is the sibling.
-    - `first_child` / `last_child` — parent-relative; target is the parent.
+    - `before` / `after` — sibling-relative; target is the sibling.
+    - `inside` — parent-relative; target is the parent. Only valid when the
+      target has no existing children (empty Section, empty ListItem, or
+      annotation host with no group of the relevant kind).
 
     `target` is normally a snapshot ID (str) parsed from JSON. The executor
     may construct anchors with a direct node reference for undo entries
@@ -32,20 +29,19 @@ class LocationAnchor(BaseModel):
 
     model_config = {"arbitrary_types_allowed": True}
 
-    kind: AnchorKind
+    position: AnchorKind
     target: NodeTarget
 
 
 def parse_anchor(raw: dict) -> LocationAnchor | None:
-    """Convert the JSON one-key form (e.g. `{"after": "2.1"}`) to a LocationAnchor.
-
-    Returns None if `raw` is not a recognized anchor shape. Extra keys beyond
-    the single anchor key are ignored, consistent with the lenient-parameter rule.
-    """
-    for key, kind in _ONE_KEY_TO_KIND.items():
-        if key in raw:
-            target = raw[key]
-            if not isinstance(target, str) or not target:
-                return None
-            return LocationAnchor(kind=kind, target=target)
-    return None
+    """Read flat `target` + `position` fields off an action dict and build
+    a LocationAnchor. Returns None if either field is missing, the position
+    is not one of the three valid values, or the target is not a non-empty
+    string."""
+    target = raw.get("target")
+    position = raw.get("position")
+    if not isinstance(target, str) or not target:
+        return None
+    if position not in _VALID_POSITIONS:
+        return None
+    return LocationAnchor(position=position, target=target)

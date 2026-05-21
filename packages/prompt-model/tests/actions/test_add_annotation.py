@@ -216,83 +216,85 @@ def test_validate_rejects_empty_host_id() -> None:
     check_can_apply(_DOC_WITH_BOTH, AddExampleAction("", "x"), SkipReason.TargetNotFound)
 
 
-# ---------- first_child / last_child anchors ----------
+# ---------- inside anchor (replaces first_child/last_child) ----------
 
 
-def test_validate_accepts_first_child_anchor_when_target_is_host() -> None:
-    anchor = LocationAnchor(kind="first_child", target="1.1")
-    check_can_apply(_DOC_WITH_BOTH, AddExampleAction("1.1", "x", anchor=anchor), None)
-
-
-def test_validate_accepts_last_child_anchor_when_target_is_host() -> None:
-    anchor = LocationAnchor(kind="last_child", target="1.1")
-    check_can_apply(_DOC_WITH_BOTH, AddGuidanceAction("1.1", "x", anchor=anchor), None)
-
-
-def test_validate_rejects_first_child_anchor_when_target_is_not_host() -> None:
-    anchor = LocationAnchor(kind="first_child", target="1")
-    check_can_apply(_DOC_WITH_BOTH, AddExampleAction("1.1", "x", anchor=anchor), SkipReason.InvalidAnchor)
-
-
-def test_validate_rejects_last_child_anchor_when_target_is_annotation_id() -> None:
-    anchor = LocationAnchor(kind="last_child", target="1.1.e1")
-    check_can_apply(_DOC_WITH_BOTH, AddExampleAction("1.1", "x", anchor=anchor), SkipReason.InvalidAnchor)
-
-
-def test_validate_accepts_first_child_with_no_existing_group() -> None:
-    # Parent-relative anchors don't require an existing group on the host.
-    anchor = LocationAnchor(kind="first_child", target="1.1")
+def test_validate_accepts_inside_anchor_when_host_has_no_group() -> None:
+    # 'inside host' is valid only when the host's relevant group is empty/missing.
+    anchor = LocationAnchor(position="inside", target="1.1")
     check_can_apply(_DOC_NO_ANNOTATIONS, AddExampleAction("1.1", "x", anchor=anchor), None)
+
+
+def test_validate_accepts_inside_guidance_when_host_has_only_examples() -> None:
+    md = "# Title\n\nBody paragraph.\n\n::: examples\nex\n:::\n"
+    anchor = LocationAnchor(position="inside", target="1.1")
+    check_can_apply(md, AddGuidanceAction("1.1", "x", anchor=anchor), None)
+
+
+def test_validate_rejects_inside_anchor_when_group_exists_with_items() -> None:
+    # Strict 'inside' semantics: reject when the group is already non-empty.
+    anchor = LocationAnchor(position="inside", target="1.1")
+    check_can_apply(_DOC_WITH_BOTH, AddExampleAction("1.1", "x", anchor=anchor), SkipReason.InvalidAnchor)
+
+
+def test_validate_rejects_inside_anchor_when_target_is_not_host() -> None:
+    anchor = LocationAnchor(position="inside", target="1")
+    check_can_apply(_DOC_WITH_BOTH, AddExampleAction("1.1", "x", anchor=anchor), SkipReason.InvalidAnchor)
+
+
+def test_validate_rejects_inside_anchor_when_target_is_annotation_id() -> None:
+    anchor = LocationAnchor(position="inside", target="1.1.e1")
+    check_can_apply(_DOC_WITH_BOTH, AddExampleAction("1.1", "x", anchor=anchor), SkipReason.InvalidAnchor)
 
 
 # ---------- after / before anchors ----------
 
 
 def test_validate_accepts_after_anchor_pointing_at_existing_example() -> None:
-    anchor = LocationAnchor(kind="after", target="1.1.e1")
+    anchor = LocationAnchor(position="after", target="1.1.e1")
     check_can_apply(_DOC_WITH_MULTI, AddExampleAction("1.1", "x", anchor=anchor), None)
 
 
 def test_validate_accepts_before_anchor_pointing_at_existing_example() -> None:
-    anchor = LocationAnchor(kind="before", target="1.1.e2")
+    anchor = LocationAnchor(position="before", target="1.1.e2")
     check_can_apply(_DOC_WITH_MULTI, AddExampleAction("1.1", "x", anchor=anchor), None)
 
 
 def test_validate_accepts_after_anchor_pointing_at_existing_guidance() -> None:
-    anchor = LocationAnchor(kind="after", target="1.1.g1")
+    anchor = LocationAnchor(position="after", target="1.1.g1")
     check_can_apply(_DOC_WITH_MULTI, AddGuidanceAction("1.1", "x", anchor=anchor), None)
 
 
 def test_validate_rejects_after_anchor_with_unknown_target() -> None:
-    anchor = LocationAnchor(kind="after", target="1.1.e99")
+    anchor = LocationAnchor(position="after", target="1.1.e99")
     check_can_apply(_DOC_WITH_MULTI, AddExampleAction("1.1", "x", anchor=anchor), SkipReason.InvalidAnchor)
 
 
 def test_validate_rejects_before_anchor_with_unknown_target() -> None:
-    anchor = LocationAnchor(kind="before", target="1.1.g99")
+    anchor = LocationAnchor(position="before", target="1.1.g99")
     check_can_apply(_DOC_WITH_MULTI, AddGuidanceAction("1.1", "x", anchor=anchor), SkipReason.InvalidAnchor)
 
 
 def test_validate_rejects_after_anchor_when_host_has_no_group_of_this_kind() -> None:
     md = "# Title\n\nBody paragraph.\n\n::: guidance\ng\n:::\n"
-    anchor = LocationAnchor(kind="after", target="1.1.e1")
+    anchor = LocationAnchor(position="after", target="1.1.e1")
     check_can_apply(md, AddExampleAction("1.1", "x", anchor=anchor), SkipReason.InvalidAnchor)
 
 
 def test_validate_rejects_example_after_anchor_pointing_at_guidance_id() -> None:
     # The id exists, but it lives in the guidance group — wrong kind for AddExample.
-    anchor = LocationAnchor(kind="after", target="1.1.g1")
+    anchor = LocationAnchor(position="after", target="1.1.g1")
     check_can_apply(_DOC_WITH_MULTI, AddExampleAction("1.1", "x", anchor=anchor), SkipReason.InvalidAnchor)
 
 
 def test_validate_rejects_guidance_before_anchor_pointing_at_example_id() -> None:
-    anchor = LocationAnchor(kind="before", target="1.1.e1")
+    anchor = LocationAnchor(position="before", target="1.1.e1")
     check_can_apply(_DOC_WITH_MULTI, AddGuidanceAction("1.1", "x", anchor=anchor), SkipReason.InvalidAnchor)
 
 
 def test_validate_rejects_after_anchor_pointing_at_another_hosts_annotation() -> None:
     md = "# Title\n\nFirst paragraph.\n\n::: examples\np1 e\n:::\n\nSecond paragraph.\n\n::: examples\np2 e\n:::\n"
-    anchor = LocationAnchor(kind="after", target="1.2.e1")
+    anchor = LocationAnchor(position="after", target="1.2.e1")
     check_can_apply(md, AddExampleAction("1.1", "x", anchor=anchor), SkipReason.InvalidAnchor)
 
 
@@ -304,7 +306,7 @@ def test_validate_does_not_mutate_tree() -> None:
     tree = parse_from_string(_DOC_WITH_BOTH)
     AddExampleAction("1.1", "new").validate(tree)
     AddExampleAction("9.9", "new").validate(tree)
-    AddExampleAction("1.1", "x", anchor=LocationAnchor(kind="after", target="1.1.e99")).validate(tree)
+    AddExampleAction("1.1", "x", anchor=LocationAnchor(position="after", target="1.1.e99")).validate(tree)
     assert tree.to_markdown() == _DOC_WITH_BOTH
 
 
@@ -321,35 +323,37 @@ _DOC_3_GUIDANCE = "# Title\n\nBody paragraph.\n\n::: guidance\n- g one\n- g two\
 
 def test_apply_add_example_with_after_anchor_inserts_in_middle() -> None:
     expected = "# Title\n\nBody paragraph.\n\n::: examples\n- e one\n- e two\n- inserted\n- e three\n:::\n"
-    anchor = LocationAnchor(kind="after", target="1.1.e2")
+    anchor = LocationAnchor(position="after", target="1.1.e2")
     check_against_md(_DOC_3_EXAMPLES, AddExampleAction("1.1", "inserted", anchor=anchor), expected)
 
 
 def test_apply_add_example_with_before_anchor_at_start() -> None:
     expected = "# Title\n\nBody paragraph.\n\n::: examples\n- prepended\n- e one\n- e two\n:::\n"
-    anchor = LocationAnchor(kind="before", target="1.1.e1")
+    anchor = LocationAnchor(position="before", target="1.1.e1")
     check_against_md(_DOC_2_EXAMPLES, AddExampleAction("1.1", "prepended", anchor=anchor), expected)
 
 
-def test_apply_add_example_with_first_child_anchor_on_existing_group() -> None:
+def test_apply_add_example_before_first_prepends_to_existing_group() -> None:
+    # Was: first_child of host. Now: before the first existing annotation.
     expected = "# Title\n\nBody paragraph.\n\n::: examples\n- prepended\n- e one\n- e two\n:::\n"
-    anchor = LocationAnchor(kind="first_child", target="1.1")
+    anchor = LocationAnchor(position="before", target="1.1.e1")
     check_against_md(_DOC_2_EXAMPLES, AddExampleAction("1.1", "prepended", anchor=anchor), expected)
 
 
-def test_apply_add_example_with_last_child_anchor_matches_default_append() -> None:
-    anchor = LocationAnchor(kind="last_child", target="1.1")
+def test_apply_add_example_after_last_matches_default_append() -> None:
+    # Was: last_child of host. Now: after the last existing annotation.
+    anchor = LocationAnchor(position="after", target="1.1.e2")
     expected = "# Title\n\nBody paragraph.\n\n::: examples\n- e one\n- e two\n- appended\n:::\n"
     check_against_md(_DOC_2_EXAMPLES, AddExampleAction("1.1", "appended", anchor=anchor), expected)
     # And the no-anchor form produces identical markdown.
     check_against_md(_DOC_2_EXAMPLES, AddExampleAction("1.1", "appended"), expected)
 
 
-def test_apply_add_example_with_first_child_anchor_on_host_with_no_group() -> None:
-    # Auto-create the group with the single annotation, even when an anchor
-    # is specified — the anchor path must not bypass group creation.
+def test_apply_add_example_with_inside_anchor_on_host_with_no_group() -> None:
+    # Auto-create the group with the single annotation, with explicit 'inside'
+    # anchor — must not bypass group creation.
     expected = "# Title\n\nBody paragraph.\n\n::: examples\nonly\n:::\n"
-    anchor = LocationAnchor(kind="first_child", target="1.1")
+    anchor = LocationAnchor(position="inside", target="1.1")
     check_against_md(_DOC_NO_ANNOTATIONS, AddExampleAction("1.1", "only", anchor=anchor), expected)
 
 
@@ -358,32 +362,32 @@ def test_apply_add_example_with_first_child_anchor_on_host_with_no_group() -> No
 
 def test_apply_add_guidance_with_after_anchor_inserts_in_middle() -> None:
     expected = "# Title\n\nBody paragraph.\n\n::: guidance\n- g one\n- g two\n- inserted\n- g three\n:::\n"
-    anchor = LocationAnchor(kind="after", target="1.1.g2")
+    anchor = LocationAnchor(position="after", target="1.1.g2")
     check_against_md(_DOC_3_GUIDANCE, AddGuidanceAction("1.1", "inserted", anchor=anchor), expected)
 
 
 def test_apply_add_guidance_with_before_anchor_at_start() -> None:
     expected = "# Title\n\nBody paragraph.\n\n::: guidance\n- prepended\n- g one\n- g two\n:::\n"
-    anchor = LocationAnchor(kind="before", target="1.1.g1")
+    anchor = LocationAnchor(position="before", target="1.1.g1")
     check_against_md(_DOC_2_GUIDANCE, AddGuidanceAction("1.1", "prepended", anchor=anchor), expected)
 
 
-def test_apply_add_guidance_with_first_child_anchor_on_existing_group() -> None:
+def test_apply_add_guidance_before_first_prepends_to_existing_group() -> None:
     expected = "# Title\n\nBody paragraph.\n\n::: guidance\n- prepended\n- g one\n- g two\n:::\n"
-    anchor = LocationAnchor(kind="first_child", target="1.1")
+    anchor = LocationAnchor(position="before", target="1.1.g1")
     check_against_md(_DOC_2_GUIDANCE, AddGuidanceAction("1.1", "prepended", anchor=anchor), expected)
 
 
-def test_apply_add_guidance_with_last_child_anchor_matches_default_append() -> None:
-    anchor = LocationAnchor(kind="last_child", target="1.1")
+def test_apply_add_guidance_after_last_matches_default_append() -> None:
+    anchor = LocationAnchor(position="after", target="1.1.g2")
     expected = "# Title\n\nBody paragraph.\n\n::: guidance\n- g one\n- g two\n- appended\n:::\n"
     check_against_md(_DOC_2_GUIDANCE, AddGuidanceAction("1.1", "appended", anchor=anchor), expected)
     check_against_md(_DOC_2_GUIDANCE, AddGuidanceAction("1.1", "appended"), expected)
 
 
-def test_apply_add_guidance_with_first_child_anchor_on_host_with_no_group() -> None:
+def test_apply_add_guidance_with_inside_anchor_on_host_with_no_group() -> None:
     expected = "# Title\n\nBody paragraph.\n\n::: guidance\nonly\n:::\n"
-    anchor = LocationAnchor(kind="first_child", target="1.1")
+    anchor = LocationAnchor(position="inside", target="1.1")
     check_against_md(_DOC_NO_ANNOTATIONS, AddGuidanceAction("1.1", "only", anchor=anchor), expected)
 
 
@@ -407,18 +411,18 @@ def test_parse_action_builds_add_guidance_from_well_formed_dict() -> None:
 
 
 def test_parse_action_builds_add_example_with_after_anchor() -> None:
-    result = parse_action({"type": "add_example", "host_id": "1.1", "text": "x", "anchor": {"after": "1.1.e1"}})
+    result = parse_action({"type": "add_example", "host_id": "1.1", "text": "x", "target": "1.1.e1", "position": "after"})
     assert isinstance(result, AddExampleAction)
     assert result.anchor is not None
-    assert result.anchor.kind == "after"
+    assert result.anchor.position == "after"
     assert result.anchor.target == "1.1.e1"
 
 
-def test_parse_action_builds_add_guidance_with_first_child_anchor() -> None:
-    result = parse_action({"type": "add_guidance", "host_id": "1.1", "text": "x", "anchor": {"first_child": "1.1"}})
+def test_parse_action_builds_add_guidance_with_inside_anchor() -> None:
+    result = parse_action({"type": "add_guidance", "host_id": "1.1", "text": "x", "target": "1.1", "position": "inside"})
     assert isinstance(result, AddGuidanceAction)
     assert result.anchor is not None
-    assert result.anchor.kind == "first_child"
+    assert result.anchor.position == "inside"
     assert result.anchor.target == "1.1"
 
 
@@ -450,20 +454,33 @@ def test_parse_action_returns_missing_required_when_text_not_string() -> None:
     assert parse_action({"type": "add_example", "host_id": "1.1", "text": 7}) == SkipReason.MissingRequired
 
 
-def test_parse_action_returns_missing_required_when_anchor_not_dict() -> None:
-    assert parse_action({"type": "add_example", "host_id": "1.1", "text": "x", "anchor": "after"}) == SkipReason.MissingRequired
+def test_parse_action_returns_missing_required_when_target_present_but_position_absent() -> None:
+    # Both anchor fields must appear together or both absent.
+    assert parse_action({"type": "add_example", "host_id": "1.1", "text": "x", "target": "1.1.e1"}) == SkipReason.MissingRequired
 
 
-def test_parse_action_returns_missing_required_when_anchor_dict_has_no_known_key() -> None:
-    assert parse_action({"type": "add_example", "host_id": "1.1", "text": "x", "anchor": {"sideways": "1.1"}}) == SkipReason.MissingRequired
+def test_parse_action_returns_missing_required_when_position_present_but_target_absent() -> None:
+    assert parse_action({"type": "add_example", "host_id": "1.1", "text": "x", "position": "after"}) == SkipReason.MissingRequired
+
+
+def test_parse_action_returns_missing_required_when_position_value_invalid() -> None:
+    assert (
+        parse_action({"type": "add_example", "host_id": "1.1", "text": "x", "target": "1.1", "position": "sideways"})
+        == SkipReason.MissingRequired
+    )
 
 
 def test_parse_action_returns_missing_required_when_anchor_target_empty() -> None:
-    assert parse_action({"type": "add_example", "host_id": "1.1", "text": "x", "anchor": {"after": ""}}) == SkipReason.MissingRequired
+    assert (
+        parse_action({"type": "add_example", "host_id": "1.1", "text": "x", "target": "", "position": "after"})
+        == SkipReason.MissingRequired
+    )
 
 
 def test_parse_action_returns_missing_required_when_anchor_target_not_string() -> None:
-    assert parse_action({"type": "add_example", "host_id": "1.1", "text": "x", "anchor": {"after": 5}}) == SkipReason.MissingRequired
+    assert (
+        parse_action({"type": "add_example", "host_id": "1.1", "text": "x", "target": 5, "position": "after"}) == SkipReason.MissingRequired
+    )
 
 
 def test_parse_action_tolerates_extra_unknown_keys() -> None:
@@ -482,14 +499,15 @@ def test_parse_action_returns_unknown_type_for_unregistered_type() -> None:
 def test_apply_add_example_with_after_anchor_on_list_item_host() -> None:
     input_md = "# Title\n\n- item one\n\n  ::: examples\n  - on item 1\n  - on item 2\n  :::\n"
     expected = "# Title\n\n- item one\n  ::: examples\n  - on item 1\n  - new\n  - on item 2\n  :::\n"
-    anchor = LocationAnchor(kind="after", target="1.1.1.e1")
+    anchor = LocationAnchor(position="after", target="1.1.1.e1")
     check_against_md(input_md, AddExampleAction("1.1.1", "new", anchor=anchor), expected)
 
 
-def test_apply_add_guidance_with_first_child_anchor_on_list_item_host() -> None:
+def test_apply_add_guidance_with_before_first_anchor_on_list_item_host() -> None:
+    # Was: first_child of host. Now: before the first guidance annotation.
     input_md = "# Title\n\n- item one\n\n  ::: guidance\n  - g1\n  - g2\n  :::\n"
     expected = "# Title\n\n- item one\n  ::: guidance\n  - new\n  - g1\n  - g2\n  :::\n"
-    anchor = LocationAnchor(kind="first_child", target="1.1.1")
+    anchor = LocationAnchor(position="before", target="1.1.1.g1")
     check_against_md(input_md, AddGuidanceAction("1.1.1", "new", anchor=anchor), expected)
 
 
@@ -498,7 +516,7 @@ def test_apply_add_example_on_nested_list_item_host() -> None:
     # inner list item id is `1.1.1.1.1`. The walk must descend into the
     # nested list to find the host before adding the new annotation.
     tree = doc_from_shorthand("h1 ul1 ul2 e")
-    anchor = LocationAnchor(kind="after", target="1.1.1.1.1.e1")
+    anchor = LocationAnchor(position="after", target="1.1.1.1.1.e1")
     AddExampleAction("1.1.1.1.1", "deep new", anchor=anchor).apply(tree)
     # Walk to the inner item and confirm the new annotation landed correctly.
     section = tree.children[0]

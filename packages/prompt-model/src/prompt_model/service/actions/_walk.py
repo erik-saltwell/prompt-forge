@@ -71,21 +71,21 @@ def find_parent_of_node(tree: Document, node: PromptNode) -> tuple[ChildContaine
 
 def resolve_anchor(tree: Document, anchor: LocationAnchor) -> tuple[ChildContainer, int] | None:
     """Map an anchor to (parent_container, insertion_index) over the parent's
-    `children` list. Returns None if the target doesn't resolve or the
-    parent isn't a container."""
+    `children` list. Returns None if the target doesn't resolve, the parent
+    isn't a container, or `inside` is used on a container that already has
+    children."""
     target = anchor.target
-    if anchor.kind in ("first_child", "last_child"):
+    if anchor.position == "inside":
         parent: ChildContainer | None
         if isinstance(target, str):
-            # Empty-string target is the Document root convention — Document
-            # has no id, so this is the only way to address it as a parent.
-            parent = tree if target == "" else child_container(find_node_by_id(tree, target))
+            parent = child_container(find_node_by_id(tree, target))
         else:
             parent = child_container(target) if target in walk_all(tree) else None
         if parent is None:
             return None
-        children = children_of(parent)
-        return (parent, 0) if anchor.kind == "first_child" else (parent, len(children))
+        if children_of(parent):
+            return None
+        return parent, 0
 
     located: tuple[ChildContainer, int] | None
     if isinstance(target, str):
@@ -105,7 +105,7 @@ def resolve_anchor(tree: Document, anchor: LocationAnchor) -> tuple[ChildContain
     if located is None:
         return None
     parent, index = located
-    return parent, index + (1 if anchor.kind == "after" else 0)
+    return parent, index + (1 if anchor.position == "after" else 0)
 
 
 def is_descendant(node: PromptNode, possible_ancestor: PromptNode) -> bool:

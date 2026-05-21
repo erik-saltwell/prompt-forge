@@ -140,10 +140,7 @@ def _build_move_node(raw: dict) -> Action | SkipReason:
     node_id = raw.get("id")
     if not isinstance(node_id, str) or not node_id:
         return SkipReason.MissingRequired
-    anchor_raw = raw.get("anchor")
-    if not isinstance(anchor_raw, dict):
-        return SkipReason.MissingRequired
-    anchor = parse_anchor(anchor_raw)
+    anchor = parse_anchor(raw)
     if anchor is None:
         return SkipReason.MissingRequired
     return MoveNodeAction(node_id, anchor)

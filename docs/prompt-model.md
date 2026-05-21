@@ -4,6 +4,8 @@
 
 The Prompt Model parses a markdown-formatted LLM prompt into a typed, hierarchical tree of nodes. Each node in the tree has a stable, addressable ID. The tree can be serialized back to conforming markdown, and any node or annotation can be targeted by a SCULPT-style optimization action. Three operations form the core contract: `validate-prompt`, `parse-prompt`, and `generate-conforming-prompt`.
 
+The `parse-prompt` pipeline is also reused by the `insert_node` action (see `prompt-actions.md`) to materialise markdown-string subtrees into nodes — so any markdown the parser accepts as a top-level Document can be inserted as a subtree.
+
 ---
 
 ## Key Concepts

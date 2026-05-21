@@ -4,6 +4,8 @@
 
 `validate-prompt` checks that a markdown-formatted prompt can be parsed into a well-formed tree per `prompt-model.md` before parsing is attempted. The contract is one-way and absolute: **if validation passes, parsing produces a well-formed tree** (every invariant in the prompt model holds). The validator does not attempt to second-guess author intent or catch stylistic issues — it enforces the structural and content rules required by the parser, no more.
 
+The same validator is the final gate for structural action mutations (`insert_node`, `delete_node`, `move_node`): the executor renders the post-mutation tree to markdown, runs it through `validate-prompt`, and skips the action if any rule fires. This means new content inserted via `insert_node` — including markdown-string subtrees parsed via the standard pipeline — must satisfy the same rules as content authored directly in a prompt file.
+
 ---
 
 ## Key Concepts
