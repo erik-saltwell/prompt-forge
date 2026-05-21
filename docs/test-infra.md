@@ -18,7 +18,7 @@ The test infrastructure for the prompt-model package supports unit testing the t
 
 **Sidecar file** — A companion file paired with a fixture by filename prefix, carrying assertion metadata. For example, `bad_heading_skip.md` is paired with `bad_heading_skip.expected.json` listing the expected validation error codes and line numbers.
 
-**Test mode** — For tests with multiple natural assertion shapes (especially action tests), the mode is encoded by which subdirectory the fixture lives in (`exact/`, `shorthand/`, `undo/`). One parametrized test function per mode walks its directory.
+**Test mode** — For tests with multiple natural assertion shapes (especially action tests), the mode is encoded by which subdirectory the fixture lives in (`exact/`, `shorthand/`). One parametrized test function per mode walks its directory.
 
 ---
 
@@ -70,7 +70,6 @@ The harness implements only one direction: `tree_to_shorthand(tree) → str`. Te
 ### Action executor
 - **Exact mode** — `input.md` + `actions.json` + `expected.md`. Parse input, apply actions, generate, compare to expected markdown.
 - **Shorthand mode** — `input.md` + `actions.json` + `expected.shorthand`. Parse input, apply actions, generate shorthand from result, compare to expected.
-- **Undo mode** — `input.md` + `actions.json`, no expected file. Parse input, apply actions, apply inverse undo actions, assert the resulting tree is structurally equal to the originally parsed tree.
 
 ---
 
@@ -92,7 +91,6 @@ tests/
     actions/
       exact/                         # *.input.md + *.actions.json + *.expected.md
       shorthand/                     # *.input.md + *.actions.json + *.expected.shorthand
-      undo/                          # *.input.md + *.actions.json
 ```
 
 ---
@@ -121,7 +119,7 @@ Manual tests live alongside the parametrized ones when a fixture's assertion is 
 - **ID uniqueness is a Pydantic invariant.** No test (or production code) ever produces a tree with duplicate IDs — the model rejects it at construction. No separate `assert_unique_ids` helper exists; it doesn't need to.
 - **Fail-case fixtures assert specific errors.** A fixture in `validate/fail/` cannot pass for the wrong reason. The sidecar `.expected.json` lists every expected error code and its line number; mismatches fail the test.
 - **Auto-discovery scales the corpus.** Adding a test case is almost always "drop a file in the right directory." Editing Python is reserved for genuinely novel test shapes.
-- **Mode-per-directory for multi-file fixtures.** Action tests live under `actions/exact/`, `actions/shorthand/`, or `actions/undo/`. The author chooses the assertion mode by choosing the directory; the harness has one test function per mode.
+- **Mode-per-directory for multi-file fixtures.** Action tests live under `actions/exact/` or `actions/shorthand/`. The author chooses the assertion mode by choosing the directory; the harness has one test function per mode.
 - **Shorthand is for shape, not content.** Tests that need to assert text, code block info strings, or list-item block children use exact-file comparison; the shorthand intentionally cannot express these.
 
 ---

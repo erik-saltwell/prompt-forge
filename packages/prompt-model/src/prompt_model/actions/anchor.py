@@ -23,8 +23,8 @@ class LocationAnchor(BaseModel):
       annotation host with no group of the relevant kind).
 
     `target` is normally a snapshot ID (str) parsed from JSON. The executor
-    may construct anchors with a direct node reference for undo entries
-    pointing at nodes that didn't exist at snapshot time.
+    may also construct anchors with a direct `PromptNode` reference when the
+    target is known in-process.
     """
 
     model_config = {"arbitrary_types_allowed": True}

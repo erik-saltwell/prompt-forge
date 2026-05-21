@@ -8,8 +8,7 @@ A metric is a single, focused judgment applied to one evaluation case — a `(pr
 - **Metric** — A protocol with stable identity (`name`, `description`) and one async behavior: `evaluate`. Implementations are typically LLM-judge calls but may be pure-compute.
 - **Evaluation Case** — The tuple `(prompt, input, output, ground_truth | None)`. The harness generates `output` from `prompt` + `input` once and fans it out to metrics; metrics never run the model themselves.
 - **MetricResult** — The structured output of a single `evaluate` call. Also the schema the judge LLM returns under structured output.
-- **IssueSignal** — A specific, evidenced complaint about the prompt, optionally localized to one or more prompt nodes, optionally accompanied by improvement guidance.
-- **ImprovementGuidance** — Per-issue direction for the actor LLM: what good looks like, and (when known) how to change the prompt to get there.
+- **IssueSignal** — A specific, evidenced complaint about the prompt, localized to exactly one prompt node (or the `"document"` sentinel when not node-localizable). Carries verbatim input/output snippets, a rationale, and the flattened improvement-guidance fields. See `metric-aggregation.md` for the full field list and the dedupe behavior the aggregator applies downstream.
 - **Preserve** — Things about the current prompt that are working and should not be broken by edits. Lives at the result level, applies regardless of score.
 
 ## Flows
@@ -44,12 +43,14 @@ A metric is a single, focused judgment applied to one evaluation case — a `(pr
 
 ### Signals
 - Zero or more `IssueSignal`s per result. Empty list means no issues found.
-- Each signal carries: suspected culprit prompt nodes (`list[str]`, possibly empty when unlocalizable), input snippets, output snippets, rationale, and an `ImprovementGuidance`.
-- `ImprovementGuidance` requires `target_behavior` and `success_criterion`. `suggested_prompt_change` is optional — a metric may flag a problem without prescribing the fix.
+- Each signal carries: a single `culprit_node_id` (a real prompt node id, or the `"document"` sentinel when not localizable to a specific node), `rationale`, `target_behavior`, `success_criterion`, optional `suggested_prompt_change`, and verbatim `input_snippet` + `output_snippet` quoted from the case being evaluated.
+- `target_behavior` and `success_criterion` are required. `suggested_prompt_change` is optional — a metric may flag a problem without prescribing the fix.
+- `seen_in_n_cases` is a field on `IssueSignal` defaulted to `1`; the critic always emits the default. The aggregator increments it when collapsing duplicates across cases (see `metric-aggregation.md`).
+- Cross-node issues are expressed as **two independent peer signals**, one per culprit, each with the cross-reference written into its own rationale. The schema does not allow listing multiple suspects on a single signal.
 
 ### Preserve
 - Top-level `MetricResult.preserve: list[str]`. Single source of truth for "what's working that an edit must not break."
-- No per-issue preservation field exists; preservation is not duplicated inside `ImprovementGuidance`.
+- No per-issue preservation field exists; preservation is not duplicated on `IssueSignal`.
 
 ## Open Questions
 None surfaced during the brainstorm.
