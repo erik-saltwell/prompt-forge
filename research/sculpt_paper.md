@@ -1,0 +1,20 @@
+# SCULPT: Systematic Tuning of Long Prompts
+
+Shanu Kumar Akhila Yesantarao Venkata Shubhanshu Khandelwal
+Bishal Santra Parag Agrawal Manish Gupta
+Microsoft Corporation, India
+{shankum,akyesant,shukhand,bishalsantra,paragag,gmanish}@microsoft.com
+
+###### Abstract
+
+Prompt optimization is essential for effective utilization of large language models (LLMs) across diverse tasks. While existing optimization methods are effective in optimizing short prompts, they struggle with longer, more complex ones, often risking information loss and being sensitive to small perturbations. To address these challenges, we propose SCULPT (Systematic Tuning of Long Prompts), a framework that treats prompt optimization as a hierarchical tree refinement problem. SCULPT represents prompts as tree structures, enabling targeted modifications while preserving contextual integrity. It employs a Critic-Actor framework that generates reflections and applies actions to refine the prompt. Evaluations demonstrate SCULPT’s effectiveness on long prompts, its robustness to adversarial perturbations, and its ability to generate high-performing prompts even without any initial human-written prompt. Compared to existing state of the art methods, SCULPT consistently improves LLM performance by preserving essential task information while applying structured refinements. Both qualitative and quantitative analyses show that SCULPT produces more stable and interpretable prompt modifications, ensuring better generalization across tasks.
+
+## 1 Introduction
+
+Large language models (LLMs) have revolutionized natural language processing, achieving state-of-the-art performance in text generation, summarization, and reasoning *Achiam et al. (2023); Bubeck et al. (2023); Abdin et al. (2024); Dubey et al. (2024)*. A key factor in their success is the use of natural language prompts, which condition the model on specific tasks. As applications grow in complexity, prompts have become not only longer but also structurally intricate, often spanning hundreds or even thousands of tokens and integrating multiple instructions, examples, and contextual cues *Schnabel and Neville (2024)*. Optimizing such prompts manually is time-consuming, requiring expert intervention and extensive trial-and-error iterations *Jiang et al. (2022); Zamfirescu-Pereira et al. (2023)*.
+
+To reduce manual effort, automatic prompt optimization methods such as APE *Zhou et al. (2022)*, ProTeGi *Pryzant et al. (2023)*, OPRO *Yang et al. (2024)*, and APEX *Hsieh et al. (2024)* have been proposed. These methods have been evaluated on tasks where prompts consist of minimal instructions, demonstrating their effectiveness in optimizing short prompts. However, they face two major limitations when applied to longer prompts. First, they generate each token of new prompt candidates from scratch, risking the loss of information from the initial prompt. Second, due to the non-convex and non-monotonic behavior of LLMs with respect to small perturbations in prompt structure *Jiang et al. (2020); Zhao et al. (2021); Reynolds and McDonell (2021); Lu et al. (2022)*, these optimization techniques become ineffective for long prompts. Addressing these limitations requires a structured and context-aware approach that preserves the initial information while applying targeted refinements.
+
+We address these challenges with SCULPT (Systematic Tuning of Long Prompts), a framework that redefines prompt optimization as a hierarchical tree refinement problem. Rather than treating prompts as flat sequences, SCULPT represents a prompt as a tree-structured form. This representation retains the intrinsic structure of a long prompt while enabling targeted and effective modifications. SCULPT employs an iterative Critic-Actor framework: the Critic Module generates reflections based on the prompt tree and incorrect predictions, while the Actor Module processes these reflections and generates a list of actions inspired by expert-driven prompt optimization. These actions are then ap
+
+<!-- Converted with BlazeDocs — sign up for full features at blazedocs.io -->

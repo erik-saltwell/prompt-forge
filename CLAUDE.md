@@ -29,7 +29,11 @@ Pre-commit hooks run `ruff format --check`, `ruff check --fix`, and `ty check` o
 - @docs/prompt-validation.md  — the rules checked by the prompt validator
 - @docs/prompt-serialization.md — rules about how data are sent-to and read-from llm calls
 - @docs/critic-metric-interface.md — Metric protocol and MetricResult schema
+- @docs/metric-aggregation.md — how MetricResults are aggregated per-node into the actor LLM's per-call payload
 - @docs/test-infra.md — fixture-driven tests + shorthand grammar for tree structures
+- @research/sculpt_paper.md - the sculpt paper i am basing this optimizer off of
+- @research/deep_eval_metrics_api.md - how to use DeepEval metrics, which i am basing out metrics off of
+- @research/deep_eval_metrics_review.md - the specific metrics that DeepEval exposes, some of which we will use
 
 ## Conventions
 
