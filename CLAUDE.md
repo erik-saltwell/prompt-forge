@@ -26,16 +26,10 @@ Pre-commit hooks run `ruff format --check`, `ruff check --fix`, and `ty check` o
 ## important files with design information
 - @docs/prompt-model.md — markdown-to-tree parser, node types, ID scheme.  The core data model.
 - @docs/prompt-actions.md — the action vocabulary of prompt changes that the actor requests.
-- @docs/prompt-validation.md  — the rules checked by the prompt validator
 - @docs/prompt-serialization.md — rules about how data are sent-to and read-from llm calls
 - @docs/critic-metric-interface.md — Metric protocol and MetricResult schema
-- @docs/metric-aggregation.md — how MetricResults are aggregated per-node into the actor LLM's per-call payload
-- @docs/batch-testing.md — UCB-driven batch evaluation harness: floor + budget allocation, RewardStrategy, top-K selection
 - @docs/public-facade.md — public import surface: optimize_prompt entry point, OptimizerConfig, OptimizeResult, progress events, module layout
-- @docs/test-infra.md — fixture-driven tests + shorthand grammar for tree structures
 - @research/sculpt_paper.md - the sculpt paper i am basing this optimizer off of
-- @research/deep_eval_metrics_api.md - how to use DeepEval metrics, which i am basing out metrics off of
-- @research/deep_eval_metrics_review.md - the specific metrics that DeepEval exposes, some of which we will use
 
 ## Conventions
 
@@ -48,3 +42,11 @@ Pre-commit hooks run `ruff format --check`, `ruff check --fix`, and `ty check` o
 ## Testing
 
 Tests are **fixture-driven**: most cases live as asset files (markdown, JSON) under `tests/.../assets/`, auto-discovered by pytest-collection logic in the test modules. See `docs/test-infra.md` for the shorthand grammar used to declare expected tree structures and for the mode-per-directory convention for action fixtures. Tree comparisons in tests are **structural-only** — IDs are not asserted unless explicitly tested.
+
+## Style Guidelines - be brief
+
+- Provide **concise, focused responses** to user questions.
+- Lead with the main answer; **skip non-essential context** and filler preamble.
+- Use **bullet points** or numbered lists for multiple items, and keep bullets short.
+- Avoid repeating the user’s question or saying “As an AI model” unless needed.
+- If a very brief reply is appropriate, stop after the key points. (Longer explanations can come in later steps if requested.)
