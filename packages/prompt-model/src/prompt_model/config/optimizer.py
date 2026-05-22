@@ -36,6 +36,19 @@ class OptimizerConfig(BaseModel):
     floor: int = Field(default=2, gt=0, description="Minimum number of evaluations per candidate before UCB allocates extras.")
     ucb_budget: int = Field(default=20, ge=0, description="Extra evaluations allocated by UCB1 beyond the floor.")
     max_concurrency: int = Field(default=4, gt=0, description="Maximum concurrent LLM calls during batch evaluation.")
+    exploration_bonus: float = Field(
+        default=1.0,
+        ge=0.0,
+        description="Multiplier for UCB1's exploration term; higher values sample less-tested candidates more aggressively.",
+    )
+    error_budget: int = Field(
+        default=0,
+        ge=0,
+        description=(
+            "Number of failed batch-evaluation pulls to tolerate before aborting; "
+            "failures are discarded, and the batch raises once the count exceeds this budget."
+        ),
+    )
 
     def with_seed_prompt(self, prompt: str) -> Self:
         return self.model_copy(update={"seed_prompt": prompt})

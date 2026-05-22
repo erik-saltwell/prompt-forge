@@ -13,7 +13,7 @@ class CandidateSummary(BaseModel):
     )
 
 
-class OptimizeResult(BaseModel):
+class OptimizationResult(BaseModel):
     """What `optimize_prompt` returns."""
 
     best_prompt: str = Field(description="Highest-scoring candidate prompt, as conforming markdown.")

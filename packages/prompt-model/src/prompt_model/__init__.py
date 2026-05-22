@@ -4,7 +4,7 @@ from ._metrics.protocol import Metric, MissingGroundTruthError
 from ._metrics.result import IssueSignal, MetricResult
 from ._optimize_prompt import optimize_prompt
 from ._progress import ProgressEvent, ProgressReporter, RunProgress, StepProgress, TaskProgress
-from ._result import CandidateSummary, OptimizeResult
+from ._result import CandidateSummary, OptimizationResult
 
 __all__ = [
     "BaseLLMJudgeMetric",
@@ -13,7 +13,7 @@ __all__ = [
     "Metric",
     "MetricResult",
     "MissingGroundTruthError",
-    "OptimizeResult",
+    "OptimizationResult",
     "ProgressEvent",
     "ProgressReporter",
     "RunProgress",

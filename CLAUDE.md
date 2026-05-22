@@ -29,6 +29,7 @@ Pre-commit hooks run `ruff format --check`, `ruff check --fix`, and `ty check` o
 - @docs/prompt-serialization.md — rules about how data are sent-to and read-from llm calls
 - @docs/critic-metric-interface.md — Metric protocol and MetricResult schema
 - @docs/public-facade.md — public import surface: optimize_prompt entry point, OptimizerConfig, OptimizeResult, progress events, module layout
+- @docs/actor-module.md — Actor module design: per-bucket fan-out, RedactionStrategy, revise() contract, structural pass orchestration
 - @research/sculpt_paper.md - the sculpt paper i am basing this optimizer off of
 
 ## Conventions
