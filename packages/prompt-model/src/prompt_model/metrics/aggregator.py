@@ -36,21 +36,21 @@ def _normalize(s: str) -> str:
     return collapsed.rstrip(_TRAILING_PUNCT)
 
 
-def aggregate(results: list[tuple[str, MetricResult]]) -> AggregationResult:
+def aggregate(results: list[MetricResult]) -> AggregationResult:
     """Convert per-(metric, case) MetricResults into per-node aggregated buckets.
 
-    Each input entry pairs a metric_name with one MetricResult. The metric_name is used as
-    part of the dedupe key and never appears in the output — see docs/metric-aggregation.md.
+    Each entry's `metric_name` participates in the dedupe key but is never written into the output —
+    see docs/metric-aggregation.md.
     """
     grouped: dict[str, list[tuple[str, IssueSignal]]] = {}
     preserve_seen: dict[str, None] = {}
 
-    for metric_name, result in results:
+    for result in results:
         for entry in result.preserve:
             if entry not in preserve_seen:
                 preserve_seen[entry] = None
         for signal in result.signals:
-            grouped.setdefault(signal.culprit_node_id, []).append((metric_name, signal))
+            grouped.setdefault(signal.culprit_node_id, []).append((result.metric_name, signal))
 
     buckets: list[AggregatedNodeBucket] = []
     for culprit_node_id, pairs in grouped.items():

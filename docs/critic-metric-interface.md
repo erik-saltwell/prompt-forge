@@ -7,7 +7,7 @@ A metric is a single, focused judgment applied to one evaluation case — a `(pr
 
 - **Metric** — A protocol with stable identity (`name`, `description`) and one async behavior: `evaluate`. Implementations are typically LLM-judge calls but may be pure-compute.
 - **Evaluation Case** — The tuple `(prompt, input, output, ground_truth | None)`. The harness generates `output` from `prompt` + `input` once and fans it out to metrics; metrics never run the model themselves.
-- **MetricResult** — The structured output of a single `evaluate` call. Also the schema the judge LLM returns under structured output.
+- **MetricResult** — The structured output of a single `evaluate` call. Also the schema the judge LLM returns under structured output. Carries `metric_name` (set to the producing metric's `name`), `score`, `assessment`, `signals`, and `preserve`.
 - **IssueSignal** — A specific, evidenced complaint about the prompt, localized to exactly one prompt node (or the `"document"` sentinel when not node-localizable). Carries verbatim input/output snippets, a rationale, and the flattened improvement-guidance fields. See `metric-aggregation.md` for the full field list and the dedupe behavior the aggregator applies downstream.
 - **Preserve** — Things about the current prompt that are working and should not be broken by edits. Lives at the result level, applies regardless of score.
 
@@ -30,9 +30,10 @@ A metric is a single, focused judgment applied to one evaluation case — a `(pr
 ### Metric protocol
 - Async only: `async def evaluate(...) -> MetricResult`.
 - Operates on a single case per call. Batching and cross-case aggregation are out of scope.
-- Identity lives in code, not in the LLM response: `name: ClassVar[str]`, `description: ClassVar[str]`. Neither field appears in `MetricResult`.
+- Identity lives in code: `name: ClassVar[str]`, `description: ClassVar[str]`. The `name` is denormalised onto each `MetricResult` as `metric_name` so downstream consumers (reward strategies, the aggregator) can key off it without a parallel registry. `description` does not appear on `MetricResult`.
 - Does not generate the model output. Receives it.
 - Metrics requiring `ground_truth` raise a typed exception when it is missing rather than declaring the requirement statically.
+- LLM-judge metrics should accept a `LiteLLMConfig` (see `batch-testing.md`) in their constructor so the same call surface is used by the batch harness and the judge. The provided `BaseLLMJudgeMetric` base class implements this pattern — subclasses supply `build_messages` and `parse_result` and the base wires up the LiteLLM call and stamps `metric_name=cls.name` automatically.
 
 ### Score
 - Always `[0, 1]`, higher is better. Pass/fail metrics encode as `1.0` / `0.0`. Normalization is the metric author's responsibility and is part of the metric's value judgment.

@@ -182,7 +182,7 @@ In addition to the input convention above, the actor prompt declares: *"Return a
 
 ### Extended thinking
 
-The API call enables Anthropic extended thinking. Internal deliberation happens in the thinking channel; `reasoning` is reserved for the short, post-deliberation summary visible in the structured output. Per-action rationale fields are explicitly **not** in the schema — they produce filler and inflate token cost without improving output quality.
+The actor's `LiteLLMConfig` should set `effort="high"` (mapped to LiteLLM's `reasoning_effort`) so internal deliberation happens in the model's thinking channel; `reasoning` in the structured output is reserved for the short post-deliberation summary. Per-action rationale fields are explicitly **not** in the schema — they produce filler and inflate token cost without improving output quality.
 
 ### Lenient element parsing
 

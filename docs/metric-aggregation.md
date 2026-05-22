@@ -29,7 +29,7 @@ After a candidate prompt has been evaluated against many inputs by many metrics,
 
 **Critic single-culprit rule** — A single signal accuses exactly one node. Cross-node issues (e.g., examples in 1.1 contradict the rule in 2.3) are expressed as **two independent peer signals**, each fully self-contained in its own node's bucket, with the cross-reference written as prose in each rationale. There is no primary/secondary relationship and no list of suspects.
 
-**Dedupe key** — Normalized `(metric_name, culprit_node_id, success_criterion)`. Normalization is lowercase + whitespace collapse + trailing-punctuation strip on each component. `metric_name` is used only as part of the key; it is stripped before the signal is sent to the actor.
+**Dedupe key** — Normalized `(metric_name, culprit_node_id, success_criterion)`. Normalization is lowercase + whitespace collapse + trailing-punctuation strip on each component. `metric_name` is read from `MetricResult.metric_name`; it participates in the dedupe key and is stripped before the signal is sent to the actor.
 
 **Top-K cap** — Each per-node bucket is capped at K=10 signals after dedupe, ordered by `seen_in_n_cases` descending, with tiebreak by `metric_name` lexically for determinism.
 
@@ -88,6 +88,7 @@ After a candidate prompt has been evaluated against many inputs by many metrics,
 - **Sibling fan-out, no chaining.** N per-node actor calls for one parent candidate produce N independent sibling candidates. Calls do not see each other's mutations; conflicts (e.g., two calls both deleting an ancestor) are absorbed by the action executor's skip-and-continue policy.
 - **Empty candidates skip the actor.** A candidate with zero signals across all metrics is not edited; it carries forward into the next iteration's evaluation untouched.
 - **Metric identity is internal.** `metric_name` is used for dedupe key construction and then dropped before the actor sees the payload — the actor does not weight signals by their source metric.
+- **Aggregator input is `list[MetricResult]`.** Each `MetricResult` carries its own `metric_name`; no parallel name list is passed alongside.
 
 ---
 

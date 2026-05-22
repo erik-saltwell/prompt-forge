@@ -38,6 +38,10 @@ class IssueSignal(BaseModel):
 
 
 class MetricResult(BaseModel):
+    metric_name: py_types.NonBlankStr = Field(
+        description="Name of the metric that produced this result. Mirrors the metric class's `name` ClassVar; "
+        "stamped by `BaseLLMJudgeMetric` or by the harness. Used by reward strategies and by the aggregator's dedupe key.",
+    )
     score: py_types.ZeroToOneFloat = Field(
         description="The score for this metric in the range [0,1.0]. Higher is better. Pass/fail metrics encode as 1.0 / 0.0.",
     )

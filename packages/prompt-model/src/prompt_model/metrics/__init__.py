@@ -1,4 +1,5 @@
 from .aggregator import DOCUMENT_SENTINEL, TOP_K_PER_BUCKET, AggregatedNodeBucket, AggregationResult, aggregate
+from .base_llm_judge import BaseLLMJudgeMetric
 from .protocol import Metric, MissingGroundTruthError
 from .result import IssueSignal, MetricResult
 
@@ -7,6 +8,7 @@ __all__ = [
     "TOP_K_PER_BUCKET",
     "AggregatedNodeBucket",
     "AggregationResult",
+    "BaseLLMJudgeMetric",
     "IssueSignal",
     "Metric",
     "MetricResult",
