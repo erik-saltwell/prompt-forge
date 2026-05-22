@@ -1,7 +1,7 @@
 from typing import NamedTuple
 
-from ..metrics import MetricResult
-from ..prompt import Document
+from .._metrics import MetricResult
+from .._prompt import Document
 
 
 class CandidateResult(NamedTuple):

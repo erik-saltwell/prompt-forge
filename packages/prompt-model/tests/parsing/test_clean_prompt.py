@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import pytest
-from prompt_model.prompt import PromptErrorType
-from prompt_model.prompt.validation import find_errors_from_string
-from prompt_model.prompt.validation.clean_prompt import clean_prompt_from_string
+from prompt_model._prompt import PromptErrorType
+from prompt_model._prompt.validation import find_errors_from_string
+from prompt_model._prompt.validation.clean_prompt import clean_prompt_from_string
 
 from ..utils.cleaning import (
     ExpectedAction,

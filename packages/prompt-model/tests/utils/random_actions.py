@@ -8,8 +8,8 @@ from __future__ import annotations
 
 import random
 
-from prompt_model.actions import SkipReason, parse_action
-from prompt_model.prompt import (
+from prompt_model._actions import SkipReason, parse_action
+from prompt_model._prompt import (
     Annotation,
     Blockquote,
     CodeBlock,

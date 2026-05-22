@@ -3,7 +3,7 @@
 # import random
 # from pathlib import Path
 
-# from prompt_model.actions import Action, ApplyContext, SkipReason, parse_action
+# from prompt_model._actions import Action, ApplyContext, SkipReason, parse_action
 
 # from ..utils import _short_hand as sh
 # from ..utils import actions as act

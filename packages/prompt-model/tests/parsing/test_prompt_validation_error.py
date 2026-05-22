@@ -1,4 +1,4 @@
-from prompt_model.prompt.validation_error import PromptError, PromptErrorType
+from prompt_model._prompt.validation_error import PromptError, PromptErrorType
 
 
 def _error(

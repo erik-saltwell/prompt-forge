@@ -1,6 +1,6 @@
 import math
 
-from prompt_model.batch_testing._ucb import ArmStats, pick_arm, ucb_score
+from prompt_model._batch_testing._ucb import ArmStats, pick_arm, ucb_score
 
 
 def test_unvisited_arm_has_infinite_score() -> None:

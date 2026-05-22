@@ -1,17 +1,6 @@
-from .aggregator import DOCUMENT_SENTINEL, TOP_K_PER_BUCKET, AggregatedNodeBucket, AggregationResult, aggregate
-from .base_llm_judge import BaseLLMJudgeMetric
-from .protocol import Metric, MissingGroundTruthError
-from .result import IssueSignal, MetricResult
+"""Built-in metric implementations.
 
-__all__ = [
-    "DOCUMENT_SENTINEL",
-    "TOP_K_PER_BUCKET",
-    "AggregatedNodeBucket",
-    "AggregationResult",
-    "BaseLLMJudgeMetric",
-    "IssueSignal",
-    "Metric",
-    "MetricResult",
-    "MissingGroundTruthError",
-    "aggregate",
-]
+Empty in this pass — the day-one metric library (AnswerRelevancy, Faithfulness, Correctness,
+CustomCriterion, JsonSchema) lands in a future change. The protocol types (`Metric`, `MetricResult`,
+`IssueSignal`, `BaseLLMJudgeMetric`, `MissingGroundTruthError`) live at the package root.
+"""

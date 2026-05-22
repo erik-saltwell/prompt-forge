@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from prompt_model.prompt.validation.clean_prompt import clean_prompt_from_string
-from prompt_model.prompt.validation.cleaner_protocol import CleaningAction, CleaningResult
+from prompt_model._prompt.validation.clean_prompt import clean_prompt_from_string
+from prompt_model._prompt.validation.cleaner_protocol import CleaningAction, CleaningResult
 
 from .validation import check_no_errors_from_md
 

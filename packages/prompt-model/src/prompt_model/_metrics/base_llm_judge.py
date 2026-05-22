@@ -1,7 +1,8 @@
 from abc import ABC, abstractmethod
 from typing import Any, ClassVar
 
-from ..llm import LiteLLMConfig, acomplete
+from .._llm import acomplete
+from ..config import LiteLLMConfig
 from .result import MetricResult
 
 

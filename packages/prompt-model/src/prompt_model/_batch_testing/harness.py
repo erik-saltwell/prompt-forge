@@ -1,9 +1,9 @@
 import asyncio
 import math
 
-from ..llm import LiteLLMConfig
-from ..metrics import Metric
-from ..prompt import Document
+from .._metrics import Metric
+from .._prompt import Document
+from ..config import LiteLLMConfig
 from ._runner import run_batch as _run_batch
 from .case import EvalCase
 from .result import CandidateResult

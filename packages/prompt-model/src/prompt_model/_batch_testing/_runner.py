@@ -2,9 +2,10 @@ import asyncio
 import random
 from typing import Any
 
-from ..llm import LiteLLMConfig, acomplete
-from ..metrics import Metric, MetricResult
-from ..prompt import Document
+from .._llm import acomplete
+from .._metrics import Metric, MetricResult
+from .._prompt import Document
+from ..config import LiteLLMConfig
 from ._input_pool import InputPool
 from ._ucb import ArmStats, pick_arm
 from .case import EvalCase

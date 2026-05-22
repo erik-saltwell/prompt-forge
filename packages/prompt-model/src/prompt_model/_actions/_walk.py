@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Iterator
 from typing import cast
 
-from ..prompt import Document, List, ListItem, Paragraph, PromptNode, Section
+from .._prompt import Document, List, ListItem, Paragraph, PromptNode, Section
 from .anchor import LocationAnchor
 
 type ChildContainer = Document | Section | List | ListItem

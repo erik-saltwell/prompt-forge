@@ -1,4 +1,4 @@
-from prompt_model.llm import LiteLLMConfig
+from prompt_model.config import LiteLLMConfig
 
 
 def test_minimal_config_only_has_model() -> None:

@@ -1,13 +1,13 @@
 from __future__ import annotations
 
-from prompt_model.actions import (
+from prompt_model._actions import (
     LocationAnchor,
     MoveNodeAction,
     SkipReason,
     parse_action,
 )
-from prompt_model.actions.anchor import AnchorKind
-from prompt_model.prompt import Document, Paragraph
+from prompt_model._actions.anchor import AnchorKind
+from prompt_model._prompt import Document, Paragraph
 
 from ..utils import actions as act
 
@@ -43,7 +43,7 @@ para two
 
 
 def _parse(md: str) -> Document:
-    from prompt_model.prompt.parsing.parse_prompt import parse_from_string
+    from prompt_model._prompt.parsing.parse_prompt import parse_from_string
 
     return parse_from_string(md)
 
@@ -762,14 +762,14 @@ for B
 def test_moved_node_retains_id_within_batch() -> None:
     # ApplyContext does not re-assign IDs mid-batch. The moved node must
     # keep its original id so subsequent actions in the batch can target it.
-    from prompt_model.actions.protocol import ApplyContext
+    from prompt_model._actions.protocol import ApplyContext
 
     tree = _parse("# foo\n\npara one\n\npara two\n")
     ctx = ApplyContext.from_tree(tree)
     MoveNodeAction("1.1", _anchor("after", "1.2")).apply(tree, ctx)
     # The 'para one' node still has id '1.1' even though it's now in
     # position 2.
-    from prompt_model.actions._walk import find_node_by_id
+    from prompt_model._actions._walk import find_node_by_id
 
     node = find_node_by_id(tree, "1.1")
     assert node is not None
@@ -1274,8 +1274,8 @@ para
     # listitem 1.1.1.1.1.
     tree = _parse(input_md)
     # Find the id of inner a dynamically to avoid fragile hardcoding.
-    from prompt_model.actions._walk import walk_all
-    from prompt_model.prompt import ListItem
+    from prompt_model._actions._walk import walk_all
+    from prompt_model._prompt import ListItem
 
     inner_a_id = None
     for node in walk_all(tree):
@@ -1285,7 +1285,7 @@ para
     assert inner_a_id is not None, "could not find 'inner a' node"
 
     # Find id of para
-    from prompt_model.prompt import Paragraph
+    from prompt_model._prompt import Paragraph
 
     para_id = None
     for node in walk_all(tree):
@@ -1313,8 +1313,8 @@ def test_move_into_nested_list_as_last_child() -> None:
   - nested a
 """
     tree = _parse(input_md)
-    from prompt_model.actions._walk import walk_all
-    from prompt_model.prompt import List, ListItem
+    from prompt_model._actions._walk import walk_all
+    from prompt_model._prompt import List, ListItem
 
     top_item_id = None
     nested_last_item_id = None

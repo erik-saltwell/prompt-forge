@@ -4,7 +4,7 @@ from typing import Literal
 
 from pydantic import BaseModel
 
-from ..prompt import PromptNode
+from .._prompt import PromptNode
 
 type NodeRef = PromptNode
 type NodeTarget = str | PromptNode

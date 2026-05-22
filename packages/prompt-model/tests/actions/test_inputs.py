@@ -3,7 +3,7 @@ envelope's lenient filtering, and the input → Action conversion."""
 
 from __future__ import annotations
 
-from prompt_model.actions import (
+from prompt_model._actions import (
     ActionBatch,
     AddExampleAction,
     AddExampleInput,

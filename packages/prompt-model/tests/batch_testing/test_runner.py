@@ -2,16 +2,16 @@ import asyncio
 from typing import Any, ClassVar
 
 import pytest
-from prompt_model.batch_testing import (
+from prompt_model import Metric, MetricResult
+from prompt_model._batch_testing import (
     BatchTestingErrorBudgetExceeded,
     CandidateResult,
     EvalCase,
     MeanReward,
     run_batch_sync,
 )
-from prompt_model.llm import LiteLLMConfig
-from prompt_model.metrics import Metric, MetricResult
-from prompt_model.prompt import Document, Section, parse_from_string
+from prompt_model._prompt import Document, Section, parse_from_string
+from prompt_model.config import LiteLLMConfig
 
 
 def _heading_of(doc: Document) -> str:
@@ -47,7 +47,7 @@ def _stub_target(monkeypatch: pytest.MonkeyPatch, output: str = "stub output") -
     async def fake_acomplete(config: LiteLLMConfig, messages: list[dict[str, Any]]) -> str:
         return output
 
-    monkeypatch.setattr("prompt_model.batch_testing._runner.acomplete", fake_acomplete)
+    monkeypatch.setattr("prompt_model._batch_testing._runner.acomplete", fake_acomplete)
 
 
 def _docs(*headings: str) -> list[Any]:
@@ -224,7 +224,7 @@ def test_metric_name_is_stamped_through(monkeypatch: pytest.MonkeyPatch) -> None
 
 def test_run_batch_works_inside_running_loop(monkeypatch: pytest.MonkeyPatch) -> None:
     """Sanity that the async entry point is usable from existing event loops."""
-    from prompt_model.batch_testing import run_batch
+    from prompt_model._batch_testing import run_batch
 
     _stub_target(monkeypatch)
     metric: Metric = _FakeMetric({"a": 0.5, "b": 0.5})  # type: ignore[assignment]

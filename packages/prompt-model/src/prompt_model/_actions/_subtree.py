@@ -4,7 +4,7 @@ from typing import Annotated
 
 from pydantic import Field, TypeAdapter, ValidationError
 
-from ..prompt import (
+from .._prompt import (
     Blockquote,
     CodeBlock,
     Document,
@@ -15,7 +15,7 @@ from ..prompt import (
     Section,
     Table,
 )
-from ..prompt.parsing.parse_prompt import parse_from_string
+from .._prompt.parsing.parse_prompt import parse_from_string
 from ._walk import has_empty_container
 
 _InsertableNode = Annotated[

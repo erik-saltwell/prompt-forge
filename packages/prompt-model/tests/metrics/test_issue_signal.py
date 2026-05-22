@@ -1,5 +1,5 @@
 import pytest
-from prompt_model.metrics import IssueSignal
+from prompt_model import IssueSignal
 from pydantic import ValidationError
 
 

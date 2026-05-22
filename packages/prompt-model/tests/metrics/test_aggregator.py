@@ -1,9 +1,8 @@
-from prompt_model.metrics import (
+from prompt_model import IssueSignal, MetricResult
+from prompt_model._metrics._aggregator import (
     DOCUMENT_SENTINEL,
     TOP_K_PER_BUCKET,
     AggregationResult,
-    IssueSignal,
-    MetricResult,
     aggregate,
 )
 

@@ -1,14 +1,14 @@
 import math
 
 import pytest
-from prompt_model.batch_testing import (
+from prompt_model import MetricResult
+from prompt_model._batch_testing import (
     GeometricMeanReward,
     MeanReward,
     SingleMetricReward,
     WeightedMeanReward,
     WorstReward,
 )
-from prompt_model.metrics import MetricResult
 
 
 def _r(name: str, score: float) -> MetricResult:

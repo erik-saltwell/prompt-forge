@@ -2,7 +2,7 @@ from typing import Any
 
 import litellm
 
-from .config import LiteLLMConfig
+from ..config import LiteLLMConfig
 
 
 async def acomplete(config: LiteLLMConfig, messages: list[dict[str, Any]]) -> str:

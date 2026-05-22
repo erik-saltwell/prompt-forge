@@ -3,7 +3,7 @@ from __future__ import annotations
 from enum import StrEnum
 from typing import Literal, Protocol
 
-from ..prompt.nodes import Document
+from .._prompt.nodes import Document
 
 _AnnotationKind = Literal["example", "guidance"]
 

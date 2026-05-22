@@ -4,8 +4,8 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
+from .._prompt import Document, List, ListItem, PromptNode
 from .._utils import pydantic_aliases as py_types
-from ..prompt import Document, List, ListItem, PromptNode
 from ._dry_run import validates_after
 from ._subtree import build_subtrees
 from ._walk import ChildContainer, children_of, resolve_anchor

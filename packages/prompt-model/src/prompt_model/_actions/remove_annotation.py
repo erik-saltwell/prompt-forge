@@ -4,8 +4,8 @@ from typing import ClassVar, Literal
 
 from pydantic import BaseModel, Field
 
+from .._prompt import Document, ListItem, Paragraph
 from .._utils import pydantic_aliases as py_types
-from ..prompt import Document, ListItem, Paragraph
 from ._walk import walk_annotatable
 from .protocol import Action, ApplyContext, SkipReason
 from .registry import register

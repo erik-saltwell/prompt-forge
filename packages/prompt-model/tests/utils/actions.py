@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from prompt_model.actions import ApplyContext, SkipReason
-from prompt_model.actions.protocol import Action
-from prompt_model.prompt.parsing.parse_prompt import parse_from_string
+from prompt_model._actions import ApplyContext, SkipReason
+from prompt_model._actions.protocol import Action
+from prompt_model._prompt.parsing.parse_prompt import parse_from_string
 
 from . import parsing as p
 

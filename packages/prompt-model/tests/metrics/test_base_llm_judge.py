@@ -2,8 +2,8 @@ import asyncio
 from typing import Any, ClassVar
 
 import pytest
-from prompt_model.llm import LiteLLMConfig
-from prompt_model.metrics import BaseLLMJudgeMetric, MetricResult
+from prompt_model import BaseLLMJudgeMetric, MetricResult
+from prompt_model.config import LiteLLMConfig
 
 
 class _StubJudge(BaseLLMJudgeMetric):
@@ -29,7 +29,7 @@ def test_evaluate_stamps_metric_name(monkeypatch: pytest.MonkeyPatch) -> None:
         assert messages[0]["content"].startswith("prompt-text|")
         return "0.75"
 
-    monkeypatch.setattr("prompt_model.metrics.base_llm_judge.acomplete", fake_acomplete)
+    monkeypatch.setattr("prompt_model._metrics.base_llm_judge.acomplete", fake_acomplete)
 
     judge: _StubJudge = _StubJudge(LiteLLMConfig(model="fake/model"))
     result: MetricResult = asyncio.run(judge.evaluate("prompt-text", "input-text", "output-text", None))

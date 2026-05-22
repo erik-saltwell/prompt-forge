@@ -5,8 +5,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-from .._utils import pydantic_aliases as py_types
-from ..prompt import (
+from .._prompt import (
     Blockquote,
     CodeBlock,
     Document,
@@ -15,6 +14,7 @@ from ..prompt import (
     Section,
     Table,
 )
+from .._utils import pydantic_aliases as py_types
 from ._walk import find_node_by_id
 from .protocol import Action, ApplyContext, SkipReason
 from .registry import register

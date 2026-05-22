@@ -1,13 +1,13 @@
 from __future__ import annotations
 
-from prompt_model.actions import (
+from prompt_model._actions import (
     SkipReason,
     UpdateExampleAction,
     UpdateGuidanceAction,
     parse_action,
 )
-from prompt_model.prompt import List, ListItem, Section
-from prompt_model.prompt.parsing.parse_prompt import parse_from_string
+from prompt_model._prompt import List, ListItem, Section
+from prompt_model._prompt.parsing.parse_prompt import parse_from_string
 
 from ..utils._short_hand import doc_from_shorthand
 from ..utils.actions import check_against_md, check_can_apply

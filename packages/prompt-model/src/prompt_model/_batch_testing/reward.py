@@ -1,7 +1,7 @@
 import math
 from typing import Protocol, runtime_checkable
 
-from ..metrics import MetricResult
+from .._metrics import MetricResult
 
 
 @runtime_checkable

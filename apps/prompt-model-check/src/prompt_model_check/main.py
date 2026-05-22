@@ -1,8 +1,5 @@
-from prompt_model import hello
-
-
 def main() -> None:
-    print(f"PromptCheck: {hello()}")
+    print("PromptCheck: stub")
 
 
 if __name__ == "__main__":
