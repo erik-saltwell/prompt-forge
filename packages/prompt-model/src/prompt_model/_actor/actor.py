@@ -37,9 +37,10 @@ class Actor:
         return [r for r in outcomes if r is not None]
 
     async def _revise_one(self, tree: Document, bucket: AggregatedNodeBucket, preserve: list[str]) -> ActorResult | None:
+        system_prompt, user_prompt = self._build_prompts(tree, bucket, preserve)
         async with self._sem:
             try:
-                response: str = await acomplete(self._llm_config, self._build_messages(tree, bucket, preserve))
+                response: str = await acomplete(system_prompt, user_prompt, self._llm_config)
             except Exception:
                 return None
         batch: ActionBatch = ActionBatch.model_validate_json(response)
@@ -48,10 +49,10 @@ class Actor:
         report = apply_batch(tree, batch)
         return ActorResult(document=report.document, batch=batch, applied=report.applied, skipped=report.skipped)
 
-    def _build_messages(self, tree: Document, bucket: AggregatedNodeBucket, preserve: list[str]) -> list[dict[str, str]]:
+    def _build_prompts(self, tree: Document, bucket: AggregatedNodeBucket, preserve: list[str]) -> tuple[str, str]:
         rendered: str = self._redaction.render(tree, bucket.culprit_node_id)
         preserve_block: str = "\n".join(f"- {p}" for p in preserve) if preserve else "(none)"
-        body: str = (
+        user: str = (
             f"<prompt>\n{rendered}\n</prompt>\n<feedback>{bucket.model_dump_json()}</feedback>\n<preserve>\n{preserve_block}\n</preserve>"
         )
-        return [{"role": "user", "content": body}]
+        return "", user

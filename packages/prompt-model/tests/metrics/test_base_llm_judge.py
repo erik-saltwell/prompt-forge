@@ -1,8 +1,9 @@
 import asyncio
-from typing import Any, ClassVar
+from typing import ClassVar
 
 import pytest
 from prompt_model import BaseLLMJudgeMetric, MetricResult
+from prompt_model._metrics.base_llm_judge import _PromptPair
 from prompt_model.config import LiteLLMConfig
 
 
@@ -16,17 +17,17 @@ class _StubJudge(BaseLLMJudgeMetric):
         input: str,
         output: str,
         ground_truth: str | None,
-    ) -> list[dict[str, Any]]:
-        return [{"role": "user", "content": f"{prompt}|{input}|{output}|{ground_truth}"}]
+    ) -> _PromptPair:
+        return _PromptPair(system_prompt="sys", user_prompt=f"{prompt}|{input}|{output}|{ground_truth}")
 
     def parse_result(self, raw_text: str) -> MetricResult:
         return MetricResult(metric_name="wrong-name-on-purpose", score=float(raw_text), assessment="parsed")
 
 
 def test_evaluate_stamps_metric_name(monkeypatch: pytest.MonkeyPatch) -> None:
-    async def fake_acomplete(config: LiteLLMConfig, messages: list[dict[str, Any]]) -> str:
+    async def fake_acomplete(system_prompt: str, user_prompt: str, config: LiteLLMConfig) -> str:
         assert config.model == "fake/model"
-        assert messages[0]["content"].startswith("prompt-text|")
+        assert user_prompt.startswith("prompt-text|")
         return "0.75"
 
     monkeypatch.setattr("prompt_model._metrics.base_llm_judge.acomplete", fake_acomplete)

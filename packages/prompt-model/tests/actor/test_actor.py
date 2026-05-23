@@ -96,8 +96,8 @@ def test_revise_fans_out_one_result_per_bucket(monkeypatch: pytest.MonkeyPatch) 
         preserve=[],
     )
 
-    async def fake(_config: Any, messages: list[dict[str, str]]) -> str:
-        body = messages[0]["content"]
+    async def fake(_system: str, user: str, _config: Any) -> str:
+        body = user
         if '"culprit_node_id":"1"' in body:
             return '{"reasoning": "r1", "actions": [{"action": "rewrite_node", "id": "1", "text": "A"}]}'
         return '{"reasoning": "r2", "actions": [{"action": "rewrite_node", "id": "2", "text": "B"}]}'
@@ -124,8 +124,8 @@ def test_revise_passes_preserve_list_to_every_bucket_prompt(monkeypatch: pytest.
 
     seen_bodies: list[str] = []
 
-    async def capture(_config: Any, messages: list[dict[str, str]]) -> str:
-        seen_bodies.append(messages[0]["content"])
+    async def capture(_system: str, user: str, _config: Any) -> str:
+        seen_bodies.append(user)
         return '{"reasoning": "noop", "actions": [{"action": "rewrite_node", "id": "1", "text": "x"}]}'
 
     monkeypatch.setattr("prompt_model._actor.actor.acomplete", capture)

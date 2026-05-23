@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import math
 from typing import Protocol, runtime_checkable
 
@@ -5,13 +7,13 @@ from .._metrics import MetricResult
 
 
 @runtime_checkable
-class RewardStrategy(Protocol):
+class CompositeScorer(Protocol):
     """Collapse one pull's MetricResults into a single scalar reward in [0, 1] for UCB to consume."""
 
     def compute(self, results: list[MetricResult]) -> float: ...
 
 
-class MeanReward:
+class MeanScorer:
     """Unweighted arithmetic mean of `.score` across all results."""
 
     def compute(self, results: list[MetricResult]) -> float:
@@ -20,7 +22,7 @@ class MeanReward:
         return sum(r.score for r in results) / len(results)
 
 
-class WorstReward:
+class WorstScorer:
     """`min(scores)`. Any single weak metric tanks the prompt."""
 
     def compute(self, results: list[MetricResult]) -> float:
@@ -29,7 +31,7 @@ class WorstReward:
         return min(r.score for r in results)
 
 
-class WeightedMeanReward:
+class WeightedMeanScorer:
     """Weighted mean of `.score` keyed by `metric_name`. Unknown metrics are ignored.
 
     Weights are normalized over the metrics actually present in the result list, so partial coverage
@@ -53,7 +55,7 @@ class WeightedMeanReward:
         return sum(w * s for w, s in applicable) / total_weight
 
 
-class SingleMetricReward:
+class SingleMetricScorer:
     """Pick one metric's `.score` as the reward. Other metrics ride along for reporting only."""
 
     def __init__(self, metric_name: str) -> None:
@@ -66,7 +68,7 @@ class SingleMetricReward:
         raise ValueError(f"No MetricResult with metric_name={self.metric_name!r} found")
 
 
-class GeometricMeanReward:
+class GeometricScorer:
     """Geometric mean of `.score`. Penalizes any low score harder than arithmetic mean.
 
     A zero score yields a reward of zero. Useful when "every metric should be decent" matters.

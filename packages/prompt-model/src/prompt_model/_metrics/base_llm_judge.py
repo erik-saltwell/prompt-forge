@@ -1,9 +1,14 @@
 from abc import ABC, abstractmethod
-from typing import Any, ClassVar
+from typing import ClassVar, NamedTuple
 
 from .._llm import acomplete
 from ..config import LiteLLMConfig
 from .result import MetricResult
+
+
+class _PromptPair(NamedTuple):
+    system_prompt: str
+    user_prompt: str
 
 
 class BaseLLMJudgeMetric(ABC):
@@ -26,7 +31,7 @@ class BaseLLMJudgeMetric(ABC):
         input: str,
         output: str,
         ground_truth: str | None,
-    ) -> list[dict[str, Any]]:
+    ) -> _PromptPair:
         """Return the LiteLLM `messages` list for this case."""
 
     @abstractmethod
@@ -40,8 +45,8 @@ class BaseLLMJudgeMetric(ABC):
         output: str,
         ground_truth: str | None,
     ) -> MetricResult:
-        messages: list[dict[str, Any]] = self.build_messages(prompt, input, output, ground_truth)
-        raw: str = await acomplete(self.litellm_config, messages)
+        prompt_pair: _PromptPair = self.build_messages(prompt, input, output, ground_truth)
+        raw: str = await acomplete(system_prompt=prompt_pair.system_prompt, user_prompt=prompt_pair.user_prompt, config=self.litellm_config)
         parsed: MetricResult = self.parse_result(raw)
         if parsed.metric_name != self.name:
             return parsed.model_copy(update={"metric_name": self.name})

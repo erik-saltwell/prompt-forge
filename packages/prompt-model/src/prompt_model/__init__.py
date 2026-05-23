@@ -1,4 +1,3 @@
-from ._batch_testing.reward import RewardStrategy
 from ._metrics.base_llm_judge import BaseLLMJudgeMetric
 from ._metrics.protocol import Metric, MissingGroundTruthError
 from ._metrics.result import IssueSignal, MetricResult
@@ -17,7 +16,6 @@ __all__ = [
     "ProgressEvent",
     "ProgressReporter",
     "RunProgress",
-    "RewardStrategy",
     "StepProgress",
     "TaskProgress",
     "optimize_prompt",

@@ -1,4 +1,4 @@
-from .composite_scorer import (
+from .._critic import (
     CompositeScorer,
     GeometricScorer,
     MeanScorer,
