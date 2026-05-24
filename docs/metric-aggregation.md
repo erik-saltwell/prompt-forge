@@ -31,18 +31,21 @@ After a candidate prompt has been evaluated against many inputs by many metrics,
 
 **Dedupe key** — Normalized `(metric_name, culprit_node_id, success_criterion)`. Normalization is lowercase + whitespace collapse + trailing-punctuation strip on each component. `metric_name` is read from `MetricResult.metric_name`; it participates in the dedupe key and is stripped before the signal is sent to the actor.
 
-**Top-K cap** — Each per-node bucket is capped at K=10 signals after dedupe, ordered by `seen_in_n_cases` descending, with tiebreak by `metric_name` lexically for determinism.
+**Top-K cap** — Each per-node bucket is capped at `TOP_K_PER_BUCKET` (=10) signals after dedupe, ordered by `seen_in_n_cases` descending, with tiebreak by `metric_name` lexically for determinism.
 
-**Per-node actor payload** — The wire-format JSON sent to one actor call:
+**AggregationResult** — The Python object the aggregator returns and the Actor consumes. Shape:
 
+```python
+class AggregatedNodeBucket(BaseModel):
+    culprit_node_id: str               # node id or the "document" sentinel
+    signals: list[IssueSignal]         # deduped + capped, ordered by seen_in_n_cases desc
+
+class AggregationResult(BaseModel):
+    buckets: list[AggregatedNodeBucket]  # one per culprit that received any signal; empty when clean
+    preserve: list[str]                  # deduped union of all MetricResult.preserve, first-seen order
 ```
-{
-  focused_node_id: "1.2.3" | "document",
-  prompt_xml: "<document>...</document>",   // full prompt, not a subtree
-  preserve: [string, ...],                  // global, shared across all per-node calls
-  signals: [IssueSignal, ...]               // for this node only, deduped + capped
-}
-```
+
+`buckets` is the unit of work for the Actor — one entry per actor call. `preserve` is the global guardrail list injected into every per-bucket actor prompt.
 
 ---
 
@@ -56,11 +59,11 @@ After a candidate prompt has been evaluated against many inputs by many metrics,
    - **Pick one signal in the group as the base.** Preference order: (i) signals whose `suggested_prompt_change` is not `None`; (ii) among those (or among all, if none qualify), the first encountered. Tiebreak is deterministic on encounter order.
    - The merged signal **is the base, verbatim** — `rationale`, `target_behavior`, `success_criterion`, `suggested_prompt_change`, `input_snippet`, and `output_snippet` all come from the base. No per-field cherry-picking.
    - `seen_in_n_cases` is set to the size of the group (sum across all merged-in signals' counts).
-4. **Cap.** Keep the top 10 entries per bucket by `seen_in_n_cases` desc.
-5. **Strip.** Remove `metric_name` from each signal (it was used only for dedupe).
-6. **Skip empty.** Buckets with zero signals do not trigger an actor call; if the entire candidate has zero signals, no actor calls are made and the candidate carries forward unchanged.
-7. **Fan out to actor calls.** For each non-empty bucket, make one independent actor call with `{focused_node_id, prompt_xml, preserve, signals}`. Calls are parallel siblings against the same parent candidate — never chained.
-8. **Apply.** Each actor call returns an action list; apply against the parent candidate to produce one new sibling candidate. N buckets → N new candidates added to the pool.
+4. **Cap.** Keep the top `TOP_K_PER_BUCKET` (=10) entries per bucket by `seen_in_n_cases` desc, tiebreak by `metric_name` lexically.
+5. **Strip.** `metric_name` is not written to the output — it lives on `MetricResult`, participates in the dedupe key, and is dropped before the bucket is built. The aggregated `IssueSignal` carries no metric identity.
+6. **Collect preserve.** Take the deduped union of every input `MetricResult.preserve`, in first-seen order, onto `AggregationResult.preserve`.
+7. **Skip empty buckets.** Buckets that end up with zero signals are not included. If the entire candidate has zero signals, `AggregationResult.buckets` is empty and the optimizer can skip the actor entirely.
+8. **Hand to the Actor.** The aggregator returns the `AggregationResult`; the optimizer calls `Actor.revise(parent_tree, aggregation)`, which fans out one LLM call per bucket and returns up to N `ActorResult`s (one new sibling candidate per successful bucket). See `actor-module.md`.
 
 ### Position in the wider optimization loop
 
@@ -84,7 +87,7 @@ After a candidate prompt has been evaluated against many inputs by many metrics,
 - **`seen_in_n_cases` defaults to 1.** The critic emits with the default; aggregation increments. Same `IssueSignal` shape end-to-end.
 - **Score and assessment never reach the actor.** They are critic/human telemetry only.
 - **Preserve is global, not per-node.** The same `preserve` list rides along with every per-node call in the iteration.
-- **Actor sees the entire prompt.** Each per-node call includes the full prompt XML, not just the focused node's subtree. Focus comes from *which signals* are sent, not from clipping the tree — the full tree is required so the actor can emit actions whose `target` references nodes outside the focused subtree.
+- **Aggregator does not render the prompt.** It produces `AggregationResult` (Python objects). The Actor owns prompt rendering via its `RedactionStrategy`; how much of the tree the actor sees per bucket is a strategy decision, not an aggregator decision. See `actor-module.md`.
 - **Sibling fan-out, no chaining.** N per-node actor calls for one parent candidate produce N independent sibling candidates. Calls do not see each other's mutations; conflicts (e.g., two calls both deleting an ancestor) are absorbed by the action executor's skip-and-continue policy.
 - **Empty candidates skip the actor.** A candidate with zero signals across all metrics is not edited; it carries forward into the next iteration's evaluation untouched.
 - **Metric identity is internal.** `metric_name` is used for dedupe key construction and then dropped before the actor sees the payload — the actor does not weight signals by their source metric.
