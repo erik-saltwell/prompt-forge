@@ -26,7 +26,7 @@ Batch Testing evaluates a set of candidate prompts against a set of evaluation c
 
 **LiteLLMConfig** — Shared LLM-call configuration used by both the target call and any LLM-judge metric. Typed common fields: `model`, `temperature`, `max_tokens`, `timeout`, `effort` (maps to LiteLLM's `reasoning_effort`), `api_base`, `api_key`. An `extra: dict` bag carries less common kwargs through to LiteLLM. Typical callers construct two — one cheap+fast for the target, one stronger for the judge.
 
-**Error Budget** — Caller-supplied cap on metric failures (absolute count or fraction). When a metric raises (e.g., `ground_truth` missing), the pull is **discarded**, does not count against UCB, and a replacement pull is scheduled. If errors exceed the budget, the whole run aborts with an exception.
+**Error Budget** — Caller-supplied cap on metric failures (absolute count or fraction). When a metric raises, the pull is **discarded**, does not count against UCB, and a replacement pull is scheduled. Missing `ground_truth` for a metric that requires it is a configuration or coding error and should be surfaced by this failure path. If errors exceed the budget, the whole run aborts with an exception.
 
 ---
 
@@ -49,6 +49,7 @@ Batch Testing evaluates a set of candidate prompts against a set of evaluation c
 
 ### Failure handling
 - Single metric failure → discard pull, retry same arm, log to error counter.
+- Missing `ground_truth` for a metric that requires it → treat as a metric configuration failure, not as a skipped metric.
 - Total errors exceed `error_budget` → raise, do not return partial results.
 - Target LLM failure → treated identically to a metric failure (discard + retry + count).
 

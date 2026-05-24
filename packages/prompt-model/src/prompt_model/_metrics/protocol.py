@@ -8,7 +8,8 @@ from .result import MetricResult
 class MissingGroundTruthError(Exception):
     """Raised by a Metric whose `evaluate` requires `ground_truth` when it is `None`.
 
-    The harness catches this and skips the metric for the case, continuing the run."""
+    The harness treats this as a configuration or coding error: the metric suite and
+    evaluation cases are incompatible, so the failure is surfaced rather than skipped."""
 
 
 @runtime_checkable

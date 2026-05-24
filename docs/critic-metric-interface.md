@@ -16,7 +16,7 @@ A metric is a single, focused judgment applied to one evaluation case — a `(pr
 ### Evaluating a case
 1. Harness assembles `(prompt, input, output, ground_truth | None)`.
 2. Harness calls `await metric.evaluate(prompt, input, output, ground_truth)`.
-3. If the metric requires `ground_truth` and it is `None`, the metric raises a typed exception; the harness skips and continues.
+3. If the metric requires `ground_truth` and it is `None`, the metric raises a typed exception; the harness treats this as a configuration or coding error and surfaces the failure.
 4. Otherwise the metric returns a `MetricResult` containing score, assessment, signals, and preserve.
 
 ### Consuming a result
@@ -32,7 +32,7 @@ A metric is a single, focused judgment applied to one evaluation case — a `(pr
 - Operates on a single case per call. Batching and cross-case aggregation are out of scope.
 - Identity lives in code: `name: ClassVar[str]`, `description: ClassVar[str]`. The `name` is denormalised onto each `MetricResult` as `metric_name` so downstream consumers (reward strategies, the aggregator) can key off it without a parallel registry. `description` does not appear on `MetricResult`.
 - Does not generate the model output. Receives it.
-- Metrics requiring `ground_truth` raise a typed exception when it is missing rather than declaring the requirement statically.
+- Metrics requiring `ground_truth` raise a typed exception when it is missing. This is not a soft skip: callers should supply compatible evaluation cases for the metrics they configure.
 - LLM-judge metrics should accept a `LiteLLMConfig` (see `batch-testing.md`) in their constructor so the same call surface is used by the batch harness and the judge. The provided `BaseLLMJudgeMetric` base class implements this pattern — subclasses supply `build_messages` and `parse_result` and the base wires up the LiteLLM call and stamps `metric_name=cls.name` automatically.
 
 ### Score

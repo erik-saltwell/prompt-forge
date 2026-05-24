@@ -44,10 +44,3 @@ Pre-commit hooks run `ruff format --check`, `ruff check --fix`, and `ty check` o
 
 Tests are **fixture-driven**: most cases live as asset files (markdown, JSON) under `tests/.../assets/`, auto-discovered by pytest-collection logic in the test modules. See `docs/test-infra.md` for the shorthand grammar used to declare expected tree structures and for the mode-per-directory convention for action fixtures. Tree comparisons in tests are **structural-only** — IDs are not asserted unless explicitly tested.
 
-## Style Guidelines - be brief
-
-- Provide **concise, focused responses** to user questions.
-- Lead with the main answer; **skip non-essential context** and filler preamble.
-- Use **bullet points** or numbered lists for multiple items, and keep bullets short.
-- Avoid repeating the user’s question or saying “As an AI model” unless needed.
-- If a very brief reply is appropriate, stop after the key points. (Longer explanations can come in later steps if requested.)

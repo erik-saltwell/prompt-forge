@@ -2,24 +2,30 @@ from __future__ import annotations
 
 import asyncio
 
-from .._candidate import Candidate
 from .._llm import acomplete
-from .._metrics import EvalCase, Metric, MetricResult, MissingGroundTruthError
+from .._metrics import EvalCase, Metric, MetricResult
 from ..config import LiteLLMConfig
-from ..scorers import CompositeScorer
+from .composite_scorer import CompositeScorer
+from .selection_data import _SelectionData
 
 
-async def run_test(
-    candidate: Candidate,
+async def evaluate_candidate(
+    selection_data: _SelectionData,
     inputs: list[EvalCase],
     execution_config: LiteLLMConfig,
     metrics: list[Metric],
     scorer: CompositeScorer,
 ) -> None:
-    case_id: int = candidate.take_case_id()
-    committed: bool = False
+    if not metrics:
+        raise ValueError("evaluate_candidate requires at least one metric")
+    if not selection_data.has_cases:
+        raise ValueError("evaluate candidate requires a candidate with untested inputs")
+
+    complete: bool = False
+    case_id: int = selection_data.start_evaluation()
+
     try:
-        prompt_text: str = candidate.prompt.to_markdown()
+        prompt_text: str = selection_data.candidate.prompt.to_markdown()
         eval_case: EvalCase = inputs[case_id]
         output: str = await acomplete(prompt_text, eval_case.input, execution_config)
         raw_results: list[MetricResult | BaseException] = await asyncio.gather(
@@ -28,18 +34,18 @@ async def run_test(
         )
         metric_results: list[MetricResult] = []
         for result in raw_results:
-            if isinstance(result, MissingGroundTruthError):
-                continue
             if isinstance(result, BaseException):
                 raise result
             metric_results.append(result)
         score: float
         if not metric_results:
+            # A metric returns an empty result list when it found no issues. When every metric
+            # is clean for this case there is nothing to score, so we award a perfect 1.0.
             score = 1.0
         else:
             score = scorer.compute(metric_results)
-        candidate.record_result(metric_results=metric_results, reward=score)
-        committed = True
+        selection_data.complete_evaluation(metric_results, score)
+        complete = True
     finally:
-        if not committed:
-            candidate.revert_case(case_id)
+        if not complete:
+            selection_data.rollback_evaluation(case_id)
