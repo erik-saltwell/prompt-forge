@@ -213,7 +213,7 @@ def test_select_top_candidates_happy_path(monkeypatch: pytest.MonkeyPatch) -> No
     ]
     metric: FakeMetric = FakeMetric([ok_result(0.5)] * 20)
 
-    out: list[Candidate] = asyncio.run(
+    out, errors = asyncio.run(
         select_top_candidates(
             candidates=cands,
             inputs=make_cases(6),
@@ -228,6 +228,7 @@ def test_select_top_candidates_happy_path(monkeypatch: pytest.MonkeyPatch) -> No
     )
 
     assert out == cands
+    assert errors == 0
     total_tested: int = sum(c.tested_count for c in out)
     assert total_tested == 6  # 2 candidates × 2 floor + 2 ucb pulls = 6
 

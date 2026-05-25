@@ -3,8 +3,8 @@ from __future__ import annotations
 import asyncio
 
 from .._llm import acomplete
-from .._metrics import EvalCase, Metric, MetricResult
-from ..config import LiteLLMConfig
+from .._metrics import Metric, MetricResult
+from ..config import EvalCase, LiteLLMConfig
 from .composite_scorer import CompositeScorer
 from .selection_data import _SelectionData
 

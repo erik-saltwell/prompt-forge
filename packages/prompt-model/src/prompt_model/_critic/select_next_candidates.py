@@ -3,8 +3,8 @@ from __future__ import annotations
 import asyncio
 
 from .._candidate import Candidate
-from .._metrics import EvalCase, Metric
-from ..config import LiteLLMConfig
+from .._metrics import Metric
+from ..config import EvalCase, LiteLLMConfig
 from .candidate_evaluator import evaluate_candidate
 from .candidate_picker import pick_next_ucb
 from .composite_scorer import CompositeScorer
@@ -61,7 +61,7 @@ async def process_ucb(
     max_errors: int,
     error_count: int,
     exploration_bonus: float,
-) -> None:
+) -> int:
     successful_pulls: int = 0
     total_errors: int = error_count
     while successful_pulls < ucb_budget:
@@ -86,6 +86,8 @@ async def process_ucb(
 
         successful_pulls += 1
 
+    return total_errors
+
 
 async def select_top_candidates(
     candidates: list[Candidate],
@@ -97,10 +99,12 @@ async def select_top_candidates(
     execution_config: LiteLLMConfig,
     metrics: list[Metric],
     scorer: CompositeScorer,
-) -> list[Candidate]:
+) -> tuple[list[Candidate], int]:
     selection_data: list[_SelectionData] = [_SelectionData(candidate) for candidate in candidates]
-    error_count: int = await process_floor(selection_data, floor_size, inputs, execution_config, metrics, scorer, max_errors)
-    await process_ucb(selection_data, ucb_budget, inputs, execution_config, metrics, scorer, max_errors, error_count, exploration_bonus)
+    floor_errors: int = await process_floor(selection_data, floor_size, inputs, execution_config, metrics, scorer, max_errors)
+    total_errors: int = await process_ucb(
+        selection_data, ucb_budget, inputs, execution_config, metrics, scorer, max_errors, floor_errors, exploration_bonus
+    )
     for selection in selection_data:
         selection.integrate_results_into_candidate()
-    return [selection.candidate for selection in selection_data]
+    return [selection.candidate for selection in selection_data], total_errors

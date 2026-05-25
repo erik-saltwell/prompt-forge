@@ -1,30 +1,191 @@
-from ._metrics.protocol import Metric
-from ._progress import ProgressReporter
-from ._result import OptimizationResult
+from __future__ import annotations
+
+import asyncio
+import random
+from collections import defaultdict
+
+from ._actor.revise import revise
+from ._candidate import Candidate
+from ._critic.composite_scorer import CompositeScorer, MeanScorer
+from ._critic.select_next_candidates import select_top_candidates
+from ._metrics import Metric, MetricResult
+from ._progress import ProgressEvent, ProgressReporter, RunProgress, StepProgress, TaskProgress
+from ._prompt import Document, parse_from_string
+from ._result import CandidateSummary, OptimizationResult
 from .config import OptimizerConfig
+
+_DEFAULT_SCORER: CompositeScorer = MeanScorer()
 
 
 async def optimize_prompt(
     config: OptimizerConfig,
     metrics: list[Metric],
-    #    scorer: RewardStrategy,
+    scorer: CompositeScorer = _DEFAULT_SCORER,
     progress_reporter: ProgressReporter = None,
 ) -> OptimizationResult:
-    """Optimize a prompt against a set of evaluation cases. See docs/public-facade.md."""
-    # initial_candidate: Document = parse_from_string(config.seed_prompt)
-    # candidates: list[Document] = [initial_candidate]
-    # await run_batch(
-    #     candidates=candidates,
-    #     cases=config.eval_cases,
-    #     metrics=metrics,
-    #     target_config=config.target_llm,
-    #     reward_strategy=scorer,
-    #     floor=config.floor,
-    #     ucb_budget=config.ucb_budget,
-    #     top_k=config.top_k_per_iteration,
-    #     max_concurrency=6,
-    #     exploration_bonus=config.exploration_bonus,
-    #     error_budget=config.error_budget,
-    #     seed=3141,
-    # )
-    raise NotImplementedError()
+    """Optimize a prompt against a set of evaluation cases. See docs/orchestration.md."""
+    if not metrics:
+        raise ValueError("optimize_prompt requires at least one metric")
+    if not config.eval_cases:
+        raise ValueError("optimize_prompt requires at least one eval case")
+
+    if config.seed is not None:
+        random.seed(config.seed)
+
+    n_cases: int = len(config.eval_cases)
+    floor: int = min(config.floor, n_cases)
+    warmup: int = min(config.seed_warmup_pulls, n_cases)
+
+    seed_doc: Document = parse_from_string(config.seed_prompt)
+    pool: list[Candidate] = [Candidate(prompt=seed_doc, case_ids=list(range(n_cases)))]
+    pool, bootstrap_errors = await select_top_candidates(
+        candidates=pool,
+        inputs=config.eval_cases,
+        exploration_bonus=config.exploration_bonus,
+        floor_size=warmup,
+        ucb_budget=0,
+        max_errors=config.error_budget,
+        execution_config=config.target_llm,
+        metrics=metrics,
+        scorer=scorer,
+    )
+
+    iterations_run: int = 0
+    total_errors: int = bootstrap_errors
+    best_history: list[float] = []
+
+    for iteration in range(1, config.iterations + 1):
+        survivors: list[Candidate] = _select_survivors(pool, floor, config.top_k_per_iteration)
+        if not survivors:
+            break
+
+        await _emit(progress_reporter, iteration, config.iterations, "revise", 1, best_history, total_errors)
+
+        revise_results: list[list[Document]] = await asyncio.gather(
+            *(
+                revise(
+                    survivor,
+                    feedback_llm_config=config.actor_llm,
+                    structural_llm_config=config.structural_llm,
+                    max_concurrent=config.max_llm_concurrency,
+                    max_children=config.max_children_per_parent,
+                )
+                for survivor in survivors
+            )
+        )
+        children_docs: list[Document] = [doc for docs in revise_results for doc in docs]
+
+        if not children_docs:
+            iterations_run += 1
+            break
+
+        children: list[Candidate] = [Candidate(prompt=doc, case_ids=list(range(n_cases))) for doc in children_docs]
+
+        await _emit(progress_reporter, iteration, config.iterations, "evaluate", 2, best_history, total_errors)
+
+        pool, iter_errors = await select_top_candidates(
+            candidates=survivors + children,
+            inputs=config.eval_cases,
+            exploration_bonus=config.exploration_bonus,
+            floor_size=floor,
+            ucb_budget=config.ucb_budget,
+            max_errors=config.error_budget,
+            execution_config=config.target_llm,
+            metrics=metrics,
+            scorer=scorer,
+        )
+        total_errors += iter_errors
+        iterations_run += 1
+
+        best_history.append(_pool_best_score(pool, floor))
+        if _should_early_stop(best_history, config.early_stop_patience, config.min_improvement_delta):
+            break
+
+    return _build_result(pool, floor, config.top_k_per_iteration, iterations_run, total_errors)
+
+
+def _select_survivors(pool: list[Candidate], floor: int, top_k: int) -> list[Candidate]:
+    floored: list[Candidate] = [c for c in pool if c.tested_count >= floor]
+    floored.sort(key=lambda c: c.mean_score, reverse=True)
+    return floored[:top_k]
+
+
+def _pool_best_score(pool: list[Candidate], floor: int) -> float:
+    floored: list[Candidate] = [c for c in pool if c.tested_count >= floor]
+    if not floored:
+        return 0.0
+    return max(c.mean_score for c in floored)
+
+
+def _should_early_stop(history: list[float], patience: int, min_delta: float) -> bool:
+    if len(history) <= patience:
+        return False
+    improvement: float = history[-1] - history[-1 - patience]
+    return improvement < min_delta
+
+
+def _per_metric_means(results: list[MetricResult]) -> dict[str, float]:
+    grouped: dict[str, list[float]] = defaultdict(list)
+    for r in results:
+        grouped[r.metric_name].append(r.score)
+    return {name: sum(scores) / len(scores) for name, scores in grouped.items()}
+
+
+def _build_result(pool: list[Candidate], floor: int, top_k: int, iterations_run: int, total_errors: int) -> OptimizationResult:
+    floored: list[Candidate] = [c for c in pool if c.tested_count >= floor]
+    floored.sort(key=lambda c: c.mean_score, reverse=True)
+
+    if not floored:
+        return OptimizationResult(
+            best_prompt="",
+            best_score=0.0,
+            best_metrics={},
+            top_k=[],
+            iterations_run=iterations_run,
+            total_errors=total_errors,
+        )
+
+    top: list[Candidate] = floored[:top_k]
+    summaries: list[CandidateSummary] = [
+        CandidateSummary(
+            prompt=c.prompt.to_markdown(),
+            score=c.mean_score,
+            metrics=_per_metric_means(c.results),
+        )
+        for c in top
+    ]
+    best: Candidate = top[0]
+    return OptimizationResult(
+        best_prompt=best.prompt.to_markdown(),
+        best_score=best.mean_score,
+        best_metrics=_per_metric_means(best.results),
+        top_k=summaries,
+        iterations_run=iterations_run,
+        total_errors=total_errors,
+    )
+
+
+async def _emit(
+    reporter: ProgressReporter,
+    current_run: int,
+    total_runs: int,
+    step_name: str,
+    step_id: int,
+    best_history: list[float],
+    errors_so_far: int,
+) -> None:
+    if reporter is None:
+        return
+    best: float | None = best_history[-1] if best_history else None
+    delta: float | None = None
+    if len(best_history) >= 2:
+        delta = best_history[-1] - best_history[-2]
+    event: ProgressEvent = ProgressEvent(
+        run_progress=RunProgress(total_runs=total_runs, current_run=current_run),
+        step_progress=StepProgress(current_step_name=step_name, current_step_id=step_id, total_steps=2),
+        task_progress=TaskProgress(current_task_name=step_name, current_task_id=1, total_tasks=1),
+        best_score=best,
+        best_score_delta=delta,
+        errors_so_far=errors_so_far,
+    )
+    await reporter(event)

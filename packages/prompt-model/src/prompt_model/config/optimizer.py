@@ -28,6 +28,10 @@ class OptimizerConfig(BaseModel):
     )
     target_llm: LiteLLMConfig = Field(description="LLM that runs the prompt under optimization to produce outputs.")
     actor_llm: LiteLLMConfig = Field(description="LLM that emits structural mutation actions for the prompt.")
+    structural_llm: LiteLLMConfig | None = Field(
+        default=None,
+        description="LLM for the actor's structural cleanup pass; falls back to actor_llm when omitted.",
+    )
     judge_llm: LiteLLMConfig = Field(
         description="Default LLM used by LLM-judge metrics. Individual metrics may override with their own LiteLLMConfig.",
     )
@@ -35,7 +39,31 @@ class OptimizerConfig(BaseModel):
     top_k_per_iteration: int = Field(default=3, gt=0, description="Candidates carried forward to refinement each iteration.")
     floor: int = Field(default=2, gt=0, description="Minimum number of evaluations per candidate before UCB allocates extras.")
     ucb_budget: int = Field(default=20, ge=0, description="Extra evaluations allocated by UCB1 beyond the floor.")
-    max_concurrency: int = Field(default=4, gt=0, description="Maximum concurrent LLM calls during batch evaluation.")
+    seed_warmup_pulls: int = Field(
+        default=2,
+        gt=0,
+        description="Pre-loop evaluations applied to the seed prompt before the first revise.",
+    )
+    max_children_per_parent: int = Field(
+        default=3,
+        gt=0,
+        description="Cap on revise children produced per surviving parent per iteration.",
+    )
+    min_improvement_delta: float = Field(
+        default=0.005,
+        ge=0.0,
+        description="Minimum best-score improvement over `early_stop_patience` iterations before early-stop fires.",
+    )
+    early_stop_patience: int = Field(
+        default=3,
+        gt=0,
+        description="Iterations of no-improvement (per `min_improvement_delta`) before terminating early.",
+    )
+    max_llm_concurrency: int = Field(
+        default=4,
+        gt=0,
+        description="Maximum concurrent LLM calls during evaluation and revise phases.",
+    )
     exploration_bonus: float = Field(
         default=1.0,
         ge=0.0,
@@ -45,9 +73,13 @@ class OptimizerConfig(BaseModel):
         default=0,
         ge=0,
         description=(
-            "Number of failed batch-evaluation pulls to tolerate before aborting; "
-            "failures are discarded, and the batch raises once the count exceeds this budget."
+            "Per-iteration tolerance for failed evaluation pulls; the iteration's evaluation phase "
+            "raises once the count exceeds this budget. Resets at the start of each iteration."
         ),
+    )
+    seed: int | None = Field(
+        default=None,
+        description="Optional RNG seed for case-shuffle and UCB tiebreaks. None = nondeterministic.",
     )
 
     def with_seed_prompt(self, prompt: str) -> Self:
@@ -99,5 +131,23 @@ class OptimizerConfig(BaseModel):
     def with_ucb_budget(self, n: int) -> Self:
         return self.model_copy(update={"ucb_budget": n})
 
-    def with_max_concurrency(self, n: int) -> Self:
-        return self.model_copy(update={"max_concurrency": n})
+    def with_max_llm_concurrency(self, n: int) -> Self:
+        return self.model_copy(update={"max_llm_concurrency": n})
+
+    def with_structural_llm(self, cfg: LiteLLMConfig | None) -> Self:
+        return self.model_copy(update={"structural_llm": cfg})
+
+    def with_seed_warmup_pulls(self, n: int) -> Self:
+        return self.model_copy(update={"seed_warmup_pulls": n})
+
+    def with_max_children_per_parent(self, n: int) -> Self:
+        return self.model_copy(update={"max_children_per_parent": n})
+
+    def with_min_improvement_delta(self, v: float) -> Self:
+        return self.model_copy(update={"min_improvement_delta": v})
+
+    def with_early_stop_patience(self, n: int) -> Self:
+        return self.model_copy(update={"early_stop_patience": n})
+
+    def with_seed(self, n: int | None) -> Self:
+        return self.model_copy(update={"seed": n})

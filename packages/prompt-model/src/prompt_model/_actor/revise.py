@@ -110,12 +110,17 @@ async def revise(
     feedback_llm_config: LiteLLMConfig,
     structural_llm_config: LiteLLMConfig | None = None,
     max_concurrent: int = 8,
+    max_children: int | None = None,
 ) -> list[Document]:
     if not candidate.results:
         return []
     aggregated_results: AggregationResult = aggregate(candidate.results)
-    if not aggregated_results.buckets:
+    buckets: list[AggregatedNodeBucket] = aggregated_results.buckets
+    if not buckets:
         return []
+
+    if max_children is not None and len(buckets) > max_children:
+        buckets = sorted(buckets, key=lambda b: sum(s.seen_in_n_cases for s in b.signals), reverse=True)[:max_children]
 
     prompt_redactor: RedactionStrategy = _DEFAULT_REDACTION
     prompt_renderer: RenderPromptStrategy = _DEFAULT_PROMPT_RENDERER
@@ -136,7 +141,7 @@ async def revise(
             should_run_structural_cleanup=should_run_structural_cleanup,
             sem=sem,
         )
-        for bucket in aggregated_results.buckets
+        for bucket in buckets
     ]
     outcomes: list[Document | None] = await asyncio.gather(*coroutines)
     return [doc for doc in outcomes if doc is not None]

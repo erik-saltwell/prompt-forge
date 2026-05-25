@@ -5,9 +5,9 @@ from collections.abc import Awaitable, Callable
 from typing import ClassVar
 
 from prompt_model._candidate.candidate import Candidate
-from prompt_model._metrics import EvalCase, MetricResult
+from prompt_model._metrics import MetricResult
 from prompt_model._prompt import parse_from_string
-from prompt_model.config import LiteLLMConfig
+from prompt_model.config import EvalCase, LiteLLMConfig
 
 type Outcome = MetricResult | BaseException
 
