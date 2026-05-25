@@ -111,6 +111,10 @@ async def revise(
     structural_llm_config: LiteLLMConfig | None = None,
     max_concurrent: int = 8,
     max_children: int | None = None,
+    redaction_strategy: RedactionStrategy | None = None,
+    prompt_render_strategy: RenderPromptStrategy | None = None,
+    signal_rendering_strategy: SignalRenderingStrategy | None = None,
+    structural_cleanup_predicate: StructuralCleanupPredicate | None = None,
 ) -> list[Document]:
     if not candidate.results:
         return []
@@ -122,10 +126,14 @@ async def revise(
     if max_children is not None and len(buckets) > max_children:
         buckets = sorted(buckets, key=lambda b: sum(s.seen_in_n_cases for s in b.signals), reverse=True)[:max_children]
 
-    prompt_redactor: RedactionStrategy = _DEFAULT_REDACTION
-    prompt_renderer: RenderPromptStrategy = _DEFAULT_PROMPT_RENDERER
-    signal_renderer: SignalRenderingStrategy = _DEFAULT_SIGNAL_RENDERER
-    should_run_structural_cleanup: StructuralCleanupPredicate = always_cleanup_structure
+    prompt_redactor: RedactionStrategy = redaction_strategy if redaction_strategy is not None else _DEFAULT_REDACTION
+    prompt_renderer: RenderPromptStrategy = prompt_render_strategy if prompt_render_strategy is not None else _DEFAULT_PROMPT_RENDERER
+    signal_renderer: SignalRenderingStrategy = (
+        signal_rendering_strategy if signal_rendering_strategy is not None else _DEFAULT_SIGNAL_RENDERER
+    )
+    should_run_structural_cleanup: StructuralCleanupPredicate = (
+        structural_cleanup_predicate if structural_cleanup_predicate is not None else always_cleanup_structure
+    )
 
     sem: asyncio.Semaphore = asyncio.Semaphore(max_concurrent)
     coroutines = [

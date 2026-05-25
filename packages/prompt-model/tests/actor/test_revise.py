@@ -129,3 +129,59 @@ def test_transport_error_propagates() -> None:
 
     with pytest.raises(RuntimeError, match="503"):
         _run_revise(candidate, feedback_mock, structural_mock)
+
+
+def test_structural_cleanup_predicate_override_disables_structural_pass() -> None:
+    from prompt_model._actor._structural_strategy import never_cleanup_structure
+
+    candidate = _candidate(results=[_metric_result("1.1")])
+    feedback_mock = AsyncMock(return_value=_valid_batch())
+    structural_mock = AsyncMock(return_value=_empty_batch())
+
+    with (
+        patch("prompt_model._actor.revise.acomplete", feedback_mock),
+        patch("prompt_model._actor._structural_actor.acomplete", structural_mock),
+    ):
+        result = asyncio.run(
+            revise(
+                candidate,
+                feedback_llm_config=_config(),
+                structural_cleanup_predicate=never_cleanup_structure,
+            )
+        )
+
+    assert len(result) == 1
+    feedback_mock.assert_called_once()
+    structural_mock.assert_not_called()
+
+
+def test_render_strategy_override_is_used() -> None:
+    from prompt_model._actor._render_prompt_strategy import RenderPromptStrategy
+    from prompt_model._prompt import Document as DocumentType
+
+    class _SentinelRenderer:
+        def __init__(self) -> None:
+            self.call_count: int = 0
+
+        def render(self, tree: DocumentType, focus_ids: set[str] | None) -> str:
+            self.call_count += 1
+            return "<sentinel-rendered/>"
+
+    renderer: RenderPromptStrategy = _SentinelRenderer()
+    candidate = _candidate(results=[_metric_result("1.1")])
+    feedback_mock = AsyncMock(return_value=_valid_batch())
+    structural_mock = AsyncMock(return_value=_empty_batch())
+
+    with (
+        patch("prompt_model._actor.revise.acomplete", feedback_mock),
+        patch("prompt_model._actor._structural_actor.acomplete", structural_mock),
+    ):
+        asyncio.run(
+            revise(
+                candidate,
+                feedback_llm_config=_config(),
+                prompt_render_strategy=renderer,
+            )
+        )
+
+    assert renderer.call_count >= 1  # type: ignore[attr-defined]

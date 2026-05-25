@@ -1,4 +1,4 @@
-from ._redaction import DefaultRedactionStrategy, RedactionStrategy
+from ._redaction import DefaultRedactionStrategy, NoRedactionStrategy, RedactionStrategy
 from ._render_prompt_strategy import (
     JsonRenderPromptStrategy,
     MarkdownRenderPromptStrategy,
@@ -17,10 +17,13 @@ from ._structural_strategy import (
     cleanup_structure_on_structural_actions,
     never_cleanup_structure,
 )
+from .revise import StructuralCleanupPredicate
 
 __all__ = [
     "RedactionStrategy",
     "DefaultRedactionStrategy",
+    "NoRedactionStrategy",
+    "StructuralCleanupPredicate",
     "RenderPromptStrategy",
     "XmlRenderPromptStrategy",
     "JsonRenderPromptStrategy",

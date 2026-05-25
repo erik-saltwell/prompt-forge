@@ -4,7 +4,10 @@ import asyncio
 import random
 from collections import defaultdict
 
-from ._actor.revise import revise
+from ._actor._redaction import RedactionStrategy
+from ._actor._render_prompt_strategy import RenderPromptStrategy
+from ._actor._signal_rendering_strategy import SignalRenderingStrategy
+from ._actor.revise import StructuralCleanupPredicate, revise
 from ._candidate import Candidate
 from ._critic.composite_scorer import CompositeScorer, MeanScorer
 from ._critic.select_next_candidates import select_top_candidates
@@ -22,6 +25,11 @@ async def optimize_prompt(
     metrics: list[Metric],
     scorer: CompositeScorer = _DEFAULT_SCORER,
     progress_reporter: ProgressReporter = None,
+    *,
+    redaction_strategy: RedactionStrategy | None = None,
+    prompt_render_strategy: RenderPromptStrategy | None = None,
+    signal_rendering_strategy: SignalRenderingStrategy | None = None,
+    structural_cleanup_predicate: StructuralCleanupPredicate | None = None,
 ) -> OptimizationResult:
     """Optimize a prompt against a set of evaluation cases. See docs/orchestration.md."""
     if not metrics:
@@ -69,6 +77,10 @@ async def optimize_prompt(
                     structural_llm_config=config.structural_llm,
                     max_concurrent=config.max_llm_concurrency,
                     max_children=config.max_children_per_parent,
+                    redaction_strategy=redaction_strategy,
+                    prompt_render_strategy=prompt_render_strategy,
+                    signal_rendering_strategy=signal_rendering_strategy,
+                    structural_cleanup_predicate=structural_cleanup_predicate,
                 )
                 for survivor in survivors
             )
