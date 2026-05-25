@@ -1,9 +1,14 @@
+import os
+from datetime import datetime
 from typing import Any, overload
 
 import litellm
 from pydantic import BaseModel
 
 from ..config import LiteLLMConfig
+from ._concurrency import get_llm_semaphore
+from ._ollama_schema import build_ollama_response_format
+from ._response_format import HasOllamaVariant
 
 
 class StructuredOutputUnsupportedError(RuntimeError):
@@ -17,7 +22,7 @@ class StructuredOutputUnsupportedError(RuntimeError):
 
 
 @overload
-async def acomplete(system_prompt: str, user_prompt: str, config: LiteLLMConfig) -> str: ...
+async def acomplete(system_prompt: str, user_prompt: str, config: LiteLLMConfig, *, log_name: str | None = None) -> str: ...
 
 
 @overload
@@ -27,6 +32,7 @@ async def acomplete[T: BaseModel](
     config: LiteLLMConfig,
     *,
     response_format: type[T],
+    log_name: str | None = None,
 ) -> T: ...
 
 
@@ -36,6 +42,7 @@ async def acomplete[T: BaseModel](
     config: LiteLLMConfig,
     *,
     response_format: type[T] | None = None,
+    log_name: str | None = None,
 ) -> str | T:
     """Async LiteLLM completion.
 
@@ -49,20 +56,24 @@ async def acomplete[T: BaseModel](
     """
     kwargs: dict[str, Any] = config.to_completion_kwargs()
     if response_format is not None:
-        _ensure_structured_output_supported(kwargs["model"])
-        kwargs["response_format"] = response_format
-    response: Any = await litellm.acompletion(
-        messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt},
-        ],
-        **kwargs,
-    )
+        _set_response_format(kwargs, response_format)
+    async with get_llm_semaphore():
+        response: Any = await litellm.acompletion(
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
+            **kwargs,
+        )
+    if log_name is not None:
+        content = response.choices[0].message.content
+        if isinstance(content, str):
+            _save_log(log_name, system_prompt, user_prompt, content)
     return _parse_response(response, response_format)
 
 
 @overload
-def complete(system_prompt: str, user_prompt: str, config: LiteLLMConfig) -> str: ...
+def complete(system_prompt: str, user_prompt: str, config: LiteLLMConfig, *, log_name: str | None = None) -> str: ...
 
 
 @overload
@@ -72,6 +83,7 @@ def complete[T: BaseModel](
     config: LiteLLMConfig,
     *,
     response_format: type[T],
+    log_name: str | None = None,
 ) -> T: ...
 
 
@@ -81,12 +93,12 @@ def complete[T: BaseModel](
     config: LiteLLMConfig,
     *,
     response_format: type[T] | None = None,
+    log_name: str | None = None,
 ) -> str | T:
     """Sync LiteLLM completion. See `acomplete` for behavior and errors."""
     kwargs: dict[str, Any] = config.to_completion_kwargs()
     if response_format is not None:
-        _ensure_structured_output_supported(kwargs["model"])
-        kwargs["response_format"] = response_format
+        _set_response_format(kwargs, response_format)
     response: Any = litellm.completion(
         messages=[
             {"role": "system", "content": system_prompt},
@@ -94,12 +106,46 @@ def complete[T: BaseModel](
         ],
         **kwargs,
     )
+    if log_name is not None:
+        content = response.choices[0].message.content
+        if isinstance(content, str):
+            _save_log(log_name, system_prompt, user_prompt, content)
     return _parse_response(response, response_format)
 
 
-def _ensure_structured_output_supported(model: str) -> None:
+def _save_log(log_name: str, system_prompt: str, user_prompt: str, output: str) -> None:
+    logs_dir = os.path.join(os.getcwd(), "logs")
+    os.makedirs(logs_dir, exist_ok=True)
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+    file_path = os.path.join(logs_dir, f"{log_name}_{timestamp}.log")
+
+    with open(file_path, "w", encoding="utf-8") as f:
+        f.write(f"SYSTEM PROMPT:\n{system_prompt}\n")
+        f.write("-" * 40 + "\n")
+        f.write(f"USER PROMPT:\n{user_prompt}\n")
+        f.write("-" * 40 + "\n")
+        f.write(f"OUTPUT:\n{output}\n")
+
+
+def _is_ollama(model: str) -> bool:
+    return model.startswith("ollama_chat/") or model.startswith("ollama/")
+
+
+def _set_response_format(kwargs: dict[str, Any], response_format: type[BaseModel]) -> None:
+    model: str = kwargs["model"]
+    if _is_ollama(model):
+        # Ollama's schema validator rejects discriminated unions. If the class declares
+        # a hand-tuned Ollama variant via `__ollama_response_format__`, use it for the
+        # wire schema; otherwise auto-flatten as a fallback. The response is still
+        # parsed against the original strict class in `_parse_response`.
+        wire_cls: type[BaseModel] = (
+            response_format.__ollama_response_format__() if isinstance(response_format, HasOllamaVariant) else response_format
+        )
+        kwargs["response_format"] = build_ollama_response_format(wire_cls)
+        return
     if not litellm.supports_response_schema(model=model):
         raise StructuredOutputUnsupportedError(model)
+    kwargs["response_format"] = response_format
 
 
 def _parse_response[T: BaseModel](response: Any, response_format: type[T] | None) -> str | T:

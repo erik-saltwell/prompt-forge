@@ -2,7 +2,11 @@ from __future__ import annotations
 
 import asyncio
 import random
+import time
+import uuid
 from collections import defaultdict
+
+import structlog
 
 from ._actor._redaction import RedactionStrategy
 from ._actor._render_prompt_strategy import RenderPromptStrategy
@@ -11,6 +15,7 @@ from ._actor.revise import StructuralCleanupPredicate, revise
 from ._candidate import Candidate
 from ._critic.composite_scorer import CompositeScorer, MeanScorer
 from ._critic.select_next_candidates import select_top_candidates
+from ._llm._concurrency import set_llm_concurrency
 from ._metrics import Metric, MetricResult
 from ._progress import ProgressEvent, ProgressReporter, RunProgress, StepProgress, TaskProgress
 from ._prompt import Document, parse_from_string
@@ -18,6 +23,7 @@ from ._result import CandidateSummary, OptimizationResult
 from .config import OptimizerConfig
 
 _DEFAULT_SCORER: CompositeScorer = MeanScorer()
+_log = structlog.get_logger()
 
 
 async def optimize_prompt(
@@ -44,7 +50,81 @@ async def optimize_prompt(
     floor: int = min(config.floor, n_cases)
     warmup: int = min(config.seed_warmup_pulls, n_cases)
 
+    run_id: str = f"run_{uuid.uuid4().hex[:12]}"
+    structlog.contextvars.bind_contextvars(run_id=run_id)
+    start_time: float = time.monotonic()
+
     seed_doc: Document = parse_from_string(config.seed_prompt)
+    _log.info(
+        "optimize_run.start",
+        n_eval_cases=n_cases,
+        n_iterations=config.iterations,
+        metric_names=[m.name for m in metrics],
+        floor=floor,
+        warmup=warmup,
+        target_model=getattr(config.target_llm, "model", None),
+        actor_model=getattr(config.actor_llm, "model", None),
+        structural_model=getattr(config.structural_llm, "model", None) if config.structural_llm is not None else None,
+    )
+
+    iterations_run: int = 0
+    total_errors: int = 0
+    outcome: str = "error"
+    error_type: str | None = None
+    error_message: str | None = None
+    best_score: float = 0.0
+
+    try:
+        with set_llm_concurrency(config.max_llm_concurrency):
+            pool, total_errors, iterations_run, best_score = await _run_optimization_body(
+                config=config,
+                metrics=metrics,
+                scorer=scorer,
+                progress_reporter=progress_reporter,
+                redaction_strategy=redaction_strategy,
+                prompt_render_strategy=prompt_render_strategy,
+                signal_rendering_strategy=signal_rendering_strategy,
+                structural_cleanup_predicate=structural_cleanup_predicate,
+                seed_doc=seed_doc,
+                n_cases=n_cases,
+                floor=floor,
+                warmup=warmup,
+            )
+        outcome = "success"
+        return _build_result(pool, floor, config.top_k_per_iteration, iterations_run, total_errors)
+    except BaseException as exc:
+        error_type = type(exc).__name__
+        error_message = str(exc)
+        raise
+    finally:
+        _log.info(
+            "optimize_run",
+            outcome=outcome,
+            error_type=error_type,
+            error_message=error_message,
+            iterations_run=iterations_run,
+            total_errors=total_errors,
+            best_score=best_score,
+            duration_ms=int((time.monotonic() - start_time) * 1000),
+        )
+        structlog.contextvars.unbind_contextvars("run_id")
+
+
+async def _run_optimization_body(
+    *,
+    config: OptimizerConfig,
+    metrics: list[Metric],
+    scorer: CompositeScorer,
+    progress_reporter: ProgressReporter,
+    redaction_strategy: RedactionStrategy | None,
+    prompt_render_strategy: RenderPromptStrategy | None,
+    signal_rendering_strategy: SignalRenderingStrategy | None,
+    structural_cleanup_predicate: StructuralCleanupPredicate | None,
+    seed_doc: Document,
+    n_cases: int,
+    floor: int,
+    warmup: int,
+) -> tuple[list[Candidate], int, int, float]:
     pool: list[Candidate] = [Candidate(prompt=seed_doc, case_ids=list(range(n_cases)))]
     pool, bootstrap_errors = await select_top_candidates(
         candidates=pool,
@@ -67,53 +147,59 @@ async def optimize_prompt(
         if not survivors:
             break
 
-        await _emit(progress_reporter, iteration, config.iterations, "revise", 1, best_history, total_errors)
+        structlog.contextvars.bind_contextvars(round=iteration)
+        try:
+            _log.info("round.start", survivor_count=len(survivors), pool_size_in=len(pool))
 
-        revise_results: list[list[Document]] = await asyncio.gather(
-            *(
-                revise(
-                    survivor,
-                    feedback_llm_config=config.actor_llm,
-                    structural_llm_config=config.structural_llm,
-                    max_concurrent=config.max_llm_concurrency,
-                    max_children=config.max_children_per_parent,
-                    redaction_strategy=redaction_strategy,
-                    prompt_render_strategy=prompt_render_strategy,
-                    signal_rendering_strategy=signal_rendering_strategy,
-                    structural_cleanup_predicate=structural_cleanup_predicate,
+            await _emit(progress_reporter, iteration, config.iterations, "revise", 1, best_history, total_errors)
+
+            revise_results: list[list[Document]] = await asyncio.gather(
+                *(
+                    revise(
+                        survivor,
+                        feedback_llm_config=config.actor_llm,
+                        structural_llm_config=config.structural_llm,
+                        max_children=config.max_children_per_parent,
+                        redaction_strategy=redaction_strategy,
+                        prompt_render_strategy=prompt_render_strategy,
+                        signal_rendering_strategy=signal_rendering_strategy,
+                        structural_cleanup_predicate=structural_cleanup_predicate,
+                    )
+                    for survivor in survivors
                 )
-                for survivor in survivors
             )
-        )
-        children_docs: list[Document] = [doc for docs in revise_results for doc in docs]
+            children_docs: list[Document] = [doc for docs in revise_results for doc in docs]
 
-        if not children_docs:
+            if not children_docs:
+                iterations_run += 1
+                break
+
+            children: list[Candidate] = [Candidate(prompt=doc, case_ids=list(range(n_cases))) for doc in children_docs]
+
+            await _emit(progress_reporter, iteration, config.iterations, "evaluate", 2, best_history, total_errors)
+
+            pool, iter_errors = await select_top_candidates(
+                candidates=survivors + children,
+                inputs=config.eval_cases,
+                exploration_bonus=config.exploration_bonus,
+                floor_size=floor,
+                ucb_budget=config.ucb_budget,
+                max_errors=config.error_budget,
+                execution_config=config.target_llm,
+                metrics=metrics,
+                scorer=scorer,
+            )
+            total_errors += iter_errors
             iterations_run += 1
-            break
 
-        children: list[Candidate] = [Candidate(prompt=doc, case_ids=list(range(n_cases))) for doc in children_docs]
+            best_history.append(_pool_best_score(pool, floor))
+            if _should_early_stop(best_history, config.early_stop_patience, config.min_improvement_delta):
+                break
+        finally:
+            structlog.contextvars.unbind_contextvars("round")
 
-        await _emit(progress_reporter, iteration, config.iterations, "evaluate", 2, best_history, total_errors)
-
-        pool, iter_errors = await select_top_candidates(
-            candidates=survivors + children,
-            inputs=config.eval_cases,
-            exploration_bonus=config.exploration_bonus,
-            floor_size=floor,
-            ucb_budget=config.ucb_budget,
-            max_errors=config.error_budget,
-            execution_config=config.target_llm,
-            metrics=metrics,
-            scorer=scorer,
-        )
-        total_errors += iter_errors
-        iterations_run += 1
-
-        best_history.append(_pool_best_score(pool, floor))
-        if _should_early_stop(best_history, config.early_stop_patience, config.min_improvement_delta):
-            break
-
-    return _build_result(pool, floor, config.top_k_per_iteration, iterations_run, total_errors)
+    best_score: float = _pool_best_score(pool, floor)
+    return pool, total_errors, iterations_run, best_score
 
 
 def _select_survivors(pool: list[Candidate], floor: int, top_k: int) -> list[Candidate]:

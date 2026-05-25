@@ -252,7 +252,7 @@ def test_concurrency_invariants(monkeypatch: pytest.MonkeyPatch) -> None:
     """
     intervals: list[tuple[str, float, float]] = []
 
-    async def recording_acomplete(system_prompt: str, user_prompt: str, config: LiteLLMConfig) -> str:
+    async def recording_acomplete(system_prompt: str, user_prompt: str, config: LiteLLMConfig, **kwargs: object) -> str:
         enter: float = time.monotonic()
         await asyncio.sleep(0.02)
         exit_: float = time.monotonic()

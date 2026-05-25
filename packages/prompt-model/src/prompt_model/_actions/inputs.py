@@ -7,7 +7,7 @@ into the discriminated union, the batch envelope, and the dispatcher.
 
 from __future__ import annotations
 
-from typing import Annotated, cast
+from typing import Annotated, Any, cast
 
 from pydantic import BaseModel, Field, TypeAdapter, ValidationError, model_validator
 
@@ -36,6 +36,24 @@ type ActionInput = Annotated[
 
 
 _ACTION_ADAPTER: TypeAdapter[ActionInput] = TypeAdapter(ActionInput)
+
+
+class ActionBatchFlat(BaseModel):
+    """Ollama wire-schema variant of `ActionBatch`.
+
+    Ollama's JSON-schema validator rejects discriminated unions, so the
+    `actions` list is declared as open objects on the wire. The model still
+    emits action-shaped objects because the actor system prompt carries the
+    action vocabulary; per-item validity is enforced downstream when the JSON
+    response is re-parsed through `ActionBatch.model_validate_json`, where
+    `_drop_invalid_actions` filters anything off-shape.
+    """
+
+    reasoning: str = Field(description="Short rationale for the batch as a whole. Written before the actions to condition them.")
+    actions: list[dict[str, Any]] = Field(
+        default_factory=list,
+        description="Action list. Each element should match one of the action schemas described in the system prompt.",
+    )
 
 
 class ActionBatch(BaseModel):
@@ -73,6 +91,10 @@ class ActionBatch(BaseModel):
                 continue
             kept.append(elem)
         return {**data_dict, "actions": kept}
+
+    @classmethod
+    def __ollama_response_format__(cls) -> type[BaseModel]:
+        return ActionBatchFlat
 
 
 def to_action(input: ActionInput) -> Action:

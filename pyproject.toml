@@ -21,6 +21,7 @@ dev = [
 [tool.ruff]
 line-length = 140
 target-version = "py312"
+extend-exclude = []
 
 [tool.ruff.lint]
 select = [
@@ -38,6 +39,9 @@ select = [
   "ANN205", # missing return type annotation for staticmethod
   "ANN206", # missing return type annotation for classmethod
 ]
+
+[tool.ruff.lint.per-file-ignores]
+"**/tests/**/*.py" = ["ANN001", "ANN002", "ANN003", "ANN201", "ANN202", "ANN204", "ANN205", "ANN206"]
 
 [tool.ty.environment]
 root = ["./packages", "./apps"]

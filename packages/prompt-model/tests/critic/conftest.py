@@ -69,7 +69,7 @@ def make_cases(n: int) -> list[EvalCase]:
 def fake_acomplete_factory(output: str = "stub output") -> Callable[[str, str, LiteLLMConfig], Awaitable[str]]:
     """Return an async stub for acomplete that ignores its args and returns `output`."""
 
-    async def _stub(system_prompt: str, user_prompt: str, config: LiteLLMConfig) -> str:
+    async def _stub(system_prompt: str, user_prompt: str, config: LiteLLMConfig, **kwargs: object) -> str:
         return output
 
     return _stub

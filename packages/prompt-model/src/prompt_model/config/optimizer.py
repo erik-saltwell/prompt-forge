@@ -1,4 +1,5 @@
 import json
+import typing
 from pathlib import Path
 from typing import Self
 
@@ -81,6 +82,17 @@ class OptimizerConfig(BaseModel):
         default=None,
         description="Optional RNG seed for case-shuffle and UCB tiebreaks. None = nondeterministic.",
     )
+
+    @classmethod
+    def from_yaml(cls, path: Path | str, **kwargs: typing.Any) -> Self:
+        import yaml
+
+        with open(path) as f:
+            data = yaml.safe_load(f)
+        if data is None:
+            data = {}
+        data.update(kwargs)
+        return cls.model_validate(data)
 
     def with_seed_prompt(self, prompt: str) -> Self:
         return self.model_copy(update={"seed_prompt": prompt})

@@ -80,7 +80,6 @@ def _run_pipeline(
                 prompt_renderer=XmlRenderPromptStrategy(),
                 signal_renderer=DefaultSignalRenderingStrategy(),
                 should_run_structural_cleanup=should_run_structural,
-                sem=asyncio.Semaphore(8),
             )
         )
 

@@ -4,6 +4,7 @@ requires-python = ">=3.12"
 
 [manifest]
 members = [
+    "prompt-forge",
     "prompt-forge-benchmark",
     "prompt-forge-workspace",
     "prompt-model",
@@ -1034,6 +1035,23 @@ wheels = [
 ]
 
 [[package]]
+name = "prompt-forge"
+version = "0.1.0"
+source = { editable = "apps/prompt-forge" }
+dependencies = [
+    { name = "prompt-model" },
+    { name = "pydantic" },
+    { name = "pyyaml" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "prompt-model", editable = "packages/prompt-model" },
+    { name = "pydantic" },
+    { name = "pyyaml" },
+]
+
+[[package]]
 name = "prompt-forge-benchmark"
 version = "0.1.0"
 source = { editable = "apps/prompt-forge-benchmark" }
@@ -1041,6 +1059,7 @@ dependencies = [
     { name = "litellm" },
     { name = "prompt-model" },
     { name = "scikit-learn" },
+    { name = "structlog" },
 ]
 
 [package.metadata]
@@ -1048,6 +1067,7 @@ requires-dist = [
     { name = "litellm" },
     { name = "prompt-model", editable = "packages/prompt-model" },
     { name = "scikit-learn" },
+    { name = "structlog", specifier = ">=25.5.0" },
 ]
 
 [[package]]

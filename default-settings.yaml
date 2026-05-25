@@ -1,0 +1,41 @@
+# Default prompt-forge settings
+
+# The LLM that runs the prompt under optimization to produce outputs
+target_llm:
+  model: "ollama_chat/qwen2.5:14b-instruct"
+  temperature: 0.0
+  api_base: "http://localhost:11434"
+
+# The LLM that acts as the prompt engineer to revise and improve the prompt
+actor_llm:
+  model: "ollama_chat/qwen2.5:14b-instruct"
+  temperature: 0.5
+  api_base: "http://localhost:11434"
+
+# The LLM used by your metrics to score the outputs
+judge_llm:
+  model: "ollama_chat/qwen2.5:14b-instruct"
+  temperature: 0.0
+  api_base: "http://localhost:11434"
+
+# Directory containing your evaluation cases (e.g. text files where each file is an input)
+eval_data_dir: "./eval_cases"
+
+# Define the metrics used to evaluate the prompt
+metrics:
+  - name: "helpfulness"
+    description: "Evaluates if the response is helpful and directly answers the user's input."
+    rubric: "Score 1.0 if the response fully and clearly answers the input, 0.5 if it partially answers it, and 0.0 if it is unhelpful or off-topic."
+
+# Optimization parameters
+iterations: 8
+early_stop_patience: 3
+max_llm_concurrency: 4
+top_k_per_iteration: 3
+floor: 2
+ucb_budget: 20
+seed_warmup_pulls: 2
+max_children_per_parent: 3
+min_improvement_delta: 0.005
+exploration_bonus: 1.0
+error_budget: 0

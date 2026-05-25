@@ -20,7 +20,7 @@ from prompt_model._actor import (
     NoRedactionStrategy,
     never_cleanup_structure,
 )
-from prompt_model.config import LiteLLMConfig, OptimizerConfig
+from prompt_model.config import OptimizerConfig
 
 from .data import load_initial_prompt, load_split
 from .headline import HeadlineReport, evaluate_prompt
@@ -35,22 +35,6 @@ class BenchmarkReport:
     initial: HeadlineReport
     optimized: HeadlineReport
     result: OptimizationResult
-
-
-def _build_config(initial_prompt: str) -> OptimizerConfig:
-    target: LiteLLMConfig = LiteLLMConfig(model="openai/gpt-4o", temperature=0.0)
-    actor: LiteLLMConfig = LiteLLMConfig(model="openai/gpt-4o", temperature=0.5)
-    judge: LiteLLMConfig = LiteLLMConfig(model="openai/gpt-4o", temperature=0.0)
-    return OptimizerConfig(
-        seed_prompt=initial_prompt,
-        eval_cases=load_split("train") + load_split("val"),
-        target_llm=target,
-        actor_llm=actor,
-        structural_llm=None,
-        judge_llm=judge,
-        iterations=16,
-        early_stop_patience=3,
-    )
 
 
 async def _stdout_progress(event: ProgressEvent) -> None:
@@ -70,17 +54,29 @@ async def _stdout_progress(event: ProgressEvent) -> None:
     )
 
 
-async def run_cj_benchmark(*, max_concurrency: int = 8) -> BenchmarkReport:
+async def run_cj_benchmark(*, max_concurrency: int | None = None, iterations: int | None = None) -> BenchmarkReport:
     """Run the full CJ Phase 1 pipeline."""
     initial_prompt: str = load_initial_prompt()
     test_cases = load_split("test")
-    target_llm: LiteLLMConfig = LiteLLMConfig(model="openai/gpt-4o", temperature=0.0)
+
+    config: OptimizerConfig = OptimizerConfig.from_yaml(
+        "benchmark-settings.yaml",
+        seed_prompt=initial_prompt,
+        eval_cases=load_split("train") + load_split("val"),
+    )
+
+    if iterations is not None:
+        config = config.with_iterations(iterations)
+    if max_concurrency is not None:
+        config = config.with_max_llm_concurrency(max_concurrency)
+
+    active_concurrency = config.max_llm_concurrency
+    target_llm = config.target_llm
 
     print(f"[1/3] Scoring initial prompt on {len(test_cases)} test cases...", file=sys.stderr, flush=True)
-    initial_headline: HeadlineReport = await evaluate_prompt(initial_prompt, test_cases, target_llm, max_concurrency=max_concurrency)
+    initial_headline: HeadlineReport = await evaluate_prompt(initial_prompt, test_cases, target_llm, max_concurrency=active_concurrency)
     print(f"      Initial weighted F1: {initial_headline.weighted_f1 * 100:.2f}", file=sys.stderr, flush=True)
 
-    config: OptimizerConfig = _build_config(initial_prompt)
     print(
         f"[2/3] Optimizing on {len(config.eval_cases)} train+val cases (up to {config.iterations} iterations)...",
         file=sys.stderr,
@@ -88,7 +84,7 @@ async def run_cj_benchmark(*, max_concurrency: int = 8) -> BenchmarkReport:
     )
     result: OptimizationResult = await optimize_prompt(
         config,
-        metrics=[CausalJudgementCorrectness()],
+        metrics=[CausalJudgementCorrectness(judge_llm=config.judge_llm)],
         progress_reporter=_stdout_progress,
         redaction_strategy=NoRedactionStrategy(),
         prompt_render_strategy=JsonRenderPromptStrategy(),
@@ -101,7 +97,9 @@ async def run_cj_benchmark(*, max_concurrency: int = 8) -> BenchmarkReport:
     )
 
     print(f"[3/3] Scoring optimized prompt on {len(test_cases)} test cases...", file=sys.stderr, flush=True)
-    optimized_headline: HeadlineReport = await evaluate_prompt(result.best_prompt, test_cases, target_llm, max_concurrency=max_concurrency)
+    optimized_headline: HeadlineReport = await evaluate_prompt(
+        result.best_prompt, test_cases, target_llm, max_concurrency=active_concurrency
+    )
     print(f"      Optimized weighted F1: {optimized_headline.weighted_f1 * 100:.2f}", file=sys.stderr, flush=True)
 
     return BenchmarkReport(initial=initial_headline, optimized=optimized_headline, result=result)
