@@ -11,6 +11,7 @@ from typing import ClassVar
 
 from ..._metrics.base_claim_metric import BaseClaimMetric
 from ...config import LiteLLMConfig
+from ._resources import load_alignment_resource
 
 
 class AlignmentMetric(BaseClaimMetric):
@@ -29,28 +30,30 @@ class AlignmentMetric(BaseClaimMetric):
     def __init__(self, litellm_config: LiteLLMConfig) -> None:
         super().__init__(litellm_config)
 
+    # --- system prompts (packaged markdown resources) ---
+
+    def claim_extraction_system_prompt(self) -> str:
+        return load_alignment_resource("claim_extraction")
+
+    def reference_extraction_system_prompt(self) -> str:
+        return load_alignment_resource("reference_extraction")
+
+    def verdict_system_prompt(self) -> str:
+        return load_alignment_resource("verdict")
+
+    def attribution_system_prompt(self) -> str:
+        return load_alignment_resource("attribution")
+
+    # --- user prompts ---
+
     def claim_extraction_prompt(self, output: str) -> str:
-        return (
-            f"Extract every atomic factual claim made in the following summary. "
-            f"Each claim should be a single, verifiable statement.\n\n"
-            f"Summary:\n{output}"
-        )
+        return f"<summary>\n{output}\n</summary>"
 
     def reference_extraction_prompt(self, input: str, ground_truth: str | None) -> str:
         # Alignment uses input as the source of truth; ground_truth is ignored.
-        return (
-            f"Extract the key facts stated in the following source text. "
-            f"Each fact should be a single, verifiable statement.\n\n"
-            f"Source text:\n{input}"
-        )
+        return f"<source>\n{input}\n</source>"
 
     def verdict_prompt(self, claims: list[str], reference_points: list[str]) -> str:
         claims_text: str = "\n".join(f"- {c}" for c in claims)
         refs_text: str = "\n".join(f"- {r}" for r in reference_points)
-        return (
-            f"For each summary claim, determine whether it is directly supported by the source facts. "
-            f"A claim PASSES if it is consistent with (or neutral with respect to) the source facts. "
-            f"A claim FAILS if it contradicts a source fact.\n\n"
-            f"Source facts:\n{refs_text}\n\n"
-            f"Summary claims:\n{claims_text}"
-        )
+        return f"<source_facts>\n{refs_text}\n</source_facts>\n\n<summary_claims>\n{claims_text}\n</summary_claims>"
