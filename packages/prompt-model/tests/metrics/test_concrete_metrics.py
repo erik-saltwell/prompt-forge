@@ -148,6 +148,124 @@ def test_coverage_uses_ground_truth_as_reference(monkeypatch: pytest.MonkeyPatch
     assert any("THE REFERENCE" in p for p in captured_reference_prompts)
 
 
+def test_coverage_fails_all_reference_points_when_output_has_no_claims() -> None:
+    """With zero output claims but non-empty reference points, every key point should fail."""
+    from prompt_model._metrics.base_claim_metric import ClaimVerdict, NodeAttribution
+
+    class _EmptyOutputCoverage(CoverageMetric):
+        async def _extract_claims(self, output: str) -> list[str]:
+            return []
+
+        async def _extract_reference_points(self, input: str, ground_truth: str | None) -> list[str]:
+            return ["point A", "point B", "point C"]
+
+        async def _generate_verdicts(self, claims: list[str], reference_points: list[str]) -> list[ClaimVerdict]:
+            assert reference_points == ["point A", "point B", "point C"]
+            assert claims == []
+            # The verdict LLM is expected to emit one fail per reference point when the output is empty.
+            return [ClaimVerdict(claim=rp, passes=False, reason="No output claim addresses this.") for rp in reference_points]
+
+        async def _attribute_nodes(self, failing_verdicts: list[ClaimVerdict], prompt_with_ids: str) -> list[NodeAttribution]:
+            return [NodeAttribution(claim=v.claim, culprit_node_id="document") for v in failing_verdicts]
+
+    metric = _EmptyOutputCoverage(_CONFIG)
+    result: MetricResult = asyncio.run(metric.evaluate(_PROMPT_MD, "input", "", "ref"))
+    assert result.score == 0.0
+    assert len(result.signals) == 3
+
+
+def test_coverage_skips_verdict_call_when_no_reference_points() -> None:
+    """Inverted from alignment: coverage should short-circuit on empty reference points, not empty claims."""
+    from prompt_model._metrics.base_claim_metric import ClaimVerdict
+
+    verdict_call_count: list[int] = [0]
+
+    class _NoRefCoverage(CoverageMetric):
+        async def _extract_claims(self, output: str) -> list[str]:
+            return ["claim 1", "claim 2"]
+
+        async def _extract_reference_points(self, input: str, ground_truth: str | None) -> list[str]:
+            return []
+
+        async def _generate_verdicts(self, claims, reference_points):
+            verdict_call_count[0] += 1
+            # Should never be invoked because _should_run_verdicts returns False on empty reference_points.
+            return [ClaimVerdict(claim="X", passes=True)]
+
+        async def _attribute_nodes(self, failing_verdicts, prompt_with_ids):
+            return []
+
+    # Directly exercise the gate.
+    metric = _NoRefCoverage(_CONFIG)
+    assert metric._should_run_verdicts(["claim"], []) is False
+    assert metric._should_run_verdicts([], ["ref"]) is True
+
+
+def test_coverage_signal_carries_completeness_framing() -> None:
+    """Coverage's IssueSignal should describe missing key points, not unsupported assertions."""
+    from prompt_model._metrics.base_claim_metric import ClaimVerdict, NodeAttribution
+    from prompt_model._metrics.result import IssueSignal
+
+    class _OneMissCoverage(CoverageMetric):
+        async def _extract_claims(self, output: str) -> list[str]:
+            return ["irrelevant claim"]
+
+        async def _extract_reference_points(self, input: str, ground_truth: str | None) -> list[str]:
+            return ["The funding round closed at $40M from Sequoia."]
+
+        async def _generate_verdicts(self, claims, reference_points):
+            return [
+                ClaimVerdict(
+                    claim="The funding round closed at $40M from Sequoia.",
+                    passes=False,
+                    reason="No output claim mentions the $40M amount or Sequoia.",
+                )
+            ]
+
+        async def _attribute_nodes(self, failing_verdicts, prompt_with_ids):
+            return [NodeAttribution(claim=v.claim, culprit_node_id="1.1") for v in failing_verdicts]
+
+    metric = _OneMissCoverage(_CONFIG)
+    result: MetricResult = asyncio.run(metric.evaluate(_PROMPT_MD, "source text", "the candidate summary text", "reference summary"))
+    assert len(result.signals) == 1
+    signal: IssueSignal = result.signals[0]
+    assert signal.culprit_node_id == "1.1"
+    assert "Missing key point" in signal.rationale
+    assert "$40M" in signal.rationale
+    assert "cover every key point" in signal.target_behavior
+    assert "reference key point is addressed" in signal.success_criterion
+    # output_snippet must be a verbatim slice of `output`, never the reference key point.
+    assert signal.output_snippet == "the candidate summary text"
+    # input_snippet sources from ground_truth for coverage (the reference), not the input.
+    assert "reference summary" in signal.input_snippet
+
+
+def test_coverage_assessment_uses_completeness_vocabulary() -> None:
+    from prompt_model._metrics.base_claim_metric import ClaimVerdict, NodeAttribution
+
+    class _MixedCoverage(CoverageMetric):
+        async def _extract_claims(self, output):
+            return ["c1"]
+
+        async def _extract_reference_points(self, input, ground_truth):
+            return ["ref1", "ref2", "ref3"]
+
+        async def _generate_verdicts(self, claims, reference_points):
+            return [
+                ClaimVerdict(claim="ref1", passes=True),
+                ClaimVerdict(claim="ref2", passes=True),
+                ClaimVerdict(claim="ref3", passes=False, reason="missing"),
+            ]
+
+        async def _attribute_nodes(self, failing_verdicts, prompt_with_ids):
+            return [NodeAttribution(claim="ref3", culprit_node_id="1.1")]
+
+    metric = _MixedCoverage(_CONFIG)
+    result: MetricResult = asyncio.run(metric.evaluate(_PROMPT_MD, "i", "o", "gt"))
+    assert "2/3" in result.assessment
+    assert "reference key points covered" in result.assessment
+
+
 # ─────────────────────────────────────────────
 # AlignmentMetric
 # ─────────────────────────────────────────────

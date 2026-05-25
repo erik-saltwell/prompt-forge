@@ -122,8 +122,18 @@ class BaseClaimMetric(ABC):
         )
         return result.reference_points
 
+    def _should_run_verdicts(self, claims: list[str], reference_points: list[str]) -> bool:
+        """Whether the verdict LLM call should fire for this (claims, reference_points) pair.
+
+        Default skips when there are no output claims (alignment-style: nothing to judge).
+        Coverage-style metrics iterating over reference points should override to skip on
+        empty reference_points instead, and synthesize all-fail verdicts when reference
+        points exist but no output claims do.
+        """
+        return bool(claims)
+
     async def _generate_verdicts(self, claims: list[str], reference_points: list[str]) -> list[ClaimVerdict]:
-        if not claims:
+        if not self._should_run_verdicts(claims, reference_points):
             return []
         result: _VerdictList = await acomplete(
             system_prompt=self.verdict_system_prompt(),
@@ -148,6 +158,44 @@ class BaseClaimMetric(ABC):
         )
         return result.attributions
 
+    # --- signal and assessment construction (overridable) ---
+
+    def _build_failure_signal(
+        self,
+        verdict: ClaimVerdict,
+        culprit_node_id: str,
+        input: str,
+        output: str,
+        ground_truth: str | None,
+    ) -> IssueSignal:
+        """Construct an IssueSignal for one failing verdict. Override to customize per-metric framing.
+
+        Default values are tuned for claim-iteration metrics (alignment-style): each verdict
+        represents one output claim, so `output_snippet=verdict.claim` is a verbatim output quote.
+        Coverage-style metrics whose `verdict.claim` holds a reference key point (not an output
+        substring) must override this to satisfy the IssueSignal schema.
+        """
+        return IssueSignal(
+            culprit_node_id=culprit_node_id,
+            rationale=verdict.reason or "Claim did not pass verification.",
+            target_behavior="The output should only assert claims supported by the source.",
+            success_criterion="All claims in the output are verifiable against the reference.",
+            input_snippet=self._truncate(input),
+            output_snippet=verdict.claim,
+        )
+
+    @staticmethod
+    def _truncate(text: str, limit: int = 200) -> str:
+        """Truncate `text` to at most `limit` characters, appending an ellipsis when shortened."""
+        return text if len(text) <= limit else text[:limit] + "…"
+
+    def _build_assessment(self, passing: list[ClaimVerdict], failing: list[ClaimVerdict]) -> str:
+        """Narrative summary line for the MetricResult. Override to use metric-specific vocabulary."""
+        total: int = len(passing) + len(failing)
+        if total == 0:
+            return "No claims extracted from output."
+        return f"{len(passing)}/{total} claims passed."
+
     # --- public evaluate ---
 
     async def evaluate(
@@ -170,26 +218,13 @@ class BaseClaimMetric(ABC):
         attributions: list[NodeAttribution] = await self._attribute_nodes(failing, prompt_with_ids)
         attribution_map: dict[str, str] = {a.claim: a.culprit_node_id for a in attributions}
 
-        signals: list[IssueSignal] = []
-        for verdict in failing:
-            culprit: str = attribution_map.get(verdict.claim, "document")
-            signals.append(
-                IssueSignal(
-                    culprit_node_id=culprit,
-                    rationale=verdict.reason or "Claim did not pass verification.",
-                    target_behavior="The output should only assert claims supported by the source.",
-                    success_criterion="All claims in the output are verifiable against the reference.",
-                    input_snippet=input[:200] + "…" if len(input) > 200 else input,
-                    output_snippet=verdict.claim,
-                )
-            )
-
-        total: int = len(verdicts)
-        assessment: str = f"{len(passing)}/{total} claims passed." if total > 0 else "No claims extracted from output."
+        signals: list[IssueSignal] = [
+            self._build_failure_signal(v, attribution_map.get(v.claim, "document"), input, output, ground_truth) for v in failing
+        ]
 
         return MetricResult(
             metric_name=self.name,
             score=score,
-            assessment=assessment,
+            assessment=self._build_assessment(passing, failing),
             signals=signals,
         )
