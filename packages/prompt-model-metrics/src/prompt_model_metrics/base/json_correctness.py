@@ -5,8 +5,8 @@ from __future__ import annotations
 import json
 from typing import ClassVar
 
-from ..._metrics.hybrid_metric import HybridMetric
-from ...config import LiteLLMConfig
+from prompt_model._metrics.hybrid_metric import HybridMetric
+from prompt_model.config import LiteLLMConfig
 
 
 class JsonCorrectnessMetric(HybridMetric):

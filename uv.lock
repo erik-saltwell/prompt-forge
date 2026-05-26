@@ -9,7 +9,6 @@ members = [
     "prompt-forge-self-improvement",
     "prompt-forge-workspace",
     "prompt-model",
-    "prompt-model-check",
     "prompt-model-metrics",
 ]
 
@@ -1042,6 +1041,7 @@ version = "0.1.0"
 source = { editable = "apps/prompt-forge" }
 dependencies = [
     { name = "prompt-model" },
+    { name = "prompt-model-metrics" },
     { name = "pydantic" },
     { name = "pyyaml" },
 ]
@@ -1049,6 +1049,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "prompt-model", editable = "packages/prompt-model" },
+    { name = "prompt-model-metrics", editable = "packages/prompt-model-metrics" },
     { name = "pydantic" },
     { name = "pyyaml" },
 ]
@@ -1060,6 +1061,7 @@ source = { editable = "apps/prompt-forge-benchmark" }
 dependencies = [
     { name = "litellm" },
     { name = "prompt-model" },
+    { name = "prompt-model-metrics" },
     { name = "scikit-learn" },
     { name = "structlog" },
 ]
@@ -1068,6 +1070,7 @@ dependencies = [
 requires-dist = [
     { name = "litellm" },
     { name = "prompt-model", editable = "packages/prompt-model" },
+    { name = "prompt-model-metrics", editable = "packages/prompt-model-metrics" },
     { name = "scikit-learn" },
     { name = "structlog", specifier = ">=25.5.0" },
 ]
@@ -1079,6 +1082,7 @@ source = { editable = "apps/prompt-forge-self-improvement" }
 dependencies = [
     { name = "litellm" },
     { name = "prompt-model" },
+    { name = "prompt-model-metrics" },
     { name = "pyyaml" },
     { name = "structlog" },
 ]
@@ -1087,6 +1091,7 @@ dependencies = [
 requires-dist = [
     { name = "litellm" },
     { name = "prompt-model", editable = "packages/prompt-model" },
+    { name = "prompt-model-metrics", editable = "packages/prompt-model-metrics" },
     { name = "pyyaml", specifier = ">=6.0" },
     { name = "structlog", specifier = ">=25.5.0" },
 ]
@@ -1134,17 +1139,6 @@ requires-dist = [
     { name = "pydantic", specifier = ">=2.13.4" },
     { name = "structlog", specifier = ">=25.5.0" },
 ]
-
-[[package]]
-name = "prompt-model-check"
-version = "0.1.0"
-source = { editable = "apps/prompt-model-check" }
-dependencies = [
-    { name = "prompt-model" },
-]
-
-[package.metadata]
-requires-dist = [{ name = "prompt-model", editable = "packages/prompt-model" }]
 
 [[package]]
 name = "prompt-model-metrics"

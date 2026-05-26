@@ -9,9 +9,10 @@ from __future__ import annotations
 
 from typing import ClassVar
 
-from ..._metrics.base_claim_metric import BaseClaimMetric
-from ...config import LiteLLMConfig
-from ._resources import load_alignment_resource
+from prompt_model._metrics.base_claim_metric import BaseClaimMetric
+from prompt_model.config import LiteLLMConfig
+
+from ._alignment_resources import load_alignment_resource
 
 
 class AlignmentMetric(BaseClaimMetric):

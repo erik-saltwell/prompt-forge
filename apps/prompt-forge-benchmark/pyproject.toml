@@ -9,6 +9,7 @@ authors = [
 requires-python = ">=3.12"
 dependencies = [
     "prompt-model",
+    "prompt-model-metrics",
     "litellm",
     "scikit-learn",
     "structlog>=25.5.0",
@@ -23,3 +24,4 @@ build-backend = "uv_build"
 
 [tool.uv.sources]
 prompt-model = { workspace = true }
+prompt-model-metrics = { workspace = true }

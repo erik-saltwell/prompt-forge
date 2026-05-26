@@ -3,7 +3,7 @@
 Eight metrics across two tiers:
 
 Structural gates (deterministic + optional judge):
-  1. JsonCorrectnessMetric  — reused from prompt_model.metrics.json_correctness
+  1. JsonCorrectnessMetric  — reused from prompt_model_metrics.base
   2. IdValidityMetric       — every id/host_id/target in the batch exists in the input tree
   3. HostTypeCorrectnessMetric — add_example/add_guidance host_ids are Paragraph or ListItem
 
@@ -25,7 +25,8 @@ from typing import Any, ClassVar, cast
 
 from prompt_model import BaseLLMJudgeMetric, HybridMetric, Metric
 from prompt_model.config import LiteLLMConfig
-from prompt_model.metrics.json_correctness import JsonCorrectnessMetric
+
+from prompt_model_metrics.base import JsonCorrectnessMetric
 
 __all__ = [
     "JsonCorrectnessMetric",

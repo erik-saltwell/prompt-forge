@@ -18,11 +18,10 @@ from prompt_model import Metric
 from prompt_model._metrics._resources import load_metric_resource
 from prompt_model._resources import load_prompt
 from prompt_model.config import EvalCase, LiteLLMConfig
+from prompt_model_metrics.self_learning import build_feedback_actor_metrics, build_hybrid_judge_metrics
 
 from .targets.feedback_actor._scenario_loader import load_all_scenarios
-from .targets.feedback_actor.metrics import build_feedback_actor_metrics
 from .targets.hybrid_judge._scenario_loader import load_all_scenarios as load_hybrid_judge_scenarios
-from .targets.hybrid_judge.metrics import build_hybrid_judge_metrics
 
 _FEEDBACK_ACTOR_SCENARIOS: Path = Path(__file__).parent / "targets" / "feedback_actor" / "scenarios"
 _HYBRID_JUDGE_SCENARIOS: Path = Path(__file__).parent / "targets" / "hybrid_judge" / "scenarios"

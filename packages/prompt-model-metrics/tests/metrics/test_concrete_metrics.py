@@ -16,11 +16,7 @@ import pytest
 from prompt_model._metrics.protocol import MissingGroundTruthError
 from prompt_model._metrics.result import MetricResult
 from prompt_model.config import LiteLLMConfig
-from prompt_model.metrics.alignment import AlignmentMetric
-from prompt_model.metrics.coverage import CoverageMetric
-from prompt_model.metrics.g_eval import GEvalMetric
-from prompt_model.metrics.hallucination import HallucinationMetric
-from prompt_model.metrics.json_correctness import JsonCorrectnessMetric
+from prompt_model_metrics import AlignmentMetric, CoverageMetric, GEvalMetric, HallucinationMetric, JsonCorrectnessMetric
 
 _CONFIG = LiteLLMConfig(model="fake/model")
 _PROMPT_MD = "# Task\n\nDo the thing.\n"

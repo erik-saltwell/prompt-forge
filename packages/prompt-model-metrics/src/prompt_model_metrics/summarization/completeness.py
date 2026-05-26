@@ -1,4 +1,4 @@
-"""CoverageMetric — summarization completeness via key-point coverage.
+"""CompletenessMetric — summarization completeness via key-point coverage.
 
 Checks whether the output covers the key points from the ground_truth reference.
 Tuned and validated for summarization tasks.
@@ -14,11 +14,12 @@ from __future__ import annotations
 
 from typing import ClassVar
 
-from ..._metrics.base_claim_metric import BaseClaimMetric, ClaimVerdict
-from ..._metrics.protocol import MissingGroundTruthError
-from ..._metrics.result import IssueSignal, MetricResult
-from ...config import LiteLLMConfig
-from ._resources import load_coverage_resource
+from prompt_model._metrics.base_claim_metric import BaseClaimMetric, ClaimVerdict
+from prompt_model._metrics.protocol import MissingGroundTruthError
+from prompt_model._metrics.result import IssueSignal, MetricResult
+from prompt_model.config import LiteLLMConfig
+
+from ._completeness_resources import load_completeness_resource
 
 
 class CoverageMetric(BaseClaimMetric):
@@ -54,16 +55,16 @@ class CoverageMetric(BaseClaimMetric):
     # --- system prompts (packaged markdown resources) ---
 
     def claim_extraction_system_prompt(self) -> str:
-        return load_coverage_resource("claim_extraction")
+        return load_completeness_resource("claim_extraction")
 
     def reference_extraction_system_prompt(self) -> str:
-        return load_coverage_resource("reference_extraction")
+        return load_completeness_resource("reference_extraction")
 
     def verdict_system_prompt(self) -> str:
-        return load_coverage_resource("verdict")
+        return load_completeness_resource("verdict")
 
     def attribution_system_prompt(self) -> str:
-        return load_coverage_resource("attribution")
+        return load_completeness_resource("attribution")
 
     # --- user prompts ---
 
@@ -119,3 +120,10 @@ class CoverageMetric(BaseClaimMetric):
         if total == 0:
             return "No reference key points extracted; nothing to cover."
         return f"{len(passing)}/{total} reference key points covered."
+
+
+class CompletenessMetric(CoverageMetric):
+    """Alias-style summarization completeness metric with user-facing naming."""
+
+    name: ClassVar[str] = "completeness"
+    description: ClassVar[str] = "Checks that the output covers key points from the ground_truth reference (summarization)."

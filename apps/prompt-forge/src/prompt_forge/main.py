@@ -6,8 +6,8 @@ from pathlib import Path
 import structlog
 from prompt_model import optimize_prompt
 from prompt_model.config import EvalCase, OptimizerConfig
+from prompt_model_metrics import GenericLLMJudgeMetric
 
-from prompt_forge.metrics import GenericLLMJudgeMetric
 from prompt_forge.settings import PromptForgeSettings
 
 _log = structlog.get_logger()

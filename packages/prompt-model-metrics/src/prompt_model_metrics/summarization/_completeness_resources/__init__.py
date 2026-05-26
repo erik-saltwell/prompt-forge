@@ -5,8 +5,8 @@ from importlib.resources import files
 
 
 @cache
-def load_coverage_resource(name: str) -> str:
-    """Load a packaged coverage-metric resource by name (without `.md` extension).
+def load_completeness_resource(name: str) -> str:
+    """Load a packaged completeness-metric resource by name (without `.md` extension).
 
     Raises FileNotFoundError if the resource does not exist.
     """

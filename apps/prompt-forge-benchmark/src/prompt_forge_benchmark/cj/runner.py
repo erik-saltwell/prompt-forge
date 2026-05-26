@@ -21,10 +21,10 @@ from prompt_model.strategies import (
     NeverCleanup,
     NoRedactionStrategy,
 )
+from prompt_model_metrics.benchmarking import CausalJudgementCorrectness
 
 from .data import load_initial_prompt, load_split
 from .headline import HeadlineReport, evaluate_prompt
-from .metric import CausalJudgementCorrectness
 
 SCULPT_PUBLISHED_INITIAL_F1: float = 71.1
 SCULPT_PUBLISHED_OPTIMIZED_F1: float = 75.9

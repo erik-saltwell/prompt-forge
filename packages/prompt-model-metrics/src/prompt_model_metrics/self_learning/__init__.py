@@ -1,43 +1,34 @@
-"""Shared metric library for prompt-forge projects."""
+"""Metrics for prompt-forge self-learning targets."""
 
-from .base import GenericLLMJudgeMetric, GEvalMetric, HallucinationMetric, JsonCorrectnessMetric
-from .benchmarking import CausalJudgementCorrectness
-from .self_learning import (
-    ActionabilityMetric,
+from .feedback_actor import (
     ActionTypeFitnessMetric,
     ActorCoverageMetric,
-    CulpritIdValidityMetric,
-    CulpritLocalizationMetric,
-    DiagnosisSpecificityMetric,
     HostTypeCorrectnessMetric,
     IdValidityMetric,
     IssueTraceabilityMetric,
     PreserveComplianceMetric,
     SpeculativeEditAbsenceMetric,
-    SuggestedChangeCalibrationMetric,
     build_feedback_actor_metrics,
+)
+from .hybrid_judge import (
+    ActionabilityMetric,
+    CulpritIdValidityMetric,
+    CulpritLocalizationMetric,
+    DiagnosisSpecificityMetric,
+    SuggestedChangeCalibrationMetric,
     build_hybrid_judge_metrics,
 )
-from .summarization import AlignmentMetric, CompletenessMetric, CoverageMetric
 
 __all__ = [
     "ActionabilityMetric",
     "ActionTypeFitnessMetric",
     "ActorCoverageMetric",
-    "AlignmentMetric",
-    "CausalJudgementCorrectness",
-    "CompletenessMetric",
-    "CoverageMetric",
     "CulpritIdValidityMetric",
     "CulpritLocalizationMetric",
     "DiagnosisSpecificityMetric",
-    "GEvalMetric",
-    "GenericLLMJudgeMetric",
-    "HallucinationMetric",
     "HostTypeCorrectnessMetric",
     "IdValidityMetric",
     "IssueTraceabilityMetric",
-    "JsonCorrectnessMetric",
     "PreserveComplianceMetric",
     "SpeculativeEditAbsenceMetric",
     "SuggestedChangeCalibrationMetric",

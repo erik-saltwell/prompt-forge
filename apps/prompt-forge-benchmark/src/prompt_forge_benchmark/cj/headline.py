@@ -17,9 +17,8 @@ from typing import Any
 
 import litellm
 from prompt_model.config import EvalCase, LiteLLMConfig
+from prompt_model_metrics.benchmarking import parse_yes_no
 from sklearn.metrics import classification_report, f1_score
-
-from .metric import parse_yes_no
 
 
 @dataclass(frozen=True, slots=True)

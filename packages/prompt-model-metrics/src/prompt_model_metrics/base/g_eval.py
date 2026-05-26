@@ -5,8 +5,8 @@ from __future__ import annotations
 import hashlib
 from typing import ClassVar
 
-from ..._metrics.base_llm_judge import BaseLLMJudgeMetric, RenderPromptStrategy
-from ...config import LiteLLMConfig
+from prompt_model._metrics.base_llm_judge import BaseLLMJudgeMetric, RenderPromptStrategy
+from prompt_model.config import LiteLLMConfig
 
 
 class GEvalMetric(BaseLLMJudgeMetric):
