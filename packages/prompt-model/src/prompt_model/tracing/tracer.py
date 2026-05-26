@@ -68,7 +68,7 @@ def initialize_tracing(tracefile_path: Path, indent: int | None = None) -> None:
     and inherits this config. Without this call, prompt_model is silent.
     """
     global trace_file
-    trace_file = open(tracefile_path, "a", encoding="utf-8")
+    trace_file = open(tracefile_path, "w", encoding="utf-8")
     json_renderer: Processor
     if indent is not None:
         json_renderer = structlog.processors.JSONRenderer(indent=indent, sort_keys=False)

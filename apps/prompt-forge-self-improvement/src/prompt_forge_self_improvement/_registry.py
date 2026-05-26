@@ -15,13 +15,17 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from prompt_model import Metric
+from prompt_model._metrics._resources import load_metric_resource
 from prompt_model._resources import load_prompt
 from prompt_model.config import EvalCase, LiteLLMConfig
 
 from .targets.feedback_actor._scenario_loader import load_all_scenarios
 from .targets.feedback_actor.metrics import build_feedback_actor_metrics
+from .targets.hybrid_judge._scenario_loader import load_all_scenarios as load_hybrid_judge_scenarios
+from .targets.hybrid_judge.metrics import build_hybrid_judge_metrics
 
 _FEEDBACK_ACTOR_SCENARIOS: Path = Path(__file__).parent / "targets" / "feedback_actor" / "scenarios"
+_HYBRID_JUDGE_SCENARIOS: Path = Path(__file__).parent / "targets" / "hybrid_judge" / "scenarios"
 
 
 @dataclass(frozen=True)
@@ -42,5 +46,12 @@ REGISTRY: dict[str, TargetConfig] = {
         seed_prompt_loader=lambda: load_prompt("feedback_actor"),
         eval_case_loader=lambda: load_all_scenarios(_FEEDBACK_ACTOR_SCENARIOS),
         metrics_factory=build_feedback_actor_metrics,
+    ),
+    "hybrid-judge": TargetConfig(
+        name="hybrid-judge",
+        description="Optimize the hybrid judge system prompt (prompt_model/_metrics/_resources/hybrid_judge.md).",
+        seed_prompt_loader=lambda: load_metric_resource("hybrid_judge"),
+        eval_case_loader=lambda: load_hybrid_judge_scenarios(_HYBRID_JUDGE_SCENARIOS),
+        metrics_factory=build_hybrid_judge_metrics,
     ),
 }

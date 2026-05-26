@@ -2,13 +2,13 @@ from __future__ import annotations
 
 import json
 
-from prompt_model._actor._signal_rendering_strategy import (
+from prompt_model._metrics._aggregator import AggregatedNodeBucket
+from prompt_model._metrics.result import IssueSignal
+from prompt_model._rendering import (
     DefaultSignalRenderingStrategy,
     JsonSignalRenderingStrategy,
     XmlSignalRenderingStrategy,
 )
-from prompt_model._metrics._aggregator import AggregatedNodeBucket
-from prompt_model._metrics.result import IssueSignal
 
 
 def _signal(

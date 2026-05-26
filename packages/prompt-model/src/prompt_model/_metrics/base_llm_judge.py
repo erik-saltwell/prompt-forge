@@ -1,27 +1,13 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, ClassVar, Protocol, runtime_checkable
+from typing import ClassVar
 
 from .._llm import acomplete
 from .._prompt import parse_from_string
+from .._rendering import RenderPromptStrategy
 from ..config import LiteLLMConfig
 from .result import MetricResult
-
-if TYPE_CHECKING:
-    from .._prompt import Document
-
-
-@runtime_checkable
-class RenderPromptStrategy(Protocol):
-    """Renders a Document as the string the judge LLM reads.
-
-    Mirrors the protocol in `_actor._render_prompt_strategy`; redefined here to
-    avoid a circular import through `_actor.__init__` → `revise` → `_candidate` → `_metrics`.
-    The two protocols are structurally compatible — any `_actor` render strategy satisfies both.
-    """
-
-    def render(self, tree: Document, focus_ids: set[str] | None) -> str: ...
 
 
 class BaseLLMJudgeMetric(ABC):
@@ -48,8 +34,7 @@ class BaseLLMJudgeMetric(ABC):
     ) -> None:
         self.litellm_config: LiteLLMConfig = litellm_config
         if render_strategy is None:
-            # Lazy import to avoid circular: _metrics → _actor.__init__ → revise → _candidate → _metrics
-            from .._actor._render_prompt_strategy import MarkdownRenderPromptStrategy
+            from .._rendering import MarkdownRenderPromptStrategy
 
             render_strategy = MarkdownRenderPromptStrategy()
         self.render_strategy: RenderPromptStrategy = render_strategy

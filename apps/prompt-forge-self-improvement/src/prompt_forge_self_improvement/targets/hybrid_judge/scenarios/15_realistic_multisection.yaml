@@ -1,0 +1,80 @@
+name: realistic_multisection
+description: |
+  Realistic end-to-end case: multi-section prompt, failure in the guidance
+  annotations on a list item. The culprit is a guidance annotation, not the
+  list item itself.
+
+  Tree IDs:
+    1       = Section "Task" (h1)
+    1.1     = Paragraph "You are a code reviewer. Review the Python snippet."
+    2       = Section "Review Checklist" (h1)
+    2.1     = List (unordered)
+    2.1.1   = ListItem "Check for security vulnerabilities."
+             - GuidanceGroup:
+               2.1.1.g1 = Annotation "Flag SQL injection, XSS, and path traversal risks."
+    2.1.2   = ListItem "Check for performance issues."
+             - GuidanceGroup:
+               2.1.2.g1 = Annotation "Flag O(n²) loops and missing indexes."
+    2.1.3   = ListItem "Check for code style."
+    3       = Section "Output" (h1)
+    3.1     = Paragraph "List each issue with severity: Critical, High, Medium, or Low."
+
+prompt_markdown: |
+  # Task
+
+  You are a code reviewer. Review the Python snippet.
+
+  # Review Checklist
+
+  - Check for security vulnerabilities.
+    ::: guidance
+    Flag SQL injection, XSS, and path traversal risks.
+    :::
+  - Check for performance issues.
+    ::: guidance
+    Flag O(n²) loops and missing indexes.
+    :::
+  - Check for code style.
+
+  # Output
+
+  List each issue with severity: Critical, High, Medium, or Low.
+
+case_input: |
+  ```python
+  import subprocess
+  def run_command(user_input):
+      result = subprocess.run(user_input, shell=True, capture_output=True)
+      return result.stdout
+  ```
+model_output: |
+  1. Code style: variable name 'result' is generic. Low.
+  2. Performance: no issues found.
+assessment: |
+  The code has a critical command injection vulnerability (shell=True with
+  unsanitized user_input). The security guidance annotation lists SQL injection,
+  XSS, and path traversal but omits command injection via shell=True.
+  The model followed the guidance literally and missed the unlisted vulnerability.
+
+golden_diagnosis:
+  culprit_node_id: "2.1.1.g1"
+  rationale: "The security guidance annotation lists three specific vulnerability classes (SQL injection, XSS, path traversal) but omits command injection via shell=True. The model applied the list literally and skipped the unlisted class."
+  target_behavior: "Extend the security guidance to include command injection patterns, especially shell=True with user-controlled input."
+  success_criterion: "The guidance annotation includes command injection and the model flags shell=True with user_input as Critical on the next run."
+  suggested_prompt_change: "Flag SQL injection, XSS, path traversal risks, and command injection (e.g., shell=True or os.system with user-controlled input)."
+
+criteria:
+  culprit_id_validity:
+    - "culprit_node_id '2.1.1.g1' exists in the XML prompt as a guidance annotation attribute."
+  culprit_localization:
+    - "The specific guidance annotation (2.1.1.g1) is the culprit — it omits command injection."
+    - "Citing the list item '2.1.1' is imprecise — the item text ('Check for security vulnerabilities') is fine; the guidance is incomplete."
+    - "Citing '2.1' (the list) or '2' (the section) would be too coarse."
+    - "Using 'document' is wrong — the fault is precisely in the guidance annotation."
+  diagnosis_specificity:
+    - "The rationale must identify 'command injection' as the omitted class and explain that the model followed the enumerated list literally."
+  actionability:
+    - "target_behavior should direct the prompt to add command injection to the guidance list."
+    - "success_criterion should name the specific pattern (shell=True) and the expected severity (Critical)."
+  suggested_change_calibration:
+    - "The fix is a concrete one-phrase addition to the guidance list — suggested_prompt_change should be non-null."

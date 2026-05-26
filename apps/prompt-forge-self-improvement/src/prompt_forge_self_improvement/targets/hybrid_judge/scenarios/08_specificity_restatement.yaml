@@ -1,0 +1,55 @@
+name: specificity_restatement
+description: |
+  The assessment gives a clear failure explanation. The judge must diagnose
+  *why* the cited node caused it — not merely restate what the assessment said.
+  Tests DiagnosisSpecificityMetric.
+
+  Tree IDs:
+    1    = Section "Task" (h1)
+    1.1  = Paragraph "Answer questions about software engineering best practices."
+    2    = Section "Guidelines" (h1)
+    2.1  = Paragraph "Follow industry standards."
+    3    = Section "Output" (h1)
+    3.1  = Paragraph "Give a brief, practical answer."
+
+prompt_markdown: |
+  # Task
+
+  Answer questions about software engineering best practices.
+
+  # Guidelines
+
+  Follow industry standards.
+
+  # Output
+
+  Give a brief, practical answer.
+
+case_input: "Should I use a single global database connection or a connection pool?"
+model_output: "Use a single global connection for simplicity."
+assessment: |
+  The correct answer is to use a connection pool. The model chose "simplicity"
+  as its criterion, but the Guidelines section does not specify which industry
+  standards apply or how to weigh simplicity against performance and safety.
+
+golden_diagnosis:
+  culprit_node_id: "2.1"
+  rationale: "The Guidelines paragraph cites 'industry standards' without naming any, leaving the model to substitute its own criterion (simplicity). Industry standards for database access universally recommend connection pooling for multi-user contexts."
+  target_behavior: "Name the relevant industry standard explicitly: use connection pooling in any context where multiple requests may run concurrently."
+  success_criterion: "The Guidelines section names connection pooling as the standard for concurrent contexts and the model recommends it on similar questions."
+  suggested_prompt_change: "Follow established industry standards for the domain. For database access: use connection pooling in any concurrent or multi-user context."
+
+criteria:
+  culprit_id_validity:
+    - "culprit_node_id '2.1' exists in the XML prompt."
+  culprit_localization:
+    - "Node 2.1 is the correct culprit — 'Follow industry standards' is too vague to guide the model."
+  diagnosis_specificity:
+    - "The rationale must name 'industry standards' as the vague placeholder and explain that the model substituted 'simplicity' as a criterion because no standard was named."
+    - "Simply saying 'the guidelines are not clear enough' is a restatement of the assessment, not a specific diagnosis."
+    - "The rationale should name the specific missing standard (connection pooling)."
+  actionability:
+    - "target_behavior should direct the prompt to name the specific standard relevant to the question domain."
+    - "success_criterion should reference a behavioral change: model recommends pooling on concurrent-context questions."
+  suggested_change_calibration:
+    - "The fix is concrete enough (add 'connection pooling for concurrent contexts') — suggested_prompt_change should be non-null."

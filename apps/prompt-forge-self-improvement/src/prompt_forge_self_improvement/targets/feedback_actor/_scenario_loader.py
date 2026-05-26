@@ -7,8 +7,8 @@ from pathlib import Path
 from typing import Any
 
 import yaml
-from prompt_model._actor._render_prompt_strategy import XmlRenderPromptStrategy
 from prompt_model._prompt import parse_from_string
+from prompt_model._rendering import XmlRenderPromptStrategy
 from prompt_model.config import EvalCase
 
 _XML_RENDERER: XmlRenderPromptStrategy = XmlRenderPromptStrategy()

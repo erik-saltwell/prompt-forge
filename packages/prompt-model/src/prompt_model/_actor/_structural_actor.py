@@ -9,9 +9,9 @@ from .._actions.apply_batch import AppliedReport, apply_batch
 from .._actions.inputs import ActionBatch
 from .._llm import acomplete
 from .._prompt import Document
+from .._rendering import RenderPromptStrategy
 from .._resources import load_prompt
 from ..config import LiteLLMConfig
-from ._render_prompt_strategy import RenderPromptStrategy
 
 _log = structlog.get_logger()
 _CODE_FENCE_RE: re.Pattern[str] = re.compile(r"```(?:json)?\s*(.*?)\s*```", re.DOTALL)
@@ -48,7 +48,7 @@ async def _cleanup_structure(
 ) -> Document:
     rendered_tree: str = prompt_renderer.render(tree, None)
     user_prompt: str = _build_user_prompt(rendered_tree, preserve)
-    system_prompt: str = load_prompt("structural_actor")
+    system_prompt: str = load_prompt("structural_actor").replace("{prompt_format_description}", prompt_renderer.describe_format())
     try:
         raw: str = await acomplete(
             system_prompt,

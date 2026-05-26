@@ -17,9 +17,9 @@ from typing import ClassVar
 
 from pydantic import BaseModel, Field
 
-from .._actor._critic_markdown import to_critic_markdown
 from .._llm import acomplete
 from .._prompt import parse_from_string
+from .._rendering import to_critic_markdown
 from ..config import LiteLLMConfig
 from .result import IssueSignal, MetricResult
 

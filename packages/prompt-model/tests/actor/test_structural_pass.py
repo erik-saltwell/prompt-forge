@@ -5,10 +5,10 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 from prompt_model._actions.inputs import ActionBatch
-from prompt_model._actor._render_prompt_strategy import XmlRenderPromptStrategy
 from prompt_model._actor._structural_actor import _cleanup_structure
 from prompt_model._prompt import Document
 from prompt_model._prompt.parsing.parse_prompt import parse_from_string
+from prompt_model._rendering import XmlRenderPromptStrategy
 from prompt_model.config import LiteLLMConfig
 
 

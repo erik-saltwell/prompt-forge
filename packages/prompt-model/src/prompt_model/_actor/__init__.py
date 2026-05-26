@@ -1,16 +1,14 @@
-from ._redaction import DefaultRedactionStrategy, NoRedactionStrategy, RedactionStrategy
-from ._render_prompt_strategy import (
+from .._rendering import (
+    DefaultSignalRenderingStrategy,
     JsonRenderPromptStrategy,
+    JsonSignalRenderingStrategy,
     MarkdownRenderPromptStrategy,
     RenderPromptStrategy,
-    XmlRenderPromptStrategy,
-)
-from ._signal_rendering_strategy import (
-    DefaultSignalRenderingStrategy,
-    JsonSignalRenderingStrategy,
     SignalRenderingStrategy,
+    XmlRenderPromptStrategy,
     XmlSignalRenderingStrategy,
 )
+from ._redaction import DefaultRedactionStrategy, NoRedactionStrategy, RedactionStrategy
 from ._structural_strategy import (
     always_cleanup_structure,
     cleanup_structure_on_move_actions,

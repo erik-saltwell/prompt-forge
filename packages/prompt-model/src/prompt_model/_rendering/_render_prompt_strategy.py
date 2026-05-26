@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from typing import Protocol, cast
+from typing import ClassVar, Protocol, cast
 from xml.sax.saxutils import escape, quoteattr
 
 from .._prompt import Document
@@ -16,35 +16,58 @@ from .._prompt.nodes import (
     Table,
 )
 from ._critic_markdown import to_critic_markdown
+from ._resources import load_rendering_resource
 
 ELIDED: str = "…"
 
 
 class RenderPromptStrategy(Protocol):
-    """Renders a Document as the string the actor LLM will read.
+    """Renders a Document as the string the LLM will read, and describes its
+    own rendering convention via `describe_format()`.
 
     `focus_ids = None` means render every node's content verbatim.
     Otherwise, nodes whose id is in the set keep their content; everything
     else is replaced by an elision marker. Structure and IDs always render.
+
+    `describe_format()` returns the markdown snippet a system prompt embeds
+    to teach the LLM how to read the rendered output and how to cite node
+    IDs back in its JSON response.
     """
 
     def render(self, tree: Document, focus_ids: set[str] | None) -> str: ...
 
+    def describe_format(self) -> str: ...
 
-class XmlRenderPromptStrategy:
+
+class _ResourceFormatDescription:
+    """Mixin: `describe_format()` loads `format_snippet_resource` from
+    `_resources/prompt_format/<name>.md`. Subclasses set the ClassVar.
+    """
+
+    format_snippet_resource: ClassVar[str]
+
+    def describe_format(self) -> str:
+        return load_rendering_resource("prompt_format", self.format_snippet_resource)
+
+
+class XmlRenderPromptStrategy(_ResourceFormatDescription):
     """Renders the tree as XML with `id` attributes on every addressable node."""
+
+    format_snippet_resource: ClassVar[str] = "xml"
 
     def render(self, tree: Document, focus_ids: set[str] | None) -> str:
         return _to_xml(tree, focus_ids=focus_ids)
 
 
-class JsonRenderPromptStrategy:
+class JsonRenderPromptStrategy(_ResourceFormatDescription):
     """Renders the tree as JSON via Pydantic's `model_dump`.
 
     When `focus_ids` is provided, the `text` field of any node whose `id`
     is not in the set is replaced by the elision marker. Structural fields
     (`level`, `ordered`, `info`, `node_type`, `id`) are always preserved.
     """
+
+    format_snippet_resource: ClassVar[str] = "json"
 
     def render(self, tree: Document, focus_ids: set[str] | None) -> str:
         data: object = tree.model_dump(mode="json")
@@ -53,10 +76,12 @@ class JsonRenderPromptStrategy:
         return json.dumps(data, indent=2, ensure_ascii=False)
 
 
-class MarkdownRenderPromptStrategy:
+class MarkdownRenderPromptStrategy(_ResourceFormatDescription):
     """Critic-form: conforming markdown interleaved with `<!-- id -->` HTML
     comments per `prompt-serialization.md`.
     """
+
+    format_snippet_resource: ClassVar[str] = "markdown"
 
     def render(self, tree: Document, focus_ids: set[str] | None) -> str:
         return to_critic_markdown(tree, focus_ids=focus_ids)

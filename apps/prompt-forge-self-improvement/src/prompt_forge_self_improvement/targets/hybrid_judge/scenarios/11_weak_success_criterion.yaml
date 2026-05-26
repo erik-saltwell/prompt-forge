@@ -1,0 +1,59 @@
+name: weak_success_criterion
+description: |
+  Tests that success_criterion is an observable predicate, not a restatement
+  like "the model would answer correctly" or "the output would be better."
+
+  Tree IDs:
+    1    = Section "Task" (h1)
+    1.1  = Paragraph "Answer questions about Python programming."
+    2    = Section "Style" (h1)
+    2.1  = Paragraph "Be concise."
+    3    = Section "Output" (h1)
+    3.1  = Paragraph "Provide working code examples when relevant."
+
+prompt_markdown: |
+  # Task
+
+  Answer questions about Python programming.
+
+  # Style
+
+  Be concise.
+
+  # Output
+
+  Provide working code examples when relevant.
+
+case_input: "How do I read a file line by line in Python?"
+model_output: |
+  You can use the open() function with a for loop to read a file line by line.
+  This is the standard way to iterate through file contents. Python's file
+  handling is very powerful. Here is a brief mention that you should use
+  with statements for context management. There are many ways to do this.
+  The for loop approach is most Pythonic.
+assessment: |
+  The response is verbose and repetitive. The Style section says "Be concise"
+  but provides no length limit or definition of concise, so the model produced
+  a 6-sentence answer when 2 would suffice. No code example was provided.
+
+golden_diagnosis:
+  culprit_node_id: "2.1"
+  rationale: "The Style paragraph says 'Be concise' without any length guidance. Without a target length or a definition of concise for code questions, the model defaults to verbose explanations."
+  target_behavior: "Require the model to answer code questions in at most 2–3 sentences of explanation followed directly by a code snippet."
+  success_criterion: "The Style section defines a maximum explanation length (e.g., 2 sentences) and responses to straightforward code questions stay within that limit."
+  suggested_prompt_change: "Be concise: limit prose explanation to 2–3 sentences; always follow with a code example for code questions."
+
+criteria:
+  culprit_id_validity:
+    - "culprit_node_id '2.1' exists in the XML prompt."
+  culprit_localization:
+    - "Node 2.1 is the correct culprit — 'Be concise' is undefined."
+  diagnosis_specificity:
+    - "The rationale should name the absence of a length definition as the mechanism."
+  actionability:
+    - "target_behavior must be action-oriented: tell the model to limit explanation to N sentences, not just 'be clearer about conciseness'."
+    - "success_criterion must be an observable predicate that can be verified on the next output."
+    - "'The model would answer correctly' is too weak — success_criterion should state something like 'responses stay within N sentences'."
+    - "'The output would be better' is not a predicate — it cannot be checked objectively."
+  suggested_change_calibration:
+    - "The fix is a concrete sentence with a measurable limit — suggested_prompt_change should be non-null."

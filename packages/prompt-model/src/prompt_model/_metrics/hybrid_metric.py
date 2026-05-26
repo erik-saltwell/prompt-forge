@@ -2,10 +2,11 @@
 
 Subclasses provide pure-compute scoring via `score_case` and optionally pass a
 `LiteLLMConfig` for the judge. On a miss (or whenever `needs_judge` returns
-True), the base class renders the prompt with an HTML-comment ID overlay,
-calls the judge LLM with a `JudgeDiagnosis` response schema, and assembles a
-fully-built `IssueSignal` — with verbatim `input_snippet` and `output_snippet`
-the metric supplies (the LLM never paraphrases evidence).
+True), the base class renders the prompt via a `RenderPromptStrategy` (default:
+`XmlRenderPromptStrategy`), calls the judge LLM with a `JudgeDiagnosis`
+response schema, and assembles a fully-built `IssueSignal` — with verbatim
+`input_snippet` and `output_snippet` the metric supplies (the LLM never
+paraphrases evidence).
 
 The default judge system prompt lives at `_resources/hybrid_judge.md`.
 Subclasses customise via either:
@@ -26,9 +27,9 @@ from typing import ClassVar
 
 from pydantic import BaseModel, Field, field_validator
 
-from .._actor._critic_markdown import to_critic_markdown
 from .._llm import acomplete
 from .._prompt import parse_from_string
+from .._rendering import RenderPromptStrategy
 from ..config import LiteLLMConfig
 from ._resources import load_metric_resource
 from .result import IssueSignal, MetricResult
@@ -40,8 +41,9 @@ class JudgeDiagnosis(BaseModel):
     culprit_node_id: str = Field(
         description=(
             "ID of the prompt node most responsible for the failure. Must be an id that appears "
-            "in an <!-- id --> comment in the prompt, or the literal string 'document' when the "
-            "failure cannot be localized to a single node."
+            "verbatim in the rendered prompt above (as shown by the prompt-format section of the "
+            "system prompt), or the literal string 'document' when the failure cannot be "
+            "localized to a single node."
         ),
     )
     rationale: str = Field(description="Why the cited node is at fault for this specific failure.")
@@ -80,8 +82,13 @@ class HybridMetric(ABC):
     description: ClassVar[str]
     judge_system_prompt_resource: ClassVar[str] = "hybrid_judge"
 
-    def __init__(self, judge_llm: LiteLLMConfig | None = None) -> None:
+    def __init__(self, judge_llm: LiteLLMConfig | None = None, render_strategy: RenderPromptStrategy | None = None) -> None:
         self.judge_llm: LiteLLMConfig | None = judge_llm
+        if render_strategy is None:
+            from .._rendering import XmlRenderPromptStrategy
+
+            render_strategy = XmlRenderPromptStrategy()
+        self.render_strategy: RenderPromptStrategy = render_strategy
 
     @abstractmethod
     def score_case(
@@ -98,8 +105,11 @@ class HybridMetric(ABC):
         return score < 1.0
 
     def judge_system_prompt(self) -> str:
-        """Return the system prompt the judge sees. Default: load the bundled resource."""
-        return load_metric_resource(self.judge_system_prompt_resource)
+        """Return the system prompt the judge sees. Default: load the bundled resource and
+        substitute `{prompt_format_description}` with the active render strategy's snippet.
+        """
+        template: str = load_metric_resource(self.judge_system_prompt_resource)
+        return template.replace("{prompt_format_description}", self.render_strategy.describe_format())
 
     def judge_user_prompt(
         self,
@@ -109,7 +119,10 @@ class HybridMetric(ABC):
         ground_truth: str | None,
         assessment: str,
     ) -> str:
-        """Return the user message the judge sees. Default: the four-block layout from `hybrid_judge.md`."""
+        """Return the user message the judge sees. Default: the four-block layout from `hybrid_judge.md`.
+
+        `prompt_with_ids` is the XML representation of the prompt tree (rendered by `render_strategy`).
+        """
         gt_block: str = f"\n\n<ground_truth>\n{ground_truth}\n</ground_truth>" if ground_truth is not None else ""
         return (
             f"<prompt>\n{prompt_with_ids}\n</prompt>\n\n"
@@ -143,7 +156,7 @@ class HybridMetric(ABC):
         assessment: str,
     ) -> IssueSignal:
         document = parse_from_string(prompt)
-        prompt_with_ids: str = to_critic_markdown(document)
+        prompt_with_ids: str = self.render_strategy.render(document, focus_ids=None)
         diagnosis: JudgeDiagnosis = await acomplete(
             system_prompt=self.judge_system_prompt(),
             user_prompt=self.judge_user_prompt(prompt_with_ids, case_input, model_output, ground_truth, assessment),

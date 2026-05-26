@@ -1,0 +1,54 @@
+name: document_sentinel
+description: |
+  The judge correctly uses "document" when the failure is caused by an entirely
+  missing section — not by any existing node. The structural gate should pass.
+
+  Tree IDs:
+    1    = Section "Task" (h1)
+    1.1  = Paragraph "Summarize the article in 3 bullet points."
+    2    = Section "Output" (h1)
+    2.1  = Paragraph "Return your answer as plain text."
+
+prompt_markdown: |
+  # Task
+
+  Summarize the article in 3 bullet points.
+
+  # Output
+
+  Return your answer as plain text.
+
+case_input: |
+  Article: Scientists have discovered that certain gut bacteria may influence mood
+  disorders. The study tracked 500 participants over two years, measuring both gut
+  microbiome composition and depression scores. Results showed a significant
+  correlation between low Lactobacillus levels and elevated depression scores.
+model_output: |
+  The study found that gut bacteria affect mood.
+  The research tracked 500 people.
+  Depression was measured.
+assessment: |
+  The summary omits the key finding (Lactobacillus / depression correlation) and
+  replaces it with vague restatements. The prompt has no guidance on what counts
+  as a key finding or how to prioritize content — it only says "3 bullet points".
+
+golden_diagnosis:
+  culprit_node_id: "document"
+  rationale: "No section in the prompt defines what makes a bullet point a key finding vs. a trivial restatement. The prompt lacks any content-prioritization guidance."
+  target_behavior: "Add a section instructing the model to identify and include the study's main result, not just any three facts."
+  success_criterion: "The prompt contains explicit guidance on finding-selection and the next summary includes the correlation finding."
+  suggested_prompt_change: null
+
+criteria:
+  culprit_id_validity:
+    - "culprit_node_id is 'document', which is the valid sentinel."
+  culprit_localization:
+    - "Using 'document' is correct here because the problem is an absent content-selection rule, not a flaw in any existing node."
+    - "Citing '1.1' would be wrong — that node correctly says '3 bullet points' but simply has no prioritization guidance to fix."
+  diagnosis_specificity:
+    - "The rationale must identify 'content-prioritization guidance' as the missing element, not just say 'the prompt is vague'."
+  actionability:
+    - "target_behavior should direct the model to prioritize findings, not just 'improve the summary'."
+    - "success_criterion should name the specific finding that should appear in the output."
+  suggested_change_calibration:
+    - "The structural gap (missing section) means null is appropriate — the diagnostician cannot determine the best section placement or wording."

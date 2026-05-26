@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 from prompt_model._actor._redaction import DefaultRedactionStrategy
-from prompt_model._actor._render_prompt_strategy import XmlRenderPromptStrategy
 from prompt_model._prompt import Document
 from prompt_model._prompt.parsing.parse_prompt import parse_from_string
+from prompt_model._rendering import XmlRenderPromptStrategy
 
 
 def _render(tree: Document, culprit_id: str) -> str:

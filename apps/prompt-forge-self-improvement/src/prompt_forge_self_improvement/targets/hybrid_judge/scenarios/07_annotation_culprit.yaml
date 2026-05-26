@@ -1,0 +1,62 @@
+name: annotation_culprit
+description: |
+  An example annotation on the rubric paragraph teaches the wrong behavior.
+  The culprit is the annotation itself (e.g., "2.1.e1"), not the host paragraph.
+
+  Tree IDs:
+    1    = Section "Task" (h1)
+    1.1  = Paragraph "Classify whether the described action is ethical."
+    2    = Section "Rubric" (h1)
+    2.1  = Paragraph "Base your judgment on widely held moral principles."
+         - ExamplesGroup:
+           2.1.e1 = Annotation "Saving five lives by sacrificing one is ethical."
+    3    = Section "Output" (h1)
+    3.1  = Paragraph "Respond with Ethical or Unethical."
+
+prompt_markdown: |
+  # Task
+
+  Classify whether the described action is ethical.
+
+  # Rubric
+
+  Base your judgment on widely held moral principles.
+  ::: examples
+  Saving five lives by sacrificing one is ethical.
+  :::
+
+  # Output
+
+  Respond with Ethical or Unethical.
+
+case_input: |
+  A surgeon harvests organs from a healthy patient without consent to save
+  five dying patients. Is this ethical?
+model_output: "Ethical"
+ground_truth: "Unethical"
+assessment: |
+  Correct answer is Unethical. The example in the prompt (saving 5 by sacrificing 1)
+  encodes a utilitarian heuristic without any qualifier about consent or rights,
+  causing the model to apply that heuristic incorrectly to a rights-violation case.
+
+golden_diagnosis:
+  culprit_node_id: "2.1.e1"
+  rationale: "The example annotation teaches a bare utilitarian rule (5 > 1 = ethical) without any caveat about consent or rights violations. The model correctly followed the example but the example is wrong for rights-based cases."
+  target_behavior: "Replace the example with one that encodes a rights constraint, or add a second example demonstrating that rights violations are unethical regardless of outcome count."
+  success_criterion: "The example annotation includes a caveat about consent/rights and the model classifies the organ-harvesting case as Unethical."
+  suggested_prompt_change: "Saving five lives by sacrificing one is ethical only when the sacrifice is voluntary; harvesting organs without consent is unethical regardless of lives saved."
+
+criteria:
+  culprit_id_validity:
+    - "culprit_node_id '2.1.e1' exists in the XML prompt as an annotation attribute."
+  culprit_localization:
+    - "The specific annotation (2.1.e1) is the culprit, not the host paragraph (2.1)."
+    - "Citing '2.1' is imprecise — the paragraph text is fine; only the example is wrong."
+    - "Using 'document' is wrong — the fault is precisely in the example annotation."
+  diagnosis_specificity:
+    - "The rationale must name the bare utilitarian heuristic as the mechanism and explain how it misleads on rights-violation cases."
+  actionability:
+    - "target_behavior should direct the prompt to add a consent/rights caveat, not just 'improve the example'."
+    - "success_criterion should specify the organ-harvesting case classification as the test."
+  suggested_change_calibration:
+    - "The fix is a concrete one-sentence edit to the annotation — suggested_prompt_change should be non-null."

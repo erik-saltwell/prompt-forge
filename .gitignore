@@ -36,3 +36,7 @@ logs/
 
 # Claude session locks
 .claude/scheduled_tasks.lock
+
+/logs/
+logs/
+logs

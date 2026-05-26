@@ -1,0 +1,54 @@
+name: valid_id
+description: |
+  The judge correctly cites a real node id from the XML prompt.
+  The structural gate should pass (score 1.0).
+
+  Tree IDs:
+    1    = Section "Task" (h1)
+    1.1  = Paragraph "Answer yes/no questions about cause and effect."
+    2    = Section "Rubric" (h1)
+    2.1  = Paragraph "Use common sense when evaluating causation."
+    3    = Section "Output" (h1)
+    3.1  = Paragraph "Respond with Yes or No."
+
+prompt_markdown: |
+  # Task
+
+  Answer yes/no questions about cause and effect.
+
+  # Rubric
+
+  Use common sense when evaluating causation.
+
+  # Output
+
+  Respond with Yes or No.
+
+case_input: "Did leaving the window open cause the room to get cold?"
+model_output: "Yes"
+assessment: |
+  Correct answer is No — the open window alone does not cause cold unless the
+  outside temperature is lower. The rubric does not instruct the model to
+  consider temperature differential or counterfactual necessity.
+
+golden_diagnosis:
+  culprit_node_id: "2.1"
+  rationale: "The rubric says 'use common sense' without defining what factors to weigh, leaving the model unable to apply counterfactual reasoning consistently."
+  target_behavior: "Instruct the model to check whether the effect would have occurred without the cause before answering Yes."
+  success_criterion: "The rubric names counterfactual necessity as a required test and the model applies it on the next case."
+  suggested_prompt_change: "Apply the counterfactual test: ask whether the outcome would have occurred even without the cited cause. If yes, answer No."
+
+criteria:
+  culprit_id_validity:
+    - "culprit_node_id is '2.1', which exists in the XML prompt."
+  culprit_localization:
+    - "Node 2.1 (the Rubric paragraph) is the correct culprit — it fails to define the causation criteria."
+    - "Citing section '2' instead of paragraph '2.1' would be imprecise."
+  diagnosis_specificity:
+    - "The rationale must name 'common sense' as the vague term and explain that counterfactual reasoning is missing."
+    - "Simply saying 'the rubric is unclear' is too vague."
+  actionability:
+    - "target_behavior should instruct the model to apply a specific test (e.g. counterfactual), not just 'be more specific'."
+    - "success_criterion should be checkable on the next test case, not just 'model answers correctly'."
+  suggested_change_calibration:
+    - "The fix is a one-sentence rule addition — suggested_prompt_change should be non-null and concrete."

@@ -5,12 +5,11 @@ import random
 import time
 import uuid
 from collections import defaultdict
+from collections.abc import Callable
 
 import structlog
 
 from ._actor._redaction import RedactionStrategy
-from ._actor._render_prompt_strategy import RenderPromptStrategy
-from ._actor._signal_rendering_strategy import SignalRenderingStrategy
 from ._actor.revise import StructuralCleanupPredicate, revise
 from ._candidate import Candidate
 from ._critic.composite_scorer import CompositeScorer, MeanScorer
@@ -19,6 +18,7 @@ from ._llm._concurrency import set_llm_concurrency
 from ._metrics import Metric, MetricResult
 from ._progress import ProgressEvent, ProgressReporter, RunProgress, StepProgress, TaskProgress
 from ._prompt import Document, parse_from_string
+from ._rendering import RenderPromptStrategy, SignalRenderingStrategy
 from ._result import CandidateSummary, OptimizationResult
 from .config import OptimizerConfig
 from .config.strategies import (
@@ -42,6 +42,7 @@ async def optimize_prompt(
     prompt_render_strategy: RenderPromptStrategy | None = None,
     signal_rendering_strategy: SignalRenderingStrategy | None = None,
     structural_cleanup_predicate: StructuralCleanupPredicate | None = None,
+    on_checkpoint: Callable[[str], None] | None = None,
 ) -> OptimizationResult:
     """Optimize a prompt against a set of evaluation cases. See docs/orchestration.md."""
     if not metrics:
@@ -52,8 +53,12 @@ async def optimize_prompt(
     # Resolve strategies: explicit kwargs take precedence; fall back to config-driven factories.
     resolved_redaction: RedactionStrategy = redaction_strategy or make_redaction_strategy(config.redaction_strategy)
     resolved_prompt_render: RenderPromptStrategy = prompt_render_strategy or make_prompt_render_strategy(config.prompt_render_strategy)
-    resolved_signal_render: SignalRenderingStrategy = signal_rendering_strategy or make_signal_render_strategy(config.signal_render_strategy)
-    resolved_structural: StructuralCleanupPredicate = structural_cleanup_predicate or make_structural_cleanup_predicate(config.structural_cleanup)
+    resolved_signal_render: SignalRenderingStrategy = signal_rendering_strategy or make_signal_render_strategy(
+        config.signal_render_strategy
+    )
+    resolved_structural: StructuralCleanupPredicate = structural_cleanup_predicate or make_structural_cleanup_predicate(
+        config.structural_cleanup
+    )
 
     if config.seed is not None:
         random.seed(config.seed)
@@ -101,12 +106,16 @@ async def optimize_prompt(
                 n_cases=n_cases,
                 floor=floor,
                 warmup=warmup,
+                on_checkpoint=on_checkpoint,
             )
         outcome = "success"
         return _build_result(pool, floor, config.top_k_per_iteration, iterations_run, total_errors)
     except BaseException as exc:
         error_type = type(exc).__name__
         error_message = str(exc)
+        # Fire one last checkpoint so any completed iterations aren't lost.
+        if on_checkpoint is not None:
+            _try_checkpoint(pool, floor, on_checkpoint)
         raise
     finally:
         _log.info(
@@ -136,6 +145,7 @@ async def _run_optimization_body(
     n_cases: int,
     floor: int,
     warmup: int,
+    on_checkpoint: Callable[[str], None] | None,
 ) -> tuple[list[Candidate], int, int, float]:
     pool: list[Candidate] = [Candidate(prompt=seed_doc, case_ids=list(range(n_cases)))]
     pool, bootstrap_errors = await select_top_candidates(
@@ -160,6 +170,7 @@ async def _run_optimization_body(
             break
 
         structlog.contextvars.bind_contextvars(round=iteration)
+        round_start_time: float = time.monotonic()
         try:
             _log.info("round.start", survivor_count=len(survivors), pool_size_in=len(pool))
 
@@ -184,6 +195,13 @@ async def _run_optimization_body(
 
             if not children_docs:
                 iterations_run += 1
+                _log.info(
+                    "round.end",
+                    duration_ms=int((time.monotonic() - round_start_time) * 1000),
+                    best_score=_pool_best_score(pool, floor),
+                    children_produced=0,
+                    early_stop=False,
+                )
                 break
 
             children: list[Candidate] = [Candidate(prompt=doc, case_ids=list(range(n_cases))) for doc in children_docs]
@@ -205,13 +223,33 @@ async def _run_optimization_body(
             iterations_run += 1
 
             best_history.append(_pool_best_score(pool, floor))
-            if _should_early_stop(best_history, config.early_stop_patience, config.min_improvement_delta):
+            early_stop: bool = _should_early_stop(best_history, config.early_stop_patience, config.min_improvement_delta)
+            _log.info(
+                "round.end",
+                duration_ms=int((time.monotonic() - round_start_time) * 1000),
+                best_score=best_history[-1],
+                children_produced=len(children_docs),
+                early_stop=early_stop,
+            )
+            _try_checkpoint(pool, floor, on_checkpoint)
+            if early_stop:
                 break
         finally:
             structlog.contextvars.unbind_contextvars("round")
 
     best_score: float = _pool_best_score(pool, floor)
     return pool, total_errors, iterations_run, best_score
+
+
+def _try_checkpoint(pool: list[Candidate], floor: int, callback: Callable[[str], None] | None) -> None:
+    """Call `callback` with the best prompt in the pool if one is available. No-op if callback is None."""
+    if callback is None:
+        return
+    floored: list[Candidate] = [c for c in pool if c.tested_count >= floor]
+    if not floored:
+        return
+    best: Candidate = max(floored, key=lambda c: c.mean_score)
+    callback(best.prompt.to_markdown())
 
 
 def _select_survivors(pool: list[Candidate], floor: int, top_k: int) -> list[Candidate]:

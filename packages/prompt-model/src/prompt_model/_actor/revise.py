@@ -15,12 +15,16 @@ from .._candidate.candidate import Candidate
 from .._llm import acomplete
 from .._metrics._aggregator import AggregatedNodeBucket, AggregationResult, aggregate
 from .._prompt import Document
+from .._rendering import (
+    DefaultSignalRenderingStrategy,
+    RenderPromptStrategy,
+    SignalRenderingStrategy,
+    XmlRenderPromptStrategy,
+)
 from .._resources import load_prompt
 from .._utils.identity import candidate_id_of
 from ..config import LiteLLMConfig
 from ._redaction import DefaultRedactionStrategy, RedactionStrategy
-from ._render_prompt_strategy import RenderPromptStrategy, XmlRenderPromptStrategy
-from ._signal_rendering_strategy import DefaultSignalRenderingStrategy, SignalRenderingStrategy
 from ._structural_actor import _cleanup_structure
 from ._structural_strategy import always_cleanup_structure
 
@@ -83,7 +87,11 @@ async def _process_feedback(
     rendered_tree: str = prompt_renderer.render(tree, focus_ids)
     rendered_signals: str = signal_renderer.render(bucket)
     user_prompt: str = _build_user_prompt(rendered_tree, rendered_signals, preserve)
-    system_prompt: str = load_prompt("feedback_actor")
+    system_prompt: str = (
+        load_prompt("feedback_actor")
+        .replace("{prompt_format_description}", prompt_renderer.describe_format())
+        .replace("{signal_format_description}", signal_renderer.describe_format())
+    )
     try:
         raw: str = await acomplete(
             system_prompt,

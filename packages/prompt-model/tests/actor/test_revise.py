@@ -156,8 +156,8 @@ def test_structural_cleanup_predicate_override_disables_structural_pass() -> Non
 
 
 def test_render_strategy_override_is_used() -> None:
-    from prompt_model._actor._render_prompt_strategy import RenderPromptStrategy
     from prompt_model._prompt import Document as DocumentType
+    from prompt_model._rendering import RenderPromptStrategy
 
     class _SentinelRenderer:
         def __init__(self) -> None:
@@ -166,6 +166,9 @@ def test_render_strategy_override_is_used() -> None:
         def render(self, tree: DocumentType, focus_ids: set[str] | None) -> str:
             self.call_count += 1
             return "<sentinel-rendered/>"
+
+        def describe_format(self) -> str:
+            return "sentinel format"
 
     renderer: RenderPromptStrategy = _SentinelRenderer()
     candidate = _candidate(results=[_metric_result("1.1")])

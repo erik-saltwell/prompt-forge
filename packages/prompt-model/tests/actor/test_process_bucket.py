@@ -6,14 +6,13 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from prompt_model._actions.inputs import ActionBatch
 from prompt_model._actor._redaction import DefaultRedactionStrategy
-from prompt_model._actor._render_prompt_strategy import XmlRenderPromptStrategy
-from prompt_model._actor._signal_rendering_strategy import DefaultSignalRenderingStrategy
 from prompt_model._actor._structural_strategy import always_cleanup_structure, never_cleanup_structure
 from prompt_model._actor.revise import StructuralCleanupPredicate, _process_bucket
 from prompt_model._metrics._aggregator import AggregatedNodeBucket
 from prompt_model._metrics.result import IssueSignal
 from prompt_model._prompt import Document
 from prompt_model._prompt.parsing.parse_prompt import parse_from_string
+from prompt_model._rendering import DefaultSignalRenderingStrategy, XmlRenderPromptStrategy
 from prompt_model.config import LiteLLMConfig
 
 

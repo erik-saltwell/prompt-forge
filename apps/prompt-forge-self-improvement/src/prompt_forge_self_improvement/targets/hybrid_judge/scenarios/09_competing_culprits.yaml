@@ -1,0 +1,61 @@
+name: competing_culprits
+description: |
+  Two nodes could plausibly be blamed. The judge must reason to the single most
+  responsible one. Tests both localization and specificity.
+
+  Tree IDs:
+    1    = Section "Task" (h1)
+    1.1  = Paragraph "Translate the text from English to French."
+    2    = Section "Quality" (h1)
+    2.1  = Paragraph "Preserve the meaning of the original text."
+    2.2  = Paragraph "Use formal register."
+    3    = Section "Output" (h1)
+    3.1  = Paragraph "Output only the translated text."
+
+prompt_markdown: |
+  # Task
+
+  Translate the text from English to French.
+
+  # Quality
+
+  Preserve the meaning of the original text.
+
+  Use formal register.
+
+  # Output
+
+  Output only the translated text.
+
+case_input: |
+  "Hey, what's up? Can you shoot me a quick message when you get a chance?"
+model_output: |
+  Hé, quoi de neuf ? Peux-tu m'envoyer un message rapide quand tu as un moment ?
+assessment: |
+  The translation uses informal register ("Hé, quoi de neuf"). The Quality
+  section says "Use formal register" but does not explain what formal register
+  means in French or give any examples, leaving the model to guess.
+
+golden_diagnosis:
+  culprit_node_id: "2.2"
+  rationale: "Node 2.2 says 'Use formal register' without defining it or giving examples. In French, formal register requires 'vous' (not 'tu'), avoidance of colloquial fillers, and formal greetings — none of which are specified."
+  target_behavior: "Define formal register for French: use 'vous', avoid colloquialisms, and use formal greeting conventions."
+  success_criterion: "The Quality section defines French formal register and the translation uses 'vous' and avoids colloquial expressions."
+  suggested_prompt_change: "Use formal register: employ 'vous' for second-person address, avoid colloquial fillers, and use conventional formal greetings."
+
+criteria:
+  culprit_id_validity:
+    - "culprit_node_id must be a real id from the XML."
+  culprit_localization:
+    - "Node 2.2 ('Use formal register') is the most responsible culprit — it gives a constraint without defining it."
+    - "Node 2.1 ('Preserve the meaning') is not at fault — the translation does preserve the meaning (informal greeting → informal greeting)."
+    - "Citing both 2.1 and 2.2 or citing section '2' would be imprecise — only 2.2 is at fault."
+    - "Using 'document' is wrong — the fault is in a specific existing paragraph."
+  diagnosis_specificity:
+    - "The rationale must identify 'formal register' as undefined and name at least one specific French formal register requirement (e.g., 'vous')."
+    - "Saying 'the quality section is vague' without naming the specific missing definition is insufficient."
+  actionability:
+    - "target_behavior should name French-specific formal register requirements."
+    - "success_criterion should cite 'vous' or another verifiable marker."
+  suggested_change_calibration:
+    - "The fix is a concrete definition clause — suggested_prompt_change should be non-null."

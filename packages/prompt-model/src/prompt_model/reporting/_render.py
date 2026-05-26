@@ -29,6 +29,7 @@ class _Stats:
     failures_by_event: Counter[str] = field(default_factory=Counter)
     applied_by_action_type: Counter[str] = field(default_factory=Counter)
     skipped_by_action_type: Counter[str] = field(default_factory=Counter)
+    round_end_events: list[dict[str, object]] = field(default_factory=list)
 
 
 def _record_failure(stats: _Stats, ev: dict[str, object], event_name: str) -> None:
@@ -130,6 +131,17 @@ def _aggregate(events: Iterable[dict[str, object]]) -> _Stats:
                 error_type = ev.get("error_type")
                 if isinstance(error_type, str) and "Validation" not in error_type:
                     stats.transport_errors += 1
+            case "round.end":
+                stats.round_end_events.append(
+                    {
+                        "run_id": ev.get("run_id"),
+                        "round": ev.get("round"),
+                        "duration_ms": ev.get("duration_ms"),
+                        "best_score": ev.get("best_score"),
+                        "children_produced": ev.get("children_produced"),
+                        "early_stop": ev.get("early_stop"),
+                    }
+                )
 
     # Seed candidate is implicit; total_candidates already counts revise-produced children
     # plus the seed candidates observed in critic_evaluation events.
@@ -139,6 +151,59 @@ def _aggregate(events: Iterable[dict[str, object]]) -> _Stats:
 
 def _h(s: object) -> str:
     return html.escape(str(s))
+
+
+def _fmt_ms(ms: object) -> str:
+    """Format a millisecond value as a human-readable duration string."""
+    if not isinstance(ms, (int, float)):
+        return "—"
+    ms_val: float = float(ms)
+    if ms_val < 1_000:
+        return f"{ms_val:.0f} ms"
+    if ms_val < 60_000:
+        return f"{ms_val / 1_000:.1f} s"
+    if ms_val < 3_600_000:
+        minutes: int = int(ms_val / 60_000)
+        seconds: float = (ms_val % 60_000) / 1_000
+        return f"{minutes}m {seconds:.0f}s"
+    hours: int = int(ms_val / 3_600_000)
+    minutes_r: int = int((ms_val % 3_600_000) / 60_000)
+    seconds_r: float = (ms_val % 60_000) / 1_000
+    return f"{hours}h {minutes_r}m {seconds_r:.0f}s"
+
+
+def _iteration_timing_rows(stats: _Stats) -> str:
+    """Build table rows for per-iteration timing, grouped by run_id."""
+    events: list[dict[str, object]] = sorted(
+        stats.round_end_events,
+        key=lambda e: (str(e.get("run_id") or ""), int(e.get("round") or 0)),
+    )
+    if not events:
+        return "<tr><td colspan='5'><em>No round.end events found — re-run to capture iteration timings.</em></td></tr>"
+
+    rows: list[str] = []
+    for ev in events:
+        run_id: object = ev.get("run_id")
+        round_num: object = ev.get("round")
+        duration_ms: object = ev.get("duration_ms")
+        best_score: object = ev.get("best_score")
+        children: object = ev.get("children_produced")
+        early_stop: object = ev.get("early_stop")
+
+        score_str: str = f"{float(best_score):.4f}" if isinstance(best_score, (int, float)) else "—"
+        children_str: str = str(int(children)) if isinstance(children, int) else "—"  # type: ignore[arg-type]
+        stop_badge: str = " <span title='early stop triggered'>⏹</span>" if early_stop else ""
+
+        rows.append(
+            "<tr>"
+            f"<td>{_h(run_id)}</td>"
+            f"<td class='num'>{_h(round_num)}</td>"
+            f"<td class='num'>{_h(_fmt_ms(duration_ms))}</td>"
+            f"<td class='num'>{score_str}</td>"
+            f"<td class='num'>{children_str}{stop_badge}</td>"
+            "</tr>"
+        )
+    return "".join(rows)
 
 
 def _action_funnel(stats: _Stats) -> str:
@@ -230,6 +295,7 @@ td.num { text-align: right; font-variant-numeric: tabular-nums; }
 .summary div { margin: .25em 0; }
 .label { display: inline-block; min-width: 14em; color: #666; }
 .funnel { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; padding: .5em .75em; background: #f4f4f4; border-radius: 4px; }
+.muted { color: #999; font-size: .85em; }
 """
 
 
@@ -243,7 +309,8 @@ def render_report(jsonl_path: Path) -> str:
         f"<div><span class='label'>Iterations completed</span> <strong>{stats.iterations_run}</strong></div>"
         f"<div><span class='label'>Total candidates</span> <strong>{stats.total_candidates}</strong></div>"
         f"<div><span class='label'>Best score</span> <strong>{stats.best_score:.4f}</strong></div>"
-        f"<div><span class='label'>Total duration (ms)</span> <strong>{stats.duration_ms}</strong></div>"
+        f"<div><span class='label'>Total duration</span> <strong>{_fmt_ms(stats.duration_ms)}</strong>"
+        f" <span class='muted'>({stats.duration_ms:,} ms)</span></div>"
     )
 
     failed_optimize_runs: int = stats.failures_by_event.get("optimize_run", 0)
@@ -268,6 +335,7 @@ def render_report(jsonl_path: Path) -> str:
     runs_rows: str = _runs_table(stats)
     failure_rows: str = _failure_rows(stats)
     action_type_rows: str = _action_type_rows(stats)
+    iteration_timing_rows: str = _iteration_timing_rows(stats)
 
     return f"""<!doctype html>
 <html lang="en">
@@ -313,6 +381,12 @@ def render_report(jsonl_path: Path) -> str:
 <table>
 <thead><tr><th>Metric</th><th>Results returned</th></tr></thead>
 <tbody>{metric_rows}</tbody>
+</table>
+
+<h2>Iteration timings</h2>
+<table>
+<thead><tr><th>run_id</th><th>Iteration</th><th>Duration</th><th>Best score</th><th>Children</th></tr></thead>
+<tbody>{iteration_timing_rows}</tbody>
 </table>
 
 <h2>Runs observed</h2>

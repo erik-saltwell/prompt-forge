@@ -4,23 +4,48 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import json
 import sys
 from pathlib import Path
 
 import structlog
 import structlog.dev
+from structlog.typing import EventDict, WrappedLogger
 
 from ._registry import REGISTRY
 from ._runner import run_target
 
 
-def _configure_logging() -> None:
-    """Route structlog output to stderr so it is visible without PYTHONUNBUFFERED."""
+class _JsonlTee:
+    """Structlog processor that writes JSONL to a file and passes the event dict through.
+
+    Placed before the ConsoleRenderer so both sinks see the same structured event.
+    The resulting JSONL is compatible with `python -m prompt_model.reporting`.
+    """
+
+    def __init__(self, path: Path) -> None:
+        self._f = path.open("a", encoding="utf-8")
+
+    def __call__(self, _logger: WrappedLogger, _method: str, event_dict: EventDict) -> EventDict:
+        try:
+            self._f.write(json.dumps(dict(event_dict), default=str) + "\n")
+            self._f.flush()
+        except Exception:  # noqa: BLE001
+            pass
+        return event_dict
+
+
+def _configure_logging(trace_path: Path) -> None:
+    """Configure structlog with dual output: JSONL trace file + human-readable stderr.
+
+    The trace file is compatible with `python -m prompt_model.reporting <trace_path>`.
+    """
     structlog.configure(
         processors=[
             structlog.contextvars.merge_contextvars,
             structlog.processors.add_log_level,
             structlog.processors.TimeStamper(fmt="iso", utc=False),
+            _JsonlTee(trace_path),
             structlog.dev.ConsoleRenderer(colors=False),
         ],
         wrapper_class=structlog.make_filtering_bound_logger(20),  # INFO+
@@ -31,13 +56,27 @@ def _configure_logging() -> None:
 
 _log = structlog.get_logger()
 
+
+def _clear_llm_call_logs() -> None:
+    """Remove any per-call LLM log files from `<cwd>/logs/` left over from prior runs.
+
+    `prompt_model._llm.call._save_log` writes one `<log_name>_<timestamp>.log` per LLM
+    call. Other files in the directory are left alone.
+    """
+    logs_dir: Path = Path.cwd() / "logs"
+    if not logs_dir.is_dir():
+        return
+    for log_file in logs_dir.glob("*.log"):
+        if log_file.is_file():
+            log_file.unlink()
+
+
 _DEFAULT_MODEL = "anthropic/claude-sonnet-4-6"
 _DEFAULT_ITERATIONS = 8
 _DEFAULT_CONCURRENCY = 4
 
 
 async def amain() -> int:
-    _configure_logging()
     parser = argparse.ArgumentParser(
         prog="prompt-forge-self-improvement",
         description="Optimize prompt-forge's own internal LLM prompts.",
@@ -74,13 +113,20 @@ async def amain() -> int:
     )
 
     args = parser.parse_args()
+    _clear_llm_call_logs()
     target = REGISTRY[args.target]
+
+    # Auto-derive the trace path alongside the output file.
+    # The JSONL log is compatible with: python -m prompt_model.reporting <trace_path>
+    trace_path: Path = args.output.with_suffix(".jsonl")
+    _configure_logging(trace_path)
 
     print(f"Target  : {target.name}")
     print(f"  {target.description}")
     print(f"Model   : {args.model}")
     print(f"Iters   : {args.iterations}  |  Concurrency: {args.concurrency}")
     print(f"Output  : {args.output}")
+    print(f"Trace   : {trace_path}")
     print()
 
     result = await run_target(

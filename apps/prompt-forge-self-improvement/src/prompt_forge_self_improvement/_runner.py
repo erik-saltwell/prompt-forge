@@ -13,6 +13,12 @@ from ._registry import TargetConfig
 _log = structlog.get_logger()
 
 
+def _write_checkpoint(prompt: str, output_path: Path) -> None:
+    """Write the current best prompt to disk as a checkpoint."""
+    output_path.write_text(prompt, encoding="utf-8")
+    _log.info("checkpoint_written", output=str(output_path))
+
+
 async def run_target(
     target: TargetConfig,
     output_path: Path,
@@ -20,7 +26,13 @@ async def run_target(
     iterations: int,
     concurrency: int,
 ) -> OptimizationResult:
-    """Load a target's seed prompt and eval cases, optimize, and write the result."""
+    """Load a target's seed prompt and eval cases, optimize, and write the result.
+
+    The best prompt seen so far is written to `output_path` after every completed
+    iteration (checkpoint), so a hard error mid-run does not lose all progress.
+    On error the partial result is already on disk; this function re-raises after
+    logging the path.
+    """
     seed_prompt: str = target.seed_prompt_loader()
     eval_cases = target.eval_case_loader()
 
@@ -58,7 +70,25 @@ async def run_target(
         error_budget=error_budget,
     )
 
-    result: OptimizationResult = await optimize_prompt(config=config, metrics=metrics)
+    try:
+        result: OptimizationResult = await optimize_prompt(
+            config=config,
+            metrics=metrics,
+            on_checkpoint=lambda prompt: _write_checkpoint(prompt, output_path),
+        )
+    except BaseException as exc:
+        if output_path.exists():
+            _log.warning(
+                "optimization_interrupted_partial_result_saved",
+                output=str(output_path),
+                error=str(exc),
+            )
+        else:
+            _log.warning(
+                "optimization_interrupted_no_checkpoint",
+                error=str(exc),
+            )
+        raise
 
     output_path.write_text(result.best_prompt, encoding="utf-8")
     _log.info(

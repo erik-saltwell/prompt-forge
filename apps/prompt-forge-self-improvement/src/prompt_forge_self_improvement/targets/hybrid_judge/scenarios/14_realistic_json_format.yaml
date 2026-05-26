@@ -1,0 +1,61 @@
+name: realistic_json_format
+description: |
+  Realistic end-to-end case: the target LLM fails to emit valid JSON because
+  the prompt's output format section is underspecified.
+
+  Tree IDs:
+    1    = Section "Task" (h1)
+    1.1  = Paragraph "Extract named entities from the input text."
+    2    = Section "Output" (h1)
+    2.1  = Paragraph "Return the results as JSON."
+    2.2  = Paragraph "Include entity type and span."
+
+prompt_markdown: |
+  # Task
+
+  Extract named entities from the input text.
+
+  # Output
+
+  Return the results as JSON.
+
+  Include entity type and span.
+
+case_input: |
+  On September 3, 1939, British Prime Minister Neville Chamberlain declared
+  war on Germany.
+model_output: |
+  Neville Chamberlain: person, Prime Minister
+  Germany: country
+  September 3, 1939: date
+assessment: |
+  The output is plain text, not JSON. The Output section says "Return the results
+  as JSON" and "Include entity type and span" but provides no JSON schema example.
+  Without a concrete schema, the model produced a readable text format instead.
+
+golden_diagnosis:
+  culprit_node_id: "2.1"
+  rationale: "Node 2.1 says 'Return the results as JSON' without showing the expected JSON structure. The model cannot infer the schema (array vs. object, key names, span format) from the instruction alone."
+  target_behavior: "Require the model to return a JSON array of objects, each with 'text', 'type', and 'start'/'end' character offsets."
+  success_criterion: "The Output section includes a JSON schema example and the model returns a valid JSON array on the next run."
+  suggested_prompt_change: |
+    Return the results as a JSON array. Each entity is an object with keys:
+    "text" (the entity string), "type" (PERSON, ORG, DATE, LOCATION),
+    "start" (character offset), "end" (character offset).
+    Example: [{"text": "Alice", "type": "PERSON", "start": 0, "end": 5}]
+
+criteria:
+  culprit_id_validity:
+    - "culprit_node_id '2.1' exists in the XML prompt."
+  culprit_localization:
+    - "Node 2.1 is the correct culprit — it introduces JSON without a schema."
+    - "Node 2.2 ('Include entity type and span') is also underspecified but is secondary to the missing schema in 2.1."
+    - "Using 'document' is wrong — the fault is in a specific existing instruction."
+  diagnosis_specificity:
+    - "The rationale must identify the missing JSON schema as the mechanism, not just 'the output format is vague'."
+    - "The rationale should name the specific missing elements (key names, array structure)."
+  actionability:
+    - "target_behavior should describe the exact JSON structure the model should produce."
+    - "success_criterion should be verifiable: 'model returns valid JSON array on the next run'."
+  suggested_change_calibration:
+    - "The fix is a concrete schema definition with a one-line example — suggested_prompt_change should be non-null."

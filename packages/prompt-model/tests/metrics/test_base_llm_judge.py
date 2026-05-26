@@ -14,8 +14,8 @@ from typing import ClassVar
 
 import pytest
 from prompt_model import BaseLLMJudgeMetric, MetricResult
-from prompt_model._actor._render_prompt_strategy import MarkdownRenderPromptStrategy
 from prompt_model._prompt import Document
+from prompt_model._rendering import MarkdownRenderPromptStrategy
 from prompt_model.config import LiteLLMConfig
 
 _CONFIG = LiteLLMConfig(model="fake/model")
@@ -59,6 +59,9 @@ class _RecordingRenderStrategy:
     def render(self, tree: Document, focus_ids: set[str] | None) -> str:
         self.calls.append((tree, focus_ids))
         return "RENDERED"
+
+    def describe_format(self) -> str:
+        return "recording format"
 
 
 def _make_acomplete_stub(result: MetricResult = _RESULT):

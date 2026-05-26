@@ -10,6 +10,7 @@ members = [
     "prompt-forge-workspace",
     "prompt-model",
     "prompt-model-check",
+    "prompt-model-metrics",
 ]
 
 [[package]]
@@ -1138,6 +1139,17 @@ requires-dist = [
 name = "prompt-model-check"
 version = "0.1.0"
 source = { editable = "apps/prompt-model-check" }
+dependencies = [
+    { name = "prompt-model" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "prompt-model", editable = "packages/prompt-model" }]
+
+[[package]]
+name = "prompt-model-metrics"
+version = "0.1.0"
+source = { editable = "packages/prompt-model-metrics" }
 dependencies = [
     { name = "prompt-model" },
 ]

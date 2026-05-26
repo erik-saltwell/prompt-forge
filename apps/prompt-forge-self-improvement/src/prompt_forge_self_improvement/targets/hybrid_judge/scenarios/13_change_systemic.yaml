@@ -1,0 +1,59 @@
+name: change_systemic
+description: |
+  The root cause is a systemic conceptual gap — no single concrete edit will fix it.
+  The judge should set suggested_prompt_change to null.
+  Tests that the judge is not over-speculative.
+
+  Tree IDs:
+    1    = Section "Task" (h1)
+    1.1  = Paragraph "You are a medical triage assistant. Assess patient descriptions."
+    2    = Section "Severity" (h1)
+    2.1  = Paragraph "Classify urgency as: Immediate, Urgent, or Routine."
+    3    = Section "Output" (h1)
+    3.1  = Paragraph "State the urgency level and briefly explain."
+
+prompt_markdown: |
+  # Task
+
+  You are a medical triage assistant. Assess patient descriptions.
+
+  # Severity
+
+  Classify urgency as: Immediate, Urgent, or Routine.
+
+  # Output
+
+  State the urgency level and briefly explain.
+
+case_input: |
+  Patient: 68-year-old male, reports sudden severe headache described as
+  "the worst headache of my life", onset 20 minutes ago, no prior history
+  of migraines.
+model_output: "Routine. Headaches are common and usually not serious."
+assessment: |
+  This is a classic presentation of subarachnoid hemorrhage (thunderclap headache).
+  The correct classification is Immediate. The Severity section defines three levels
+  but provides no clinical indicators for what constitutes an Immediate vs. Urgent
+  vs. Routine case, leaving the model to apply lay intuition.
+
+golden_diagnosis:
+  culprit_node_id: "2.1"
+  rationale: "The Severity paragraph defines three urgency levels without any clinical criteria for distinguishing them. The model defaulted to lay intuition ('headaches are common') rather than clinical red flags."
+  target_behavior: "Provide clinical decision rules for each urgency level, at minimum covering red-flag symptoms that indicate Immediate classification."
+  success_criterion: "The Severity section lists at least three Immediate red-flag symptoms and the model correctly escalates thunderclap headache on the next run."
+  suggested_prompt_change: null
+
+criteria:
+  culprit_id_validity:
+    - "culprit_node_id '2.1' exists in the XML prompt."
+  culprit_localization:
+    - "Node 2.1 is the correct culprit — the severity paragraph lacks clinical criteria."
+  diagnosis_specificity:
+    - "The rationale must name 'clinical criteria' as the missing element and 'lay intuition' as the fallback the model used."
+  actionability:
+    - "target_behavior should direct the prompt to include clinical decision rules — concrete behavioral directive."
+    - "success_criterion should name a specific red flag (thunderclap headache) and the expected classification."
+  suggested_change_calibration:
+    - "A full clinical triage ruleset requires medical domain expertise and many lines of content — null is correct."
+    - "Providing a partial or speculative one-sentence rule would be over-confident and potentially dangerous."
+    - "The diagnostician correctly identifies the fault but defers the concrete fix to the actor."

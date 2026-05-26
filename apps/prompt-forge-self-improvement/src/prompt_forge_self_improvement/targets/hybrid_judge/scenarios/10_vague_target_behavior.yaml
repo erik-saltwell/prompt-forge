@@ -1,0 +1,60 @@
+name: vague_target_behavior
+description: |
+  Tests that target_behavior is action-oriented and concrete.
+  A weak diagnosis would say "make the prompt clearer" or "improve the rubric"
+  instead of naming what the model should be directed to do.
+
+  Tree IDs:
+    1    = Section "Task" (h1)
+    1.1  = Paragraph "Grade student essays on a scale of 1–5."
+    2    = Section "Criteria" (h1)
+    2.1  = Paragraph "Consider grammar, structure, and argument quality."
+    3    = Section "Output" (h1)
+    3.1  = Paragraph "Output a single integer."
+
+prompt_markdown: |
+  # Task
+
+  Grade student essays on a scale of 1–5.
+
+  # Criteria
+
+  Consider grammar, structure, and argument quality.
+
+  # Output
+
+  Output a single integer.
+
+case_input: |
+  Essay: "The industrial revolution was good for society. It made things faster
+  and people got rich. Also trains were invented which is cool. In conclusion
+  the industrial revolution was good."
+model_output: "4"
+ground_truth: "2"
+assessment: |
+  A grade of 4 is too high. The essay has no argument development, no evidence,
+  and repetitive structure. The Criteria section lists three dimensions but gives
+  no weighting or scoring anchor, so the model has no basis for calibrating 2 vs 4.
+
+golden_diagnosis:
+  culprit_node_id: "2.1"
+  rationale: "The Criteria paragraph lists three dimensions without anchoring what each score level means on any of them. The model cannot distinguish a 2 from a 4 without per-level descriptors."
+  target_behavior: "Require the model to apply a scoring rubric that defines what each level (1–5) looks like for argument quality and structure."
+  success_criterion: "The Criteria section includes at least a descriptor for the top and bottom of the scale, and the model assigns scores that match those descriptors."
+  suggested_prompt_change: null
+
+criteria:
+  culprit_id_validity:
+    - "culprit_node_id '2.1' exists in the XML prompt."
+  culprit_localization:
+    - "Node 2.1 is the correct culprit — the criteria paragraph lacks scoring anchors."
+    - "Using 'document' is wrong — the fault is in the existing Criteria paragraph."
+  diagnosis_specificity:
+    - "The rationale must identify 'no scoring anchors' as the mechanism, not just 'the criteria are vague'."
+  actionability:
+    - "target_behavior must describe what the *model* should do: apply a per-level descriptor rubric."
+    - "'Make the criteria clearer' or 'improve the rubric' is too vague — not action-oriented."
+    - "target_behavior should start with a verb and name a concrete behavior: 'Require the model to…', 'Instruct the model to apply…'."
+    - "success_criterion should describe an observable property: descriptors present in the prompt and model behavior matches them."
+  suggested_change_calibration:
+    - "Designing a full 1–5 rubric is complex and context-dependent — null is appropriate here."

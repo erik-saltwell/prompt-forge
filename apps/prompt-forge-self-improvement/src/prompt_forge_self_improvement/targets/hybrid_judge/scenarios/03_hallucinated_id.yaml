@@ -1,0 +1,46 @@
+name: hallucinated_id
+description: |
+  The judge invents an id ("1.99") that does not exist in the XML prompt.
+  The structural gate should fire with score 0.0.
+
+  Tree IDs:
+    1    = Section "Task" (h1)
+    1.1  = Paragraph "Classify the sentiment of the review."
+    2    = Section "Output" (h1)
+    2.1  = Paragraph "Respond with Positive, Negative, or Neutral."
+
+prompt_markdown: |
+  # Task
+
+  Classify the sentiment of the review.
+
+  # Output
+
+  Respond with Positive, Negative, or Neutral.
+
+case_input: "The hotel was fine. Not great, not terrible."
+model_output: "Positive"
+assessment: |
+  Correct answer is Neutral. The prompt does not define what distinguishes
+  Neutral from Positive, leaving the model to guess.
+
+golden_diagnosis:
+  culprit_node_id: "2.1"
+  rationale: "The output section lists three classes but provides no definitions or examples to distinguish them, especially the Neutral vs. Positive boundary."
+  target_behavior: "Require the model to check whether the review expresses a clear preference before choosing Positive or Negative."
+  success_criterion: "The output section defines all three classes with distinguishing criteria."
+  suggested_prompt_change: "Positive = clear approval; Negative = clear disapproval; Neutral = mixed, ambiguous, or no strong opinion."
+
+criteria:
+  culprit_id_validity:
+    - "culprit_node_id must be a real id from the XML (e.g., '2.1', '1.1', '1', '2') or 'document'."
+    - "An invented id like '1.99', '3', or '2.2' does not exist and should score 0.0."
+  culprit_localization:
+    - "The correct culprit is '2.1' — the output section that lists the classes without defining them."
+  diagnosis_specificity:
+    - "The rationale should identify missing class definitions as the mechanism."
+  actionability:
+    - "target_behavior should tell the model to apply a distinguishing test before classifying."
+    - "success_criterion should be an observable property of the revised prompt."
+  suggested_change_calibration:
+    - "The fix is a concrete one-liner defining the three classes — suggested_prompt_change should be non-null."

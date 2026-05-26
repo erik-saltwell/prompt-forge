@@ -1,6 +1,12 @@
 from __future__ import annotations
 
 from enum import StrEnum
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .._actor._redaction import RedactionStrategy
+    from .._actor.revise import StructuralCleanupPredicate
+    from .._rendering import RenderPromptStrategy, SignalRenderingStrategy
 
 
 class RedactionStrategyOption(StrEnum):
@@ -66,7 +72,7 @@ class StructuralCleanupOption(StrEnum):
 # ---------------------------------------------------------------------------
 
 
-def make_redaction_strategy(option: RedactionStrategyOption):  # type: ignore[return]
+def make_redaction_strategy(option: RedactionStrategyOption) -> RedactionStrategy:  # type: ignore[return]
     """Return a ``RedactionStrategy`` instance for *option*."""
     from .._actor._redaction import DefaultRedactionStrategy, NoRedactionStrategy
 
@@ -77,9 +83,9 @@ def make_redaction_strategy(option: RedactionStrategyOption):  # type: ignore[re
             return NoRedactionStrategy()
 
 
-def make_prompt_render_strategy(option: PromptRenderStrategyOption):  # type: ignore[return]
+def make_prompt_render_strategy(option: PromptRenderStrategyOption) -> RenderPromptStrategy:  # type: ignore[return]
     """Return a ``RenderPromptStrategy`` instance for *option*."""
-    from .._actor._render_prompt_strategy import JsonRenderPromptStrategy, MarkdownRenderPromptStrategy, XmlRenderPromptStrategy
+    from .._rendering import JsonRenderPromptStrategy, MarkdownRenderPromptStrategy, XmlRenderPromptStrategy
 
     match option:
         case PromptRenderStrategyOption.XML:
@@ -90,9 +96,9 @@ def make_prompt_render_strategy(option: PromptRenderStrategyOption):  # type: ig
             return MarkdownRenderPromptStrategy()
 
 
-def make_signal_render_strategy(option: SignalRenderStrategyOption):  # type: ignore[return]
+def make_signal_render_strategy(option: SignalRenderStrategyOption) -> SignalRenderingStrategy:  # type: ignore[return]
     """Return a ``SignalRenderingStrategy`` instance for *option*."""
-    from .._actor._signal_rendering_strategy import DefaultSignalRenderingStrategy, JsonSignalRenderingStrategy, XmlSignalRenderingStrategy
+    from .._rendering import DefaultSignalRenderingStrategy, JsonSignalRenderingStrategy, XmlSignalRenderingStrategy
 
     match option:
         case SignalRenderStrategyOption.MARKDOWN:
@@ -103,7 +109,7 @@ def make_signal_render_strategy(option: SignalRenderStrategyOption):  # type: ig
             return XmlSignalRenderingStrategy()
 
 
-def make_structural_cleanup_predicate(option: StructuralCleanupOption):  # type: ignore[return]
+def make_structural_cleanup_predicate(option: StructuralCleanupOption) -> StructuralCleanupPredicate:  # type: ignore[return]
     """Return a ``StructuralCleanupPredicate`` callable for *option*."""
     from .._actor._structural_strategy import (
         always_cleanup_structure,

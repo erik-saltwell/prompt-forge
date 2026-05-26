@@ -1,0 +1,59 @@
+name: document_overhedge
+description: |
+  The assessment directly names a specific paragraph as the fault.
+  The judge must NOT retreat to "document" — it should cite the specific node.
+
+  Tree IDs:
+    1    = Section "Task" (h1)
+    1.1  = Paragraph "Extract all dates mentioned in the text."
+    2    = Section "Format" (h1)
+    2.1  = Paragraph "Return the dates as a list."
+    3    = Section "Output" (h1)
+    3.1  = Paragraph "One date per line."
+
+prompt_markdown: |
+  # Task
+
+  Extract all dates mentioned in the text.
+
+  # Format
+
+  Return the dates as a list.
+
+  # Output
+
+  One date per line.
+
+case_input: |
+  The treaty was signed on March 4, 1814. Ratification followed on July 12, 1814.
+  The final ceremony took place in the autumn of that year.
+model_output: |
+  March 4, 1814
+  July 12, 1814
+  Autumn 1814
+assessment: |
+  "Autumn 1814" is not a date — it is a vague seasonal reference. The task
+  paragraph says "extract all dates" but does not define what counts as a date,
+  so the model included an informal time reference.
+
+golden_diagnosis:
+  culprit_node_id: "1.1"
+  rationale: "The task paragraph says 'all dates' without defining the format or precision required, so the model treated 'autumn of that year' as a date."
+  target_behavior: "Require the model to extract only calendar dates (day, month, year) and skip vague temporal references."
+  success_criterion: "The task section defines 'date' as a specific calendar reference and the model omits 'Autumn 1814' on the next run."
+  suggested_prompt_change: "Extract all specific calendar dates (month, day, and/or year). Skip vague time references like seasons or relative terms."
+
+criteria:
+  culprit_id_validity:
+    - "culprit_node_id must be a real id — '1.1' is the correct target."
+  culprit_localization:
+    - "The assessment explicitly points to the task instruction as the source of the problem."
+    - "Using 'document' is wrong — a specific, fixable node (1.1) is clearly responsible."
+    - "Node 1.1 is the correct culprit; citing section '1' would be imprecise."
+  diagnosis_specificity:
+    - "The rationale should identify 'all dates' as the underspecified phrase and name 'seasonal reference' as the resulting confusion."
+  actionability:
+    - "target_behavior should tell the model to apply a definition filter (calendar precision)."
+    - "success_criterion should state an observable property of the output ('Autumn 1814' is omitted)."
+  suggested_change_calibration:
+    - "The fix is a concrete clarifying clause — suggested_prompt_change should be non-null."

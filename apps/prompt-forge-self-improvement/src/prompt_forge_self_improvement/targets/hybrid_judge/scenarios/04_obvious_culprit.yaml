@@ -1,0 +1,56 @@
+name: obvious_culprit
+description: |
+  One paragraph is clearly the culprit — the rubric is vague and unmistakably
+  at fault. Tests that the judge picks the right specific node without hedging.
+
+  Tree IDs:
+    1    = Section "Task" (h1)
+    1.1  = Paragraph "Answer questions about workplace scenarios."
+    2    = Section "Tone" (h1)
+    2.1  = Paragraph "Be professional."
+    3    = Section "Output" (h1)
+    3.1  = Paragraph "Write 1–2 sentences."
+
+prompt_markdown: |
+  # Task
+
+  Answer questions about workplace scenarios.
+
+  # Tone
+
+  Be professional.
+
+  # Output
+
+  Write 1–2 sentences.
+
+case_input: "My manager publicly criticized me in front of the team. How should I respond?"
+model_output: "You should confront your manager immediately and demand an apology in front of the same team."
+assessment: |
+  The response is confrontational and could escalate the situation. A professional
+  response would recommend a private conversation. The Tone section says only
+  "Be professional" without defining what professional communication looks like
+  in conflict situations.
+
+golden_diagnosis:
+  culprit_node_id: "2.1"
+  rationale: "The Tone paragraph states 'Be professional' without specifying what professional communication requires in conflict scenarios — in particular, that conflicts should be addressed privately rather than escalated publicly."
+  target_behavior: "Instruct the model to recommend de-escalating strategies and private resolution channels when the scenario involves interpersonal conflict."
+  success_criterion: "The Tone section defines professional conduct in conflict situations and the model recommends a private conversation rather than public confrontation."
+  suggested_prompt_change: "Be professional: use calm, constructive language; address conflicts privately before involving others; avoid escalation."
+
+criteria:
+  culprit_id_validity:
+    - "culprit_node_id is '2.1', which exists in the XML prompt."
+  culprit_localization:
+    - "Node 2.1 (the Tone paragraph) is the correct and specific culprit."
+    - "Citing section '2' instead of '2.1' is imprecise."
+    - "Using 'document' is wrong — the failure is clearly in the Tone node's vague definition."
+  diagnosis_specificity:
+    - "The rationale must name 'professional' as the vague term and identify the missing constraint (private resolution)."
+    - "Simply saying 'the tone guidance is unclear' is not specific enough."
+  actionability:
+    - "target_behavior should direct the model to recommend specific communication strategies."
+    - "success_criterion should reference the revised Tone section and a concrete behavioral change."
+  suggested_change_calibration:
+    - "The fix is a concrete rewrite of one short sentence — suggested_prompt_change should be non-null."

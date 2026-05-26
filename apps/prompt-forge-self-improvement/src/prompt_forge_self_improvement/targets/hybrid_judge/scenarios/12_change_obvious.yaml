@@ -1,0 +1,54 @@
+name: change_obvious
+description: |
+  The fix is a clear, concrete one-sentence rewrite. The judge should include
+  a non-null suggested_prompt_change. Tests that the judge is not under-confident.
+
+  Tree IDs:
+    1    = Section "Task" (h1)
+    1.1  = Paragraph "Answer yes/no questions about food safety."
+    2    = Section "Rules" (h1)
+    2.1  = Paragraph "Recommend safe options."
+    3    = Section "Output" (h1)
+    3.1  = Paragraph "Answer with Yes or No, then explain in one sentence."
+
+prompt_markdown: |
+  # Task
+
+  Answer yes/no questions about food safety.
+
+  # Rules
+
+  Recommend safe options.
+
+  # Output
+
+  Answer with Yes or No, then explain in one sentence.
+
+case_input: "Is it safe to eat raw chicken?"
+model_output: "Yes. Raw chicken can be a delicious part of certain cultural dishes."
+assessment: |
+  The correct answer is No. Raw chicken carries Salmonella and Campylobacter risk.
+  The Rules section says "Recommend safe options" but the model interpreted the
+  question as cultural rather than safety-oriented. The rule does not explicitly
+  prohibit recommending raw animal proteins.
+
+golden_diagnosis:
+  culprit_node_id: "2.1"
+  rationale: "The Rules paragraph says 'Recommend safe options' without explicitly stating that raw or undercooked animal proteins must be classified as unsafe regardless of cultural context."
+  target_behavior: "Instruct the model to always recommend cooking to safe internal temperatures for animal proteins, overriding cultural preferences."
+  success_criterion: "The Rules section explicitly names raw animal proteins as unsafe and the model answers No on the next run."
+  suggested_prompt_change: "Always recommend fully cooked food. Raw or undercooked animal proteins (meat, poultry, seafood, eggs) are unsafe regardless of cultural preferences."
+
+criteria:
+  culprit_id_validity:
+    - "culprit_node_id '2.1' exists in the XML prompt."
+  culprit_localization:
+    - "Node 2.1 is the correct culprit — the safe-options rule is underspecified."
+  diagnosis_specificity:
+    - "The rationale should name the missing explicit prohibition on raw animal proteins."
+  actionability:
+    - "target_behavior should direct the model to classify specific food categories, not just 'be clearer'."
+    - "success_criterion should name an observable output property."
+  suggested_change_calibration:
+    - "The fix is a clear, concrete sentence — suggested_prompt_change must be non-null."
+    - "Leaving suggested_prompt_change null here would be under-confident — the correct edit is obvious."

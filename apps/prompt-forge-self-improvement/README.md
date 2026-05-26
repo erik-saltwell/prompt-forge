@@ -24,6 +24,7 @@ uv run prompt-forge-self-improvement \
 | Target | Description |
 |--------|-------------|
 | `feedback-actor` | The per-node feedback actor prompt (`_actor/_resources/feedback_actor.md`) |
+| `hybrid-judge` | The hybrid metric judge prompt (`_metrics/_resources/hybrid_judge.md`) |
 
 ## Adding a New Target
 

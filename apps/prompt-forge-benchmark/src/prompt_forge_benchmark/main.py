@@ -12,6 +12,20 @@ from prompt_model.tracing import initialize_tracing
 from .cj.runner import format_report, run_cj_benchmark
 
 
+def _clear_llm_call_logs() -> None:
+    """Remove any per-call LLM log files from `<cwd>/logs/` left over from prior runs.
+
+    `prompt_model._llm.call._save_log` writes one `<log_name>_<timestamp>.log` per LLM
+    call. Other files in the directory are left alone.
+    """
+    logs_dir: Path = Path.cwd() / "logs"
+    if not logs_dir.is_dir():
+        return
+    for log_file in logs_dir.glob("*.log"):
+        if log_file.is_file():
+            log_file.unlink()
+
+
 def main() -> int:
     parser: argparse.ArgumentParser = argparse.ArgumentParser(prog="prompt-forge-benchmark")
     parser.add_argument(
@@ -43,6 +57,8 @@ def main() -> int:
     )
 
     args: argparse.Namespace = parser.parse_args()
+
+    _clear_llm_call_logs()
 
     if args.log_file is not None:
         initialize_tracing(args.log_file, indent=args.log_indent)

@@ -1,0 +1,61 @@
+name: parent_vs_child
+description: |
+  The fault lives specifically in paragraph 2.1 inside the Rubric section.
+  The judge should cite "2.1", not the parent section "2".
+  Citing the section is imprecise (partial credit); "document" is wrong.
+
+  Tree IDs:
+    1    = Section "Task" (h1)
+    1.1  = Paragraph "Answer causal-judgement questions about stories."
+    2    = Section "Rubric" (h1)
+    2.1  = Paragraph "Consider whether the action was deliberate."
+    2.2  = Paragraph "Respond Yes if the action caused the outcome."
+    3    = Section "Output" (h1)
+    3.1  = Paragraph "Respond with Yes or No."
+
+prompt_markdown: |
+  # Task
+
+  Answer causal-judgement questions about stories.
+
+  # Rubric
+
+  Consider whether the action was deliberate.
+
+  Respond Yes if the action caused the outcome.
+
+  # Output
+
+  Respond with Yes or No.
+
+case_input: |
+  A hiker accidentally knocked over a lantern while adjusting her backpack.
+  The lantern set a nearby bush on fire. Did the hiker cause the fire?
+model_output: "No"
+ground_truth: "Yes"
+assessment: |
+  Correct answer is Yes. The hiker's action caused the fire even though it was
+  accidental. Node 2.1 focuses on deliberateness, which is not the relevant
+  criterion for but-for causation — this misdirects the model.
+
+golden_diagnosis:
+  culprit_node_id: "2.1"
+  rationale: "Node 2.1 instructs the model to consider deliberateness, which is irrelevant to causal attribution. Accidental actions can still cause outcomes."
+  target_behavior: "Instruct the model to apply but-for causation: would the outcome have occurred without the action? Deliberateness is irrelevant."
+  success_criterion: "Rubric paragraph 2.1 defines causation without referencing intent, and the model answers Yes for accidental but causal actions."
+  suggested_prompt_change: "Consider whether the outcome would have occurred without the action (but-for causation). Intent does not affect causation."
+
+criteria:
+  culprit_id_validity:
+    - "culprit_node_id '2.1' exists in the XML prompt."
+  culprit_localization:
+    - "Node 2.1 is the specific culprit — it introduces a wrong criterion (deliberateness)."
+    - "Citing section '2' instead of paragraph '2.1' is imprecise — 2.2 is a separate paragraph and is not at fault."
+    - "Using 'document' is wrong — the fault is in an existing, addressable paragraph."
+  diagnosis_specificity:
+    - "The rationale must name 'deliberateness' as the misdirecting criterion and explain why it is irrelevant to but-for causation."
+  actionability:
+    - "target_behavior should tell the model to apply but-for causation, not evaluate intent."
+    - "success_criterion should name the specific behavioral change: answering Yes for accidental causal actions."
+  suggested_change_calibration:
+    - "The fix is a concrete one-sentence replacement — suggested_prompt_change should be non-null."
