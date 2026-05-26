@@ -7,6 +7,12 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from .eval_case import EvalCase
 from .llm import LiteLLMConfig
+from .strategies import (
+    PromptRenderStrategyOption,
+    RedactionStrategyOption,
+    SignalRenderStrategyOption,
+    StructuralCleanupOption,
+)
 
 
 class OptimizerConfig(BaseModel):
@@ -81,6 +87,40 @@ class OptimizerConfig(BaseModel):
     seed: int | None = Field(
         default=None,
         description="Optional RNG seed for case-shuffle and UCB tiebreaks. None = nondeterministic.",
+    )
+
+    # --- Strategy selectors ---------------------------------------------------
+
+    redaction_strategy: RedactionStrategyOption = Field(
+        default=RedactionStrategyOption.DEFAULT,
+        description=(
+            "Controls how much of the prompt tree the actor LLM sees. "
+            "'default' shows only the culprit, ancestors, siblings, and section headings; "
+            "'none' shows the entire tree verbatim."
+        ),
+    )
+    prompt_render_strategy: PromptRenderStrategyOption = Field(
+        default=PromptRenderStrategyOption.XML,
+        description=(
+            "Serialization format the actor LLM reads the prompt tree in. "
+            "'xml' (default) is recommended for Claude; 'json' uses Pydantic model_dump; "
+            "'markdown' uses critic-form markdown with HTML-comment ID overlays."
+        ),
+    )
+    signal_render_strategy: SignalRenderStrategyOption = Field(
+        default=SignalRenderStrategyOption.MARKDOWN,
+        description=(
+            "Format used to render aggregated issue signals in the actor's user prompt. "
+            "'markdown' (default) produces humanized subsections; 'json' and 'xml' are structured alternatives."
+        ),
+    )
+    structural_cleanup: StructuralCleanupOption = Field(
+        default=StructuralCleanupOption.ALWAYS,
+        description=(
+            "Controls when the structural cleanup LLM pass runs after the per-node feedback pass. "
+            "'always' (default) runs it unconditionally; 'never' skips it; "
+            "'on_structural_actions' triggers on insert/delete/move; 'on_move_actions' triggers on move only."
+        ),
     )
 
     @classmethod
@@ -163,3 +203,15 @@ class OptimizerConfig(BaseModel):
 
     def with_seed(self, n: int | None) -> Self:
         return self.model_copy(update={"seed": n})
+
+    def with_redaction_strategy(self, option: RedactionStrategyOption) -> Self:
+        return self.model_copy(update={"redaction_strategy": option})
+
+    def with_prompt_render_strategy(self, option: PromptRenderStrategyOption) -> Self:
+        return self.model_copy(update={"prompt_render_strategy": option})
+
+    def with_signal_render_strategy(self, option: SignalRenderStrategyOption) -> Self:
+        return self.model_copy(update={"signal_render_strategy": option})
+
+    def with_structural_cleanup(self, option: StructuralCleanupOption) -> Self:
+        return self.model_copy(update={"structural_cleanup": option})

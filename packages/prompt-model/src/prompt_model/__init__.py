@@ -7,6 +7,12 @@ from ._metrics.result import IssueSignal, MetricResult
 from ._optimize_prompt import optimize_prompt
 from ._progress import ProgressEvent, ProgressReporter, RunProgress, StepProgress, TaskProgress
 from ._result import CandidateSummary, OptimizationResult
+from .config.strategies import (
+    PromptRenderStrategyOption,
+    RedactionStrategyOption,
+    SignalRenderStrategyOption,
+    StructuralCleanupOption,
+)
 from .reporting import render_report
 
 # Silent default: until a caller calls tracing.initialize_tracing(...) or otherwise
@@ -27,8 +33,12 @@ __all__ = [
     "OptimizationResult",
     "ProgressEvent",
     "ProgressReporter",
+    "PromptRenderStrategyOption",
+    "RedactionStrategyOption",
     "RunProgress",
+    "SignalRenderStrategyOption",
     "StepProgress",
+    "StructuralCleanupOption",
     "TaskProgress",
     "optimize_prompt",
     "render_report",

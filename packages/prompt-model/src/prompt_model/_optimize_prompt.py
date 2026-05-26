@@ -21,6 +21,12 @@ from ._progress import ProgressEvent, ProgressReporter, RunProgress, StepProgres
 from ._prompt import Document, parse_from_string
 from ._result import CandidateSummary, OptimizationResult
 from .config import OptimizerConfig
+from .config.strategies import (
+    make_prompt_render_strategy,
+    make_redaction_strategy,
+    make_signal_render_strategy,
+    make_structural_cleanup_predicate,
+)
 
 _DEFAULT_SCORER: CompositeScorer = MeanScorer()
 _log = structlog.get_logger()
@@ -42,6 +48,12 @@ async def optimize_prompt(
         raise ValueError("optimize_prompt requires at least one metric")
     if not config.eval_cases:
         raise ValueError("optimize_prompt requires at least one eval case")
+
+    # Resolve strategies: explicit kwargs take precedence; fall back to config-driven factories.
+    resolved_redaction: RedactionStrategy = redaction_strategy or make_redaction_strategy(config.redaction_strategy)
+    resolved_prompt_render: RenderPromptStrategy = prompt_render_strategy or make_prompt_render_strategy(config.prompt_render_strategy)
+    resolved_signal_render: SignalRenderingStrategy = signal_rendering_strategy or make_signal_render_strategy(config.signal_render_strategy)
+    resolved_structural: StructuralCleanupPredicate = structural_cleanup_predicate or make_structural_cleanup_predicate(config.structural_cleanup)
 
     if config.seed is not None:
         random.seed(config.seed)
@@ -81,10 +93,10 @@ async def optimize_prompt(
                 metrics=metrics,
                 scorer=scorer,
                 progress_reporter=progress_reporter,
-                redaction_strategy=redaction_strategy,
-                prompt_render_strategy=prompt_render_strategy,
-                signal_rendering_strategy=signal_rendering_strategy,
-                structural_cleanup_predicate=structural_cleanup_predicate,
+                redaction_strategy=resolved_redaction,
+                prompt_render_strategy=resolved_prompt_render,
+                signal_rendering_strategy=resolved_signal_render,
+                structural_cleanup_predicate=resolved_structural,
                 seed_doc=seed_doc,
                 n_cases=n_cases,
                 floor=floor,
@@ -116,10 +128,10 @@ async def _run_optimization_body(
     metrics: list[Metric],
     scorer: CompositeScorer,
     progress_reporter: ProgressReporter,
-    redaction_strategy: RedactionStrategy | None,
-    prompt_render_strategy: RenderPromptStrategy | None,
-    signal_rendering_strategy: SignalRenderingStrategy | None,
-    structural_cleanup_predicate: StructuralCleanupPredicate | None,
+    redaction_strategy: RedactionStrategy,
+    prompt_render_strategy: RenderPromptStrategy,
+    signal_rendering_strategy: SignalRenderingStrategy,
+    structural_cleanup_predicate: StructuralCleanupPredicate,
     seed_doc: Document,
     n_cases: int,
     floor: int,
