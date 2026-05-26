@@ -1,22 +1,35 @@
-from ..strategies.prompt_rendering_strategy import (
+from .prompt_rendering_strategy import (
     JsonRenderPromptStrategy,
     MarkdownRenderPromptStrategy,
+    RenderPromptOption,
     RenderPromptStrategy,
     XmlRenderPromptStrategy,
+    make_prompt_render_strategy,
+    render_prompt_to_markdown,
 )
-from ..strategies.redaction_strategy import ContextualRedactionStrategy, NoRedactionStrategy, RedactionStrategy
-from ..strategies.signal_render_strategy import (
+from .redaction_strategy import (
+    ContextualRedactionStrategy,
+    NoRedactionStrategy,
+    RedactionOption,
+    RedactionStrategy,
+    make_redaction_strategy,
+)
+from .signal_render_strategy import (
     JsonSignalRenderingStrategy,
     MarkdownSignalRenderingStrategy,
+    RenderSignalOption,
     SignalRenderingStrategy,
     XmlSignalRenderingStrategy,
+    make_signal_render_strategy,
 )
-from ..strategies.structural_cleanup_strategy import (
+from .structural_cleanup_strategy import (
     AlwaysCleanup,
     CleanupOnMoveAction,
     CleanupOnStructuralAction,
     NeverCleanup,
     StructuralCleanupDecisionProtocol,
+    StructuralCleanupOption,
+    make_structural_cleanup_decider,
 )
 
 __all__ = [
@@ -30,10 +43,19 @@ __all__ = [
     "MarkdownSignalRenderingStrategy",
     "NeverCleanup",
     "NoRedactionStrategy",
+    "RedactionOption",
     "RedactionStrategy",
+    "RenderPromptOption",
     "RenderPromptStrategy",
+    "RenderSignalOption",
     "SignalRenderingStrategy",
     "StructuralCleanupDecisionProtocol",
+    "StructuralCleanupOption",
     "XmlRenderPromptStrategy",
     "XmlSignalRenderingStrategy",
+    "make_prompt_render_strategy",
+    "make_redaction_strategy",
+    "make_signal_render_strategy",
+    "make_structural_cleanup_decider",
+    "render_prompt_to_markdown",
 ]

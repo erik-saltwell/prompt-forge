@@ -9,9 +9,9 @@ from .._actions.apply_batch import AppliedReport, apply_batch
 from .._actions.inputs import ActionBatch
 from .._llm import acomplete
 from .._prompt import Document
-from .._rendering import RenderPromptStrategy
 from .._resources import load_prompt
 from ..config import LiteLLMConfig
+from ..strategies.prompt_rendering_strategy import RenderPromptStrategy
 
 _log = structlog.get_logger()
 _CODE_FENCE_RE: re.Pattern[str] = re.compile(r"```(?:json)?\s*(.*?)\s*```", re.DOTALL)

@@ -7,13 +7,11 @@ from ._metrics.result import IssueSignal, MetricResult
 from ._optimize_prompt import optimize_prompt
 from ._progress import ProgressEvent, ProgressReporter, RunProgress, StepProgress, TaskProgress
 from ._result import CandidateSummary, OptimizationResult
-from .config.strategies import (
-    PromptRenderStrategyOption,
-    RedactionStrategyOption,
-    SignalRenderStrategyOption,
-    StructuralCleanupOption,
-)
 from .reporting import render_report
+from .strategies.prompt_rendering_strategy import RenderPromptOption
+from .strategies.redaction_strategy import RedactionOption
+from .strategies.signal_render_strategy import RenderSignalOption
+from .strategies.structural_cleanup_strategy import StructuralCleanupOption
 
 # Silent default: until a caller calls tracing.initialize_tracing(...) or otherwise
 # configures structlog, all log calls in prompt_model become no-ops. Keeps test runs
@@ -33,10 +31,10 @@ __all__ = [
     "OptimizationResult",
     "ProgressEvent",
     "ProgressReporter",
-    "PromptRenderStrategyOption",
-    "RedactionStrategyOption",
+    "RedactionOption",
+    "RenderPromptOption",
+    "RenderSignalOption",
     "RunProgress",
-    "SignalRenderStrategyOption",
     "StepProgress",
     "StructuralCleanupOption",
     "TaskProgress",

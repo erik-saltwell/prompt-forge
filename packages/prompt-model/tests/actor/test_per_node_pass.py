@@ -5,14 +5,15 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 from prompt_model._actions.inputs import ActionBatch
-from prompt_model._actor._redaction import DefaultRedactionStrategy
 from prompt_model._actor.revise import PromptAndActions, _process_feedback
 from prompt_model._metrics._aggregator import AggregatedNodeBucket
 from prompt_model._metrics.result import IssueSignal
 from prompt_model._prompt import Document
 from prompt_model._prompt.parsing.parse_prompt import parse_from_string
-from prompt_model._rendering import DefaultSignalRenderingStrategy, XmlRenderPromptStrategy
 from prompt_model.config import LiteLLMConfig
+from prompt_model.strategies.prompt_rendering_strategy import XmlRenderPromptStrategy
+from prompt_model.strategies.redaction_strategy import ContextualRedactionStrategy
+from prompt_model.strategies.signal_render_strategy import MarkdownSignalRenderingStrategy
 
 
 def _bucket(culprit_id: str = "1.1") -> AggregatedNodeBucket:
@@ -35,8 +36,8 @@ def _config() -> LiteLLMConfig:
     return LiteLLMConfig(model="anthropic/claude-sonnet-4-6")
 
 
-def _strategies() -> tuple[DefaultRedactionStrategy, XmlRenderPromptStrategy, DefaultSignalRenderingStrategy]:
-    return DefaultRedactionStrategy(), XmlRenderPromptStrategy(), DefaultSignalRenderingStrategy()
+def _strategies() -> tuple[ContextualRedactionStrategy, XmlRenderPromptStrategy, MarkdownSignalRenderingStrategy]:
+    return ContextualRedactionStrategy(), XmlRenderPromptStrategy(), MarkdownSignalRenderingStrategy()
 
 
 def _run_per_node_pass(

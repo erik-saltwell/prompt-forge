@@ -1,13 +1,13 @@
 from __future__ import annotations
 
-from prompt_model._actor._redaction import DefaultRedactionStrategy
 from prompt_model._prompt import Document
 from prompt_model._prompt.parsing.parse_prompt import parse_from_string
-from prompt_model._rendering import XmlRenderPromptStrategy
+from prompt_model.strategies.prompt_rendering_strategy import XmlRenderPromptStrategy
+from prompt_model.strategies.redaction_strategy import ContextualRedactionStrategy
 
 
 def _render(tree: Document, culprit_id: str) -> str:
-    focus = DefaultRedactionStrategy().focus_ids(tree, culprit_id)
+    focus = ContextualRedactionStrategy().focus_ids(tree, culprit_id)
     return XmlRenderPromptStrategy().render(tree, focus)
 
 

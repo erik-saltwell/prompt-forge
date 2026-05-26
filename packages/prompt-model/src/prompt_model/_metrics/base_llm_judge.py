@@ -5,8 +5,8 @@ from typing import ClassVar
 
 from .._llm import acomplete
 from .._prompt import parse_from_string
-from .._rendering import RenderPromptStrategy
 from ..config import LiteLLMConfig
+from ..strategies.prompt_rendering_strategy import MarkdownRenderPromptStrategy, RenderPromptStrategy
 from .result import MetricResult
 
 
@@ -34,8 +34,6 @@ class BaseLLMJudgeMetric(ABC):
     ) -> None:
         self.litellm_config: LiteLLMConfig = litellm_config
         if render_strategy is None:
-            from .._rendering import MarkdownRenderPromptStrategy
-
             render_strategy = MarkdownRenderPromptStrategy()
         self.render_strategy: RenderPromptStrategy = render_strategy
 

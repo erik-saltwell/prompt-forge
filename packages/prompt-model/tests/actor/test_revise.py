@@ -131,8 +131,8 @@ def test_transport_error_propagates() -> None:
         _run_revise(candidate, feedback_mock, structural_mock)
 
 
-def test_structural_cleanup_predicate_override_disables_structural_pass() -> None:
-    from prompt_model._actor._structural_strategy import never_cleanup_structure
+def test_structural_cleanup_decider_override_disables_structural_pass() -> None:
+    from prompt_model.strategies.structural_cleanup_strategy import NeverCleanup
 
     candidate = _candidate(results=[_metric_result("1.1")])
     feedback_mock = AsyncMock(return_value=_valid_batch().model_dump_json())
@@ -146,7 +146,7 @@ def test_structural_cleanup_predicate_override_disables_structural_pass() -> Non
             revise(
                 candidate,
                 feedback_llm_config=_config(),
-                structural_cleanup_predicate=never_cleanup_structure,
+                structural_cleanup_decider=NeverCleanup(),
             )
         )
 
@@ -157,7 +157,7 @@ def test_structural_cleanup_predicate_override_disables_structural_pass() -> Non
 
 def test_render_strategy_override_is_used() -> None:
     from prompt_model._prompt import Document as DocumentType
-    from prompt_model._rendering import RenderPromptStrategy
+    from prompt_model.strategies.prompt_rendering_strategy import RenderPromptStrategy
 
     class _SentinelRenderer:
         def __init__(self) -> None:

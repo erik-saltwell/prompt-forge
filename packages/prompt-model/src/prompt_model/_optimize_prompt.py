@@ -9,8 +9,7 @@ from collections.abc import Callable
 
 import structlog
 
-from ._actor._redaction import RedactionStrategy
-from ._actor.revise import StructuralCleanupPredicate, revise
+from ._actor.revise import revise
 from ._candidate import Candidate
 from ._critic.composite_scorer import CompositeScorer, MeanScorer
 from ._critic.select_next_candidates import select_top_candidates
@@ -18,15 +17,12 @@ from ._llm._concurrency import set_llm_concurrency
 from ._metrics import Metric, MetricResult
 from ._progress import ProgressEvent, ProgressReporter, RunProgress, StepProgress, TaskProgress
 from ._prompt import Document, parse_from_string
-from ._rendering import RenderPromptStrategy, SignalRenderingStrategy
 from ._result import CandidateSummary, OptimizationResult
 from .config import OptimizerConfig
-from .config.strategies import (
-    make_prompt_render_strategy,
-    make_redaction_strategy,
-    make_signal_render_strategy,
-    make_structural_cleanup_predicate,
-)
+from .strategies.prompt_rendering_strategy import RenderPromptStrategy, make_prompt_render_strategy
+from .strategies.redaction_strategy import RedactionStrategy, make_redaction_strategy
+from .strategies.signal_render_strategy import SignalRenderingStrategy, make_signal_render_strategy
+from .strategies.structural_cleanup_strategy import StructuralCleanupDecisionProtocol, make_structural_cleanup_decider
 
 _DEFAULT_SCORER: CompositeScorer = MeanScorer()
 _log = structlog.get_logger()
@@ -41,7 +37,7 @@ async def optimize_prompt(
     redaction_strategy: RedactionStrategy | None = None,
     prompt_render_strategy: RenderPromptStrategy | None = None,
     signal_rendering_strategy: SignalRenderingStrategy | None = None,
-    structural_cleanup_predicate: StructuralCleanupPredicate | None = None,
+    structural_cleanup_decider: StructuralCleanupDecisionProtocol | None = None,
     on_checkpoint: Callable[[str], None] | None = None,
 ) -> OptimizationResult:
     """Optimize a prompt against a set of evaluation cases. See docs/orchestration.md."""
@@ -56,7 +52,7 @@ async def optimize_prompt(
     resolved_signal_render: SignalRenderingStrategy = signal_rendering_strategy or make_signal_render_strategy(
         config.signal_render_strategy
     )
-    resolved_structural: StructuralCleanupPredicate = structural_cleanup_predicate or make_structural_cleanup_predicate(
+    resolved_structural: StructuralCleanupDecisionProtocol = structural_cleanup_decider or make_structural_cleanup_decider(
         config.structural_cleanup
     )
 
@@ -101,7 +97,7 @@ async def optimize_prompt(
                 redaction_strategy=resolved_redaction,
                 prompt_render_strategy=resolved_prompt_render,
                 signal_rendering_strategy=resolved_signal_render,
-                structural_cleanup_predicate=resolved_structural,
+                structural_cleanup_decider=resolved_structural,
                 seed_doc=seed_doc,
                 n_cases=n_cases,
                 floor=floor,
@@ -140,7 +136,7 @@ async def _run_optimization_body(
     redaction_strategy: RedactionStrategy,
     prompt_render_strategy: RenderPromptStrategy,
     signal_rendering_strategy: SignalRenderingStrategy,
-    structural_cleanup_predicate: StructuralCleanupPredicate,
+    structural_cleanup_decider: StructuralCleanupDecisionProtocol,
     seed_doc: Document,
     n_cases: int,
     floor: int,
@@ -186,7 +182,7 @@ async def _run_optimization_body(
                         redaction_strategy=redaction_strategy,
                         prompt_render_strategy=prompt_render_strategy,
                         signal_rendering_strategy=signal_rendering_strategy,
-                        structural_cleanup_predicate=structural_cleanup_predicate,
+                        structural_cleanup_decider=structural_cleanup_decider,
                     )
                     for survivor in survivors
                 )

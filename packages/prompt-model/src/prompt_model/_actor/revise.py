@@ -3,7 +3,6 @@ from __future__ import annotations
 import asyncio
 import re
 import time
-from collections.abc import Callable
 from typing import NamedTuple
 
 import structlog
@@ -15,26 +14,20 @@ from .._candidate.candidate import Candidate
 from .._llm import acomplete
 from .._metrics._aggregator import AggregatedNodeBucket, AggregationResult, aggregate
 from .._prompt import Document
-from .._rendering import (
-    DefaultSignalRenderingStrategy,
-    RenderPromptStrategy,
-    SignalRenderingStrategy,
-    XmlRenderPromptStrategy,
-)
 from .._resources import load_prompt
 from .._utils.identity import candidate_id_of
 from ..config import LiteLLMConfig
-from ._redaction import DefaultRedactionStrategy, RedactionStrategy
+from ..strategies.prompt_rendering_strategy import RenderPromptStrategy, XmlRenderPromptStrategy
+from ..strategies.redaction_strategy import ContextualRedactionStrategy, RedactionStrategy
+from ..strategies.signal_render_strategy import MarkdownSignalRenderingStrategy, SignalRenderingStrategy
+from ..strategies.structural_cleanup_strategy import AlwaysCleanup, StructuralCleanupDecisionProtocol
 from ._structural_actor import _cleanup_structure
-from ._structural_strategy import always_cleanup_structure
 
-_DEFAULT_REDACTION: RedactionStrategy = DefaultRedactionStrategy()
-_DEFAULT_SIGNAL_RENDERER: SignalRenderingStrategy = DefaultSignalRenderingStrategy()
+_DEFAULT_REDACTION: RedactionStrategy = ContextualRedactionStrategy()
+_DEFAULT_SIGNAL_RENDERER: SignalRenderingStrategy = MarkdownSignalRenderingStrategy()
 _DEFAULT_PROMPT_RENDERER: RenderPromptStrategy = XmlRenderPromptStrategy()
+_DEFAULT_STRUCTURAL_CLEANUP: StructuralCleanupDecisionProtocol = AlwaysCleanup()
 _log = structlog.get_logger()
-
-
-type StructuralCleanupPredicate = Callable[[ActionBatch], bool]
 
 
 class PromptAndActions(NamedTuple):
@@ -118,7 +111,7 @@ async def _process_bucket(
     prompt_redactor: RedactionStrategy,
     prompt_renderer: RenderPromptStrategy,
     signal_renderer: SignalRenderingStrategy,
-    should_run_structural_cleanup: StructuralCleanupPredicate,
+    structural_cleanup_decider: StructuralCleanupDecisionProtocol,
 ) -> Document | None:
     structlog.contextvars.bind_contextvars(bucket_id=bucket.culprit_node_id)
     start: float = time.monotonic()
@@ -139,7 +132,7 @@ async def _process_bucket(
         if per_node is None:
             outcome = "success"
             return None
-        if not should_run_structural_cleanup(per_node.actions):
+        if not structural_cleanup_decider.ShouldCleanup(per_node.actions):
             outcome = "success"
             produced_child = True
             return per_node.prompt
@@ -177,7 +170,7 @@ async def revise(
     redaction_strategy: RedactionStrategy | None = None,
     prompt_render_strategy: RenderPromptStrategy | None = None,
     signal_rendering_strategy: SignalRenderingStrategy | None = None,
-    structural_cleanup_predicate: StructuralCleanupPredicate | None = None,
+    structural_cleanup_decider: StructuralCleanupDecisionProtocol | None = None,
 ) -> list[Document]:
     parent_candidate_id: str = candidate_id_of(candidate.prompt)
     structlog.contextvars.bind_contextvars(parent_candidate_id=parent_candidate_id)
@@ -209,8 +202,8 @@ async def revise(
         signal_renderer: SignalRenderingStrategy = (
             signal_rendering_strategy if signal_rendering_strategy is not None else _DEFAULT_SIGNAL_RENDERER
         )
-        should_run_structural_cleanup: StructuralCleanupPredicate = (
-            structural_cleanup_predicate if structural_cleanup_predicate is not None else always_cleanup_structure
+        resolved_structural_cleanup: StructuralCleanupDecisionProtocol = (
+            structural_cleanup_decider if structural_cleanup_decider is not None else _DEFAULT_STRUCTURAL_CLEANUP
         )
 
         coroutines = [
@@ -223,7 +216,7 @@ async def revise(
                 prompt_redactor=prompt_redactor,
                 prompt_renderer=prompt_renderer,
                 signal_renderer=signal_renderer,
-                should_run_structural_cleanup=should_run_structural_cleanup,
+                structural_cleanup_decider=resolved_structural_cleanup,
             )
             for bucket in buckets
         ]

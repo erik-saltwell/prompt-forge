@@ -8,8 +8,8 @@ from typing import Any
 
 import yaml
 from prompt_model._prompt import parse_from_string
-from prompt_model._rendering import XmlRenderPromptStrategy
 from prompt_model.config import EvalCase
+from prompt_model.strategies.prompt_rendering_strategy import XmlRenderPromptStrategy
 
 _XML_RENDERER: XmlRenderPromptStrategy = XmlRenderPromptStrategy()
 

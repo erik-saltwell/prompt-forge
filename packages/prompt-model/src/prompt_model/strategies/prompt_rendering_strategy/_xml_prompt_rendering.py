@@ -1,109 +1,26 @@
 from __future__ import annotations
 
-import json
-from typing import ClassVar, Protocol, cast
+from typing import ClassVar
 from xml.sax.saxutils import escape, quoteattr
 
-from .._prompt import Document
-from .._prompt.annotations import Annotation, ExamplesGroup, GuidanceGroup
-from .._prompt.nodes import (
-    Blockquote,
-    CodeBlock,
-    List,
-    ListItem,
-    Paragraph,
-    Section,
-    Table,
-)
-from ._critic_markdown import to_critic_markdown
+from ..._prompt import Document
+from ..._prompt.annotations import Annotation, ExamplesGroup, GuidanceGroup
+from ..._prompt.nodes import Blockquote, CodeBlock, List, ListItem, Paragraph, Section, Table
 from ._resources import load_rendering_resource
 
 ELIDED: str = "…"
 
 
-class RenderPromptStrategy(Protocol):
-    """Renders a Document as the string the LLM will read, and describes its
-    own rendering convention via `describe_format()`.
-
-    `focus_ids = None` means render every node's content verbatim.
-    Otherwise, nodes whose id is in the set keep their content; everything
-    else is replaced by an elision marker. Structure and IDs always render.
-
-    `describe_format()` returns the markdown snippet a system prompt embeds
-    to teach the LLM how to read the rendered output and how to cite node
-    IDs back in its JSON response.
-    """
-
-    def render(self, tree: Document, focus_ids: set[str] | None) -> str: ...
-
-    def describe_format(self) -> str: ...
-
-
-class _ResourceFormatDescription:
-    """Mixin: `describe_format()` loads `format_snippet_resource` from
-    `_resources/prompt_format/<name>.md`. Subclasses set the ClassVar.
-    """
-
-    format_snippet_resource: ClassVar[str]
-
-    def describe_format(self) -> str:
-        return load_rendering_resource("prompt_format", self.format_snippet_resource)
-
-
-class XmlRenderPromptStrategy(_ResourceFormatDescription):
+class XmlRenderPromptStrategy:
     """Renders the tree as XML with `id` attributes on every addressable node."""
 
     format_snippet_resource: ClassVar[str] = "xml"
 
+    def describe_format(self) -> str:
+        return load_rendering_resource(self.format_snippet_resource)
+
     def render(self, tree: Document, focus_ids: set[str] | None) -> str:
         return _to_xml(tree, focus_ids=focus_ids)
-
-
-class JsonRenderPromptStrategy(_ResourceFormatDescription):
-    """Renders the tree as JSON via Pydantic's `model_dump`.
-
-    When `focus_ids` is provided, the `text` field of any node whose `id`
-    is not in the set is replaced by the elision marker. Structural fields
-    (`level`, `ordered`, `info`, `node_type`, `id`) are always preserved.
-    """
-
-    format_snippet_resource: ClassVar[str] = "json"
-
-    def render(self, tree: Document, focus_ids: set[str] | None) -> str:
-        data: object = tree.model_dump(mode="json")
-        if focus_ids is not None:
-            _elide(data, focus_ids)
-        return json.dumps(data, indent=2, ensure_ascii=False)
-
-
-class MarkdownRenderPromptStrategy(_ResourceFormatDescription):
-    """Critic-form: conforming markdown interleaved with `<!-- id -->` HTML
-    comments per `prompt-serialization.md`.
-    """
-
-    format_snippet_resource: ClassVar[str] = "markdown"
-
-    def render(self, tree: Document, focus_ids: set[str] | None) -> str:
-        return to_critic_markdown(tree, focus_ids=focus_ids)
-
-
-# --- JSON helpers ---
-
-
-def _elide(node: object, focus_ids: set[str]) -> None:
-    if isinstance(node, dict):
-        node_dict: dict[str, object] = cast(dict[str, object], node)
-        node_id: object = node_dict.get("id")
-        if isinstance(node_id, str) and node_id not in focus_ids and "text" in node_dict:
-            node_dict["text"] = ELIDED
-        for v in node_dict.values():
-            _elide(v, focus_ids)
-    elif isinstance(node, list):
-        for item in node:
-            _elide(item, focus_ids)
-
-
-# --- XML helpers ---
 
 
 def _to_xml(tree: Document, focus_ids: set[str] | None) -> str:

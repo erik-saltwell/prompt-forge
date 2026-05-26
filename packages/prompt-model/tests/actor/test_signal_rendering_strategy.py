@@ -4,9 +4,9 @@ import json
 
 from prompt_model._metrics._aggregator import AggregatedNodeBucket
 from prompt_model._metrics.result import IssueSignal
-from prompt_model._rendering import (
-    DefaultSignalRenderingStrategy,
+from prompt_model.strategies.signal_render_strategy import (
     JsonSignalRenderingStrategy,
+    MarkdownSignalRenderingStrategy,
     XmlSignalRenderingStrategy,
 )
 
@@ -36,7 +36,7 @@ def _signal(
 
 def test_renders_culprit_node_id_in_header() -> None:
     bucket = AggregatedNodeBucket(culprit_node_id="1.2.3", signals=[_signal()])
-    out: str = DefaultSignalRenderingStrategy().render(bucket)
+    out: str = MarkdownSignalRenderingStrategy().render(bucket)
     assert "`1.2.3`" in out
 
 
@@ -45,7 +45,7 @@ def test_renders_each_signal_as_numbered_subsection() -> None:
         culprit_node_id="1.1",
         signals=[_signal(rationale="a"), _signal(rationale="b"), _signal(rationale="c")],
     )
-    out: str = DefaultSignalRenderingStrategy().render(bucket)
+    out: str = MarkdownSignalRenderingStrategy().render(bucket)
     assert "## Issue 1" in out
     assert "## Issue 2" in out
     assert "## Issue 3" in out
@@ -56,7 +56,7 @@ def test_renders_required_fields() -> None:
         culprit_node_id="1.1",
         signals=[_signal(rationale="R", target_behavior="TB", success_criterion="SC", input_snippet="IN", output_snippet="OUT")],
     )
-    out: str = DefaultSignalRenderingStrategy().render(bucket)
+    out: str = MarkdownSignalRenderingStrategy().render(bucket)
     assert "R" in out
     assert "TB" in out
     assert "SC" in out
@@ -66,13 +66,13 @@ def test_renders_required_fields() -> None:
 
 def test_omits_suggested_change_when_absent() -> None:
     bucket = AggregatedNodeBucket(culprit_node_id="1.1", signals=[_signal(suggested_prompt_change=None)])
-    out: str = DefaultSignalRenderingStrategy().render(bucket)
+    out: str = MarkdownSignalRenderingStrategy().render(bucket)
     assert "Suggested change" not in out
 
 
 def test_includes_suggested_change_when_present() -> None:
     bucket = AggregatedNodeBucket(culprit_node_id="1.1", signals=[_signal(suggested_prompt_change="do X")])
-    out: str = DefaultSignalRenderingStrategy().render(bucket)
+    out: str = MarkdownSignalRenderingStrategy().render(bucket)
     assert "Suggested change" in out
     assert "do X" in out
 
@@ -80,8 +80,8 @@ def test_includes_suggested_change_when_present() -> None:
 def test_shows_seen_in_n_cases_only_when_greater_than_one() -> None:
     bucket1 = AggregatedNodeBucket(culprit_node_id="1.1", signals=[_signal(seen_in_n_cases=1)])
     bucket_many = AggregatedNodeBucket(culprit_node_id="1.1", signals=[_signal(seen_in_n_cases=4)])
-    assert "seen in" not in DefaultSignalRenderingStrategy().render(bucket1)
-    assert "seen in 4 cases" in DefaultSignalRenderingStrategy().render(bucket_many)
+    assert "seen in" not in MarkdownSignalRenderingStrategy().render(bucket1)
+    assert "seen in 4 cases" in MarkdownSignalRenderingStrategy().render(bucket_many)
 
 
 # --- JsonSignalRenderingStrategy ---

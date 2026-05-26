@@ -19,8 +19,8 @@ from pydantic import BaseModel, Field
 
 from .._llm import acomplete
 from .._prompt import parse_from_string
-from .._rendering import to_critic_markdown
 from ..config import LiteLLMConfig
+from ..strategies.prompt_rendering_strategy import render_prompt_to_markdown
 from .result import IssueSignal, MetricResult
 
 
@@ -214,7 +214,7 @@ class BaseClaimMetric(ABC):
         score: float = len(passing) / len(verdicts) if verdicts else 1.0
 
         document = parse_from_string(prompt)
-        prompt_with_ids: str = to_critic_markdown(document)
+        prompt_with_ids: str = render_prompt_to_markdown(document)
         attributions: list[NodeAttribution] = await self._attribute_nodes(failing, prompt_with_ids)
         attribution_map: dict[str, str] = {a.claim: a.culprit_node_id for a in attributions}
 

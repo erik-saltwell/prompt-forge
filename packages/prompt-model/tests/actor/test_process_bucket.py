@@ -5,15 +5,16 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 from prompt_model._actions.inputs import ActionBatch
-from prompt_model._actor._redaction import DefaultRedactionStrategy
-from prompt_model._actor._structural_strategy import always_cleanup_structure, never_cleanup_structure
-from prompt_model._actor.revise import StructuralCleanupPredicate, _process_bucket
+from prompt_model._actor.revise import _process_bucket
 from prompt_model._metrics._aggregator import AggregatedNodeBucket
 from prompt_model._metrics.result import IssueSignal
 from prompt_model._prompt import Document
 from prompt_model._prompt.parsing.parse_prompt import parse_from_string
-from prompt_model._rendering import DefaultSignalRenderingStrategy, XmlRenderPromptStrategy
 from prompt_model.config import LiteLLMConfig
+from prompt_model.strategies.prompt_rendering_strategy import XmlRenderPromptStrategy
+from prompt_model.strategies.redaction_strategy import ContextualRedactionStrategy
+from prompt_model.strategies.signal_render_strategy import MarkdownSignalRenderingStrategy
+from prompt_model.strategies.structural_cleanup_strategy import AlwaysCleanup, NeverCleanup, StructuralCleanupDecisionProtocol
 
 
 def _bucket(culprit_id: str = "1.1") -> AggregatedNodeBucket:
@@ -59,7 +60,7 @@ def _run_pipeline(
     *,
     feedback_mock: AsyncMock,
     structural_mock: AsyncMock,
-    should_run_structural: StructuralCleanupPredicate,
+    structural_cleanup_decider: StructuralCleanupDecisionProtocol,
     feedback_llm_config: LiteLLMConfig | None = None,
     structural_llm_config: LiteLLMConfig | None = None,
 ) -> Document | None:
@@ -75,10 +76,10 @@ def _run_pipeline(
                 preserve=[],
                 feedback_llm_config=feedback_cfg,
                 structural_llm_config=structural_llm_config,
-                prompt_redactor=DefaultRedactionStrategy(),
+                prompt_redactor=ContextualRedactionStrategy(),
                 prompt_renderer=XmlRenderPromptStrategy(),
-                signal_renderer=DefaultSignalRenderingStrategy(),
-                should_run_structural_cleanup=should_run_structural,
+                signal_renderer=MarkdownSignalRenderingStrategy(),
+                structural_cleanup_decider=structural_cleanup_decider,
             )
         )
 
@@ -88,9 +89,7 @@ def test_per_node_drop_returns_none_and_skips_structural() -> None:
     feedback_mock = AsyncMock(return_value=ActionBatch(reasoning="none", actions=[]).model_dump_json())
     structural_mock = AsyncMock(return_value=_structural_batch().model_dump_json())
 
-    result = _run_pipeline(
-        tree, feedback_mock=feedback_mock, structural_mock=structural_mock, should_run_structural=always_cleanup_structure
-    )
+    result = _run_pipeline(tree, feedback_mock=feedback_mock, structural_mock=structural_mock, structural_cleanup_decider=AlwaysCleanup())
 
     assert result is None
     structural_mock.assert_not_called()
@@ -101,9 +100,7 @@ def test_predicate_false_returns_per_node_prompt_and_skips_structural() -> None:
     feedback_mock = AsyncMock(return_value=_per_node_batch().model_dump_json())
     structural_mock = AsyncMock(return_value=_structural_batch().model_dump_json())
 
-    result = _run_pipeline(
-        tree, feedback_mock=feedback_mock, structural_mock=structural_mock, should_run_structural=never_cleanup_structure
-    )
+    result = _run_pipeline(tree, feedback_mock=feedback_mock, structural_mock=structural_mock, structural_cleanup_decider=NeverCleanup())
 
     assert result is not None
     assert "per-node" in result.to_markdown()
@@ -115,9 +112,7 @@ def test_predicate_true_runs_structural_and_returns_its_document() -> None:
     feedback_mock = AsyncMock(return_value=_per_node_batch().model_dump_json())
     structural_mock = AsyncMock(return_value=_structural_batch().model_dump_json())
 
-    result = _run_pipeline(
-        tree, feedback_mock=feedback_mock, structural_mock=structural_mock, should_run_structural=always_cleanup_structure
-    )
+    result = _run_pipeline(tree, feedback_mock=feedback_mock, structural_mock=structural_mock, structural_cleanup_decider=AlwaysCleanup())
 
     assert result is not None
     assert "structural" in result.to_markdown()
@@ -135,7 +130,7 @@ def test_structural_uses_override_config_when_provided() -> None:
         tree,
         feedback_mock=feedback_mock,
         structural_mock=structural_mock,
-        should_run_structural=always_cleanup_structure,
+        structural_cleanup_decider=AlwaysCleanup(),
         feedback_llm_config=feedback_cfg,
         structural_llm_config=structural_cfg,
     )
@@ -154,7 +149,7 @@ def test_structural_falls_back_to_feedback_config_when_override_absent() -> None
         tree,
         feedback_mock=feedback_mock,
         structural_mock=structural_mock,
-        should_run_structural=always_cleanup_structure,
+        structural_cleanup_decider=AlwaysCleanup(),
         feedback_llm_config=feedback_cfg,
         structural_llm_config=None,
     )
@@ -172,7 +167,7 @@ def test_per_node_transport_error_propagates() -> None:
             tree,
             feedback_mock=feedback_mock,
             structural_mock=structural_mock,
-            should_run_structural=always_cleanup_structure,
+            structural_cleanup_decider=AlwaysCleanup(),
         )
     structural_mock.assert_not_called()
 
@@ -187,5 +182,5 @@ def test_structural_transport_error_propagates() -> None:
             tree,
             feedback_mock=feedback_mock,
             structural_mock=structural_mock,
-            should_run_structural=always_cleanup_structure,
+            structural_cleanup_decider=AlwaysCleanup(),
         )

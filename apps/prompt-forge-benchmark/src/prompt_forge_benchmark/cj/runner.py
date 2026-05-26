@@ -5,7 +5,7 @@ Phase 1 config per docs/benchmarking.md:
   - Three "cheap switches" flipped vs prompt-forge defaults:
       * RedactionStrategy   -> NoRedactionStrategy (keep everything)
       * RenderPromptStrategy -> JsonRenderPromptStrategy
-      * structural cleanup  -> never_cleanup_structure
+      * structural cleanup  -> NeverCleanup
   - Everything else at prompt-forge defaults.
 """
 
@@ -15,12 +15,12 @@ import sys
 from dataclasses import dataclass
 
 from prompt_model import OptimizationResult, ProgressEvent, optimize_prompt
-from prompt_model._actor import (
-    JsonRenderPromptStrategy,
-    NoRedactionStrategy,
-    never_cleanup_structure,
-)
 from prompt_model.config import OptimizerConfig
+from prompt_model.strategies import (
+    JsonRenderPromptStrategy,
+    NeverCleanup,
+    NoRedactionStrategy,
+)
 
 from .data import load_initial_prompt, load_split
 from .headline import HeadlineReport, evaluate_prompt
@@ -88,7 +88,7 @@ async def run_cj_benchmark(*, max_concurrency: int | None = None, iterations: in
         progress_reporter=_stdout_progress,
         redaction_strategy=NoRedactionStrategy(),
         prompt_render_strategy=JsonRenderPromptStrategy(),
-        structural_cleanup_predicate=never_cleanup_structure,
+        structural_cleanup_decider=NeverCleanup(),
     )
     print(
         f"      Optimization done: {result.iterations_run} iterations, best_score={result.best_score:.4f}",

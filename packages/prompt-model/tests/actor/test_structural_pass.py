@@ -8,8 +8,8 @@ from prompt_model._actions.inputs import ActionBatch
 from prompt_model._actor._structural_actor import _cleanup_structure
 from prompt_model._prompt import Document
 from prompt_model._prompt.parsing.parse_prompt import parse_from_string
-from prompt_model._rendering import XmlRenderPromptStrategy
 from prompt_model.config import LiteLLMConfig
+from prompt_model.strategies.prompt_rendering_strategy import XmlRenderPromptStrategy
 
 
 def _config() -> LiteLLMConfig:

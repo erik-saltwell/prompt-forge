@@ -1,32 +1,11 @@
 from __future__ import annotations
 
-from typing import Protocol
-
-from .._prompt import Document
+from ..._prompt import Annotation, Document, Section
 
 DOCUMENT_SENTINEL: str = "document"
 
 
-class RedactionStrategy(Protocol):
-    """Given a tree and a culprit node id, returns the set of node ids whose
-    content the renderer should keep verbatim. `None` means keep everything.
-    """
-
-    def focus_ids(self, tree: Document, culprit_node_id: str) -> set[str] | None: ...
-
-
-class NoRedactionStrategy:
-    """Returns ``None`` for every culprit — the renderer keeps every node verbatim.
-
-    Useful for benchmarking against reference systems that show the actor the full
-    prompt, and for debugging when you want to remove redaction as a variable.
-    """
-
-    def focus_ids(self, tree: Document, culprit_node_id: str) -> set[str] | None:
-        return None
-
-
-class DefaultRedactionStrategy:
+class ContextualRedactionStrategy:
     """Focus on the culprit, its ancestors, its siblings, its own annotations
     (or sibling annotations if the culprit is itself an annotation), plus every
     section heading in the tree.
@@ -86,8 +65,6 @@ def _all_section_ids(tree: Document) -> set[str]:
     ids: set[str] = set()
 
     def walk(node: object) -> None:
-        from .._prompt.nodes import Section
-
         if isinstance(node, Section) and isinstance(node.id, str):
             ids.add(node.id)
         for c in _children(node):
@@ -124,8 +101,6 @@ def _path_to(tree: Document, target_id: str) -> list[object]:
 
 
 def _is_annotation(node: object) -> bool:
-    from .._prompt.annotations import Annotation
-
     return isinstance(node, Annotation)
 
 

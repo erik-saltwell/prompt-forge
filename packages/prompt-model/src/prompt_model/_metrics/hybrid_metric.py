@@ -29,8 +29,8 @@ from pydantic import BaseModel, Field, field_validator
 
 from .._llm import acomplete
 from .._prompt import parse_from_string
-from .._rendering import RenderPromptStrategy
 from ..config import LiteLLMConfig
+from ..strategies.prompt_rendering_strategy import RenderPromptStrategy, XmlRenderPromptStrategy
 from ._resources import load_metric_resource
 from .result import IssueSignal, MetricResult
 
@@ -85,8 +85,6 @@ class HybridMetric(ABC):
     def __init__(self, judge_llm: LiteLLMConfig | None = None, render_strategy: RenderPromptStrategy | None = None) -> None:
         self.judge_llm: LiteLLMConfig | None = judge_llm
         if render_strategy is None:
-            from .._rendering import XmlRenderPromptStrategy
-
             render_strategy = XmlRenderPromptStrategy()
         self.render_strategy: RenderPromptStrategy = render_strategy
 

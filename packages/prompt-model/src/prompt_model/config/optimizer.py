@@ -5,14 +5,12 @@ from typing import Self
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from ..strategies.prompt_rendering_strategy import RenderPromptOption
+from ..strategies.redaction_strategy import RedactionOption
+from ..strategies.signal_render_strategy import RenderSignalOption
+from ..strategies.structural_cleanup_strategy import StructuralCleanupOption
 from .eval_case import EvalCase
 from .llm import LiteLLMConfig
-from .strategies import (
-    PromptRenderStrategyOption,
-    RedactionStrategyOption,
-    SignalRenderStrategyOption,
-    StructuralCleanupOption,
-)
 
 
 class OptimizerConfig(BaseModel):
@@ -91,24 +89,24 @@ class OptimizerConfig(BaseModel):
 
     # --- Strategy selectors ---------------------------------------------------
 
-    redaction_strategy: RedactionStrategyOption = Field(
-        default=RedactionStrategyOption.DEFAULT,
+    redaction_strategy: RedactionOption = Field(
+        default=RedactionOption.CONTEXTUAL,
         description=(
             "Controls how much of the prompt tree the actor LLM sees. "
-            "'default' shows only the culprit, ancestors, siblings, and section headings; "
+            "'contextual' shows only the culprit, ancestors, siblings, and section headings; "
             "'none' shows the entire tree verbatim."
         ),
     )
-    prompt_render_strategy: PromptRenderStrategyOption = Field(
-        default=PromptRenderStrategyOption.XML,
+    prompt_render_strategy: RenderPromptOption = Field(
+        default=RenderPromptOption.XML,
         description=(
             "Serialization format the actor LLM reads the prompt tree in. "
             "'xml' (default) is recommended for Claude; 'json' uses Pydantic model_dump; "
             "'markdown' uses critic-form markdown with HTML-comment ID overlays."
         ),
     )
-    signal_render_strategy: SignalRenderStrategyOption = Field(
-        default=SignalRenderStrategyOption.MARKDOWN,
+    signal_render_strategy: RenderSignalOption = Field(
+        default=RenderSignalOption.MARKDOWN,
         description=(
             "Format used to render aggregated issue signals in the actor's user prompt. "
             "'markdown' (default) produces humanized subsections; 'json' and 'xml' are structured alternatives."
@@ -204,13 +202,13 @@ class OptimizerConfig(BaseModel):
     def with_seed(self, n: int | None) -> Self:
         return self.model_copy(update={"seed": n})
 
-    def with_redaction_strategy(self, option: RedactionStrategyOption) -> Self:
+    def with_redaction_strategy(self, option: RedactionOption) -> Self:
         return self.model_copy(update={"redaction_strategy": option})
 
-    def with_prompt_render_strategy(self, option: PromptRenderStrategyOption) -> Self:
+    def with_prompt_render_strategy(self, option: RenderPromptOption) -> Self:
         return self.model_copy(update={"prompt_render_strategy": option})
 
-    def with_signal_render_strategy(self, option: SignalRenderStrategyOption) -> Self:
+    def with_signal_render_strategy(self, option: RenderSignalOption) -> Self:
         return self.model_copy(update={"signal_render_strategy": option})
 
     def with_structural_cleanup(self, option: StructuralCleanupOption) -> Self:

@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import json
 
-from prompt_model._actor._redaction import DefaultRedactionStrategy
 from prompt_model._prompt.parsing.parse_prompt import parse_from_string
-from prompt_model._rendering import JsonRenderPromptStrategy, MarkdownRenderPromptStrategy
+from prompt_model.strategies.prompt_rendering_strategy import JsonRenderPromptStrategy, MarkdownRenderPromptStrategy
+from prompt_model.strategies.redaction_strategy import ContextualRedactionStrategy
 
 
 def test_json_full_render_preserves_all_content() -> None:
@@ -20,7 +20,7 @@ def test_json_full_render_preserves_all_content() -> None:
 
 def test_json_focused_render_elides_text_outside_focus() -> None:
     tree = parse_from_string("# alpha\n\nbody one\n\n# beta\n\nbody two\n")
-    focus = DefaultRedactionStrategy().focus_ids(tree, "1.1")
+    focus = ContextualRedactionStrategy().focus_ids(tree, "1.1")
     rendered: str = JsonRenderPromptStrategy().render(tree, focus)
 
     data = json.loads(rendered)
@@ -33,7 +33,7 @@ def test_json_focused_render_elides_text_outside_focus() -> None:
 
 def test_json_preserves_structural_fields() -> None:
     tree = parse_from_string("# alpha\n\n- one\n- two\n")
-    focus = DefaultRedactionStrategy().focus_ids(tree, "1.1.1")
+    focus = ContextualRedactionStrategy().focus_ids(tree, "1.1.1")
     rendered: str = JsonRenderPromptStrategy().render(tree, focus)
 
     data = json.loads(rendered)
@@ -62,7 +62,7 @@ def test_md_full_render_emits_id_comment_for_every_addressable_node() -> None:
 
 def test_md_focused_render_elides_text_outside_focus() -> None:
     tree = parse_from_string("# alpha\n\nbody one\n\n# beta\n\nbody two\n")
-    focus = DefaultRedactionStrategy().focus_ids(tree, "1.1")
+    focus = ContextualRedactionStrategy().focus_ids(tree, "1.1")
     rendered: str = MarkdownRenderPromptStrategy().render(tree, focus)
 
     assert "body one" in rendered  # in focus

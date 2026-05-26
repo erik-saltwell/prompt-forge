@@ -15,8 +15,8 @@ from typing import ClassVar
 import pytest
 from prompt_model import BaseLLMJudgeMetric, MetricResult
 from prompt_model._prompt import Document
-from prompt_model._rendering import MarkdownRenderPromptStrategy
 from prompt_model.config import LiteLLMConfig
+from prompt_model.strategies.prompt_rendering_strategy import MarkdownRenderPromptStrategy
 
 _CONFIG = LiteLLMConfig(model="fake/model")
 
