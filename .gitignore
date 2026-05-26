@@ -30,3 +30,9 @@ htmlcov/
 # OS/editor
 .DS_Store
 Thumbs.db
+
+# LLM call logs (generated at runtime by acomplete log_name= parameter)
+logs/
+
+# Claude session locks
+.claude/scheduled_tasks.lock

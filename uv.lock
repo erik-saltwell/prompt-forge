@@ -6,6 +6,7 @@ requires-python = ">=3.12"
 members = [
     "prompt-forge",
     "prompt-forge-benchmark",
+    "prompt-forge-self-improvement",
     "prompt-forge-workspace",
     "prompt-model",
     "prompt-model-check",
@@ -1067,6 +1068,25 @@ requires-dist = [
     { name = "litellm" },
     { name = "prompt-model", editable = "packages/prompt-model" },
     { name = "scikit-learn" },
+    { name = "structlog", specifier = ">=25.5.0" },
+]
+
+[[package]]
+name = "prompt-forge-self-improvement"
+version = "0.1.0"
+source = { editable = "apps/prompt-forge-self-improvement" }
+dependencies = [
+    { name = "litellm" },
+    { name = "prompt-model" },
+    { name = "pyyaml" },
+    { name = "structlog" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "litellm" },
+    { name = "prompt-model", editable = "packages/prompt-model" },
+    { name = "pyyaml", specifier = ">=6.0" },
     { name = "structlog", specifier = ">=25.5.0" },
 ]
 

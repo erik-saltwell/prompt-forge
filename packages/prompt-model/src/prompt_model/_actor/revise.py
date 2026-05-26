@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import re
 import time
 from collections.abc import Callable
 from typing import NamedTuple
@@ -14,11 +15,11 @@ from .._candidate.candidate import Candidate
 from .._llm import acomplete
 from .._metrics._aggregator import AggregatedNodeBucket, AggregationResult, aggregate
 from .._prompt import Document
+from .._resources import load_prompt
 from .._utils.identity import candidate_id_of
 from ..config import LiteLLMConfig
 from ._redaction import DefaultRedactionStrategy, RedactionStrategy
 from ._render_prompt_strategy import RenderPromptStrategy, XmlRenderPromptStrategy
-from ._resources import load_prompt
 from ._signal_rendering_strategy import DefaultSignalRenderingStrategy, SignalRenderingStrategy
 from ._structural_actor import _cleanup_structure
 from ._structural_strategy import always_cleanup_structure
@@ -35,6 +36,19 @@ type StructuralCleanupPredicate = Callable[[ActionBatch], bool]
 class PromptAndActions(NamedTuple):
     actions: ActionBatch
     prompt: Document
+
+
+_CODE_FENCE_RE: re.Pattern[str] = re.compile(r"```(?:json)?\s*(.*?)\s*```", re.DOTALL)
+
+
+def _extract_json(text: str) -> str:
+    """Strip markdown code fences that LLMs add when not using structured output.
+
+    Returns the content between the first ```...``` fence if present,
+    otherwise returns the input unchanged (it may already be raw JSON).
+    """
+    m: re.Match[str] | None = _CODE_FENCE_RE.search(text)
+    return m.group(1) if m else text.strip()
 
 
 def _build_user_prompt(rendered_tree: str, rendered_signals: str, preserve: list[str]) -> str:
@@ -71,14 +85,14 @@ async def _process_feedback(
     user_prompt: str = _build_user_prompt(rendered_tree, rendered_signals, preserve)
     system_prompt: str = load_prompt("feedback_actor")
     try:
-        batch: ActionBatch = await acomplete(
+        raw: str = await acomplete(
             system_prompt,
             user_prompt,
             llm_config,
-            response_format=ActionBatch,
             log_name="feedback_actor",
         )
-    except ValidationError:
+        batch: ActionBatch = ActionBatch.model_validate_json(_extract_json(raw))
+    except (ValidationError, ValueError):
         return None
     report: AppliedReport = apply_batch(tree, batch)
     _emit_action_events(batch, report, actor_kind="feedback")

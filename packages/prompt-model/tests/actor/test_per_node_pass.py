@@ -14,7 +14,6 @@ from prompt_model._metrics.result import IssueSignal
 from prompt_model._prompt import Document
 from prompt_model._prompt.parsing.parse_prompt import parse_from_string
 from prompt_model.config import LiteLLMConfig
-from pydantic import ValidationError
 
 
 def _bucket(culprit_id: str = "1.1") -> AggregatedNodeBucket:
@@ -39,14 +38,6 @@ def _config() -> LiteLLMConfig:
 
 def _strategies() -> tuple[DefaultRedactionStrategy, XmlRenderPromptStrategy, DefaultSignalRenderingStrategy]:
     return DefaultRedactionStrategy(), XmlRenderPromptStrategy(), DefaultSignalRenderingStrategy()
-
-
-def _make_validation_error() -> ValidationError:
-    try:
-        ActionBatch.model_validate({"actions": []})  # missing required 'reasoning'
-    except ValidationError as e:
-        return e
-    raise AssertionError("expected ValidationError")
 
 
 def _run_per_node_pass(
@@ -78,18 +69,28 @@ def test_happy_path_returns_prompt_and_actions() -> None:
             "actions": [{"action": "rewrite_node", "id": "1.1", "text": "new body"}],
         }
     )
-    mock = AsyncMock(return_value=batch)
+    mock = AsyncMock(return_value=batch.model_dump_json())
 
     result = _run_per_node_pass(tree, _bucket("1.1"), [], mock)
 
     assert result is not None
-    assert result.actions is batch
+    assert result.actions.reasoning == batch.reasoning
     assert "new body" in result.prompt.to_markdown()
 
 
-def test_validation_error_from_acomplete_returns_none() -> None:
+def test_unparseable_json_from_acomplete_returns_none() -> None:
     tree = parse_from_string("# alpha\n\nbody\n")
-    mock = AsyncMock(side_effect=_make_validation_error())
+    mock = AsyncMock(return_value="{invalid json}")
+
+    result = _run_per_node_pass(tree, _bucket("1.1"), [], mock)
+
+    assert result is None
+
+
+def test_invalid_schema_from_acomplete_returns_none() -> None:
+    tree = parse_from_string("# alpha\n\nbody\n")
+    # Missing required 'reasoning' field — model_validate_json will raise ValidationError
+    mock = AsyncMock(return_value='{"actions": []}')
 
     result = _run_per_node_pass(tree, _bucket("1.1"), [], mock)
 
@@ -99,7 +100,7 @@ def test_validation_error_from_acomplete_returns_none() -> None:
 def test_empty_actions_returns_none() -> None:
     tree = parse_from_string("# alpha\n\nbody\n")
     batch = ActionBatch(reasoning="no changes needed", actions=[])
-    mock = AsyncMock(return_value=batch)
+    mock = AsyncMock(return_value=batch.model_dump_json())
 
     result = _run_per_node_pass(tree, _bucket("1.1"), [], mock)
 
@@ -114,7 +115,7 @@ def test_all_actions_skipped_returns_none() -> None:
             "actions": [{"action": "rewrite_node", "id": "99.99", "text": "x"}],
         }
     )
-    mock = AsyncMock(return_value=batch)
+    mock = AsyncMock(return_value=batch.model_dump_json())
 
     result = _run_per_node_pass(tree, _bucket("1.1"), [], mock)
 
@@ -137,7 +138,7 @@ def test_user_prompt_contains_tree_signals_and_preserve() -> None:
             "actions": [{"action": "rewrite_node", "id": "1.1", "text": "new"}],
         }
     )
-    mock = AsyncMock(return_value=batch)
+    mock = AsyncMock(return_value=batch.model_dump_json())
 
     _run_per_node_pass(tree, _bucket("1.1"), ["never drop the alpha heading"], mock)
 

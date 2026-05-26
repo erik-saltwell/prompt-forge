@@ -1,0 +1,64 @@
+name: host_type_annotation_id
+description: |
+  Node 1.1 already has an existing example annotation (id "1.1.e1"). The feedback
+  asks for a better/additional example. A naive actor may emit add_example with
+  host_id "1.1.e1" (an annotation ID), which is illegal — annotation IDs cannot be
+  hosts. The correct action is add_example with host_id "1.1" or update_example with
+  id "1.1.e1".
+
+  Tree IDs:
+    1      = Section "Task" (h1)
+    1.1    = Paragraph "Read a short story and answer a causal-judgement question."
+               with examples group:
+               1.1.e1 = "Heavy rain → flooded streets → Yes"
+    1.2    = Section "Output" (h2)
+    1.2.1  = Paragraph "Respond with Yes or No."
+
+prompt_markdown: |
+  # Task
+
+  Read a short story and answer a causal-judgement question.
+
+  ::: examples
+  Heavy rain → flooded streets → Yes
+  :::
+
+  ## Output
+
+  Respond with Yes or No.
+
+signals:
+  - culprit_node_id: "1.1"
+    rationale: "The single example only covers a straightforward physical cause. The model struggles with intentional actions as causes."
+    target_behavior: "The examples should cover intentional human actions as causes, not just physical events."
+    success_criterion: "At least one example demonstrates an intentional action causing an outcome."
+    input_snippet: "Did the CEO's decision cause the company's bankruptcy?"
+    output_snippet: "No"
+    seen_in_n_cases: 4
+
+preserve:
+  - "Keep the existing physical-causation example (1.1.e1) — it is correct and useful."
+
+golden_actions:
+  reasoning: "Add a second example covering intentional causation. host_id is '1.1' (the Paragraph), not '1.1.e1' (the annotation)."
+  actions:
+    - action: add_example
+      host_id: "1.1"
+      text: "The CEO intentionally cut safety funding → the accident occurred → Yes, the CEO caused it."
+
+criteria:
+  id_validity:
+    - "All IDs in the batch exist verbatim in the prompt tree."
+  host_type_correctness:
+    - "The add_example host_id is '1.1' (the Paragraph), not '1.1.e1' (an annotation ID)."
+    - "Annotation IDs like '1.1.e1' cannot be used as host_id; only Paragraph or ListItem IDs are valid."
+  issue_traceability:
+    - "The emitted action adds an example covering intentional causation, addressing the feedback signal."
+  action_type_fitness:
+    - "add_example is the right choice when the model is confused about a class of inputs."
+  coverage:
+    - "The single issue (seen in 4 cases) produced at least one action."
+  preserve_compliance:
+    - "The existing example (1.1.e1) is not removed or updated — it is in the preserve list."
+  speculative_edit_absence:
+    - "No actions touch nodes outside the scope of the feedback (e.g., 1.2 or 1.2.1)."

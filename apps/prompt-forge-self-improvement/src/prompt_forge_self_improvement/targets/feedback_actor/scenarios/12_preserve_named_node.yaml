@@ -1,0 +1,53 @@
+name: preserve_named_node
+description: |
+  The preserve list explicitly names node 2.1 (by ID) as off-limits. The feedback
+  also targets node 2.1. The actor must NOT emit rewrite_node or delete_node on 2.1.
+  The correct response is an empty batch with a reasoning explanation.
+
+  Tree IDs:
+    1    = Section "Task" (h1)
+    1.1  = Paragraph "Answer causal-judgement questions about stories."
+    2    = Section "Output Format" (h1)
+    2.1  = Paragraph "Respond with exactly the word Yes or No. Do not include any explanation, qualifiers, or punctuation."
+
+prompt_markdown: |
+  # Task
+
+  Answer causal-judgement questions about stories.
+
+  # Output Format
+
+  Respond with exactly the word Yes or No. Do not include any explanation, qualifiers, or punctuation.
+
+signals:
+  - culprit_node_id: "2.1"
+    rationale: "The output format instruction is overly restrictive — the extra details may confuse some models."
+    target_behavior: "A simpler format instruction (just 'Yes or No') may be sufficient."
+    success_criterion: "The output instruction is simplified without losing the binary constraint."
+    input_snippet: "Did the rain cause flooding?"
+    output_snippet: "Yes, the heavy rain directly caused the flooding."
+    seen_in_n_cases: 2
+
+preserve:
+  - "Node 2.1: The no-explanation constraint is critical for downstream parsing — do not rewrite or delete it."
+
+golden_actions:
+  reasoning: "Node 2.1 is explicitly in the preserve list. Despite the feedback, no action is emitted."
+  actions: []
+
+criteria:
+  id_validity:
+    - "No actions are emitted, so no ID references to validate."
+  host_type_correctness:
+    - "No annotation actions emitted."
+  issue_traceability:
+    - "The batch is empty because the preserve list overrides the feedback; this is the correct response."
+  action_type_fitness:
+    - "An empty batch is appropriate when all feedback targets are preserve-protected."
+  coverage:
+    - "The issue (seen in only 2 cases) is low-priority and protected — not covering it is acceptable."
+  preserve_compliance:
+    - "Node 2.1 is NOT rewritten or deleted — the preserve instruction is respected."
+    - "No actions in the batch touch node 2.1."
+  speculative_edit_absence:
+    - "No speculative edits to node 1.1 or any other node not in the feedback."

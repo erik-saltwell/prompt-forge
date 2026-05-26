@@ -1,0 +1,25 @@
+[project]
+name = "prompt-forge-self-improvement"
+version = "0.1.0"
+description = "Uses prompt-forge to optimize prompt-forge's own internal LLM prompts."
+readme = "README.md"
+authors = [
+    { name = "Erik Saltwell", email = "erik.saltwell@gmail.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "prompt-model",
+    "litellm",
+    "pyyaml>=6.0",
+    "structlog>=25.5.0",
+]
+
+[project.scripts]
+prompt-forge-self-improvement = "prompt_forge_self_improvement.main:main"
+
+[build-system]
+requires = ["uv_build>=0.11.2,<0.12.0"]
+build-backend = "uv_build"
+
+[tool.uv.sources]
+prompt-model = { workspace = true }

@@ -1,0 +1,74 @@
+name: coverage_two_high_sightings
+description: |
+  Two distinct high-sightings issues both target node 2.1. Both must produce at
+  least one action — skipping either one is a coverage failure.
+
+  Tree IDs:
+    1    = Section "Task" (h1)
+    1.1  = Paragraph "Answer causal-judgement questions about stories."
+    2    = Section "Causal Rubric" (h1)
+    2.1  = Paragraph "Use human judgment."
+    3    = Section "Output Format" (h1)
+    3.1  = Paragraph "Respond with Yes or No."
+
+prompt_markdown: |
+  # Task
+
+  Answer causal-judgement questions about stories.
+
+  # Causal Rubric
+
+  Use human judgment.
+
+  # Output Format
+
+  Respond with Yes or No.
+
+signals:
+  - culprit_node_id: "2.1"
+    rationale: "The rubric says nothing about norm violations — the model ignores them entirely."
+    target_behavior: "Explicitly weigh norm violations as a causal amplifier."
+    success_criterion: "The rubric mentions norm violation as a factor."
+    input_snippet: "The contractor violated building codes. Did that cause the collapse?"
+    output_snippet: "No"
+    seen_in_n_cases: 7
+  - culprit_node_id: "2.1"
+    rationale: "The rubric says nothing about counterfactual reasoning — the model ignores it."
+    target_behavior: "Instruct the model to ask: would the outcome have occurred without this action?"
+    success_criterion: "The rubric or an attached guidance item mentions counterfactual necessity."
+    input_snippet: "Without the faulty valve, would the explosion have happened?"
+    output_snippet: "Yes"
+    seen_in_n_cases: 5
+
+preserve: []
+
+golden_actions:
+  reasoning: "Both issues are high-sightings and must be addressed. Add guidance for norm violations and counterfactual reasoning."
+  actions:
+    - action: rewrite_node
+      id: "2.1"
+      text: "Apply human causal judgment: consider norm violations, intentionality, and counterfactual necessity."
+    - action: add_guidance
+      host_id: "2.1"
+      text: "Agents who violate norms or rules to produce an outcome are judged as stronger causes."
+    - action: add_guidance
+      host_id: "2.1"
+      text: "Ask: would the outcome have occurred without this action? If not, it is a necessary cause."
+
+criteria:
+  id_validity:
+    - "All IDs (2.1) exist in the tree."
+  host_type_correctness:
+    - "add_guidance host_id '2.1' is a Paragraph — valid."
+  issue_traceability:
+    - "At least one action addresses the norm-violation issue."
+    - "At least one action addresses the counterfactual-reasoning issue."
+  action_type_fitness:
+    - "add_guidance is appropriate for stating missing rules."
+    - "rewrite_node is appropriate if the existing text is too sparse to carry the additions."
+  coverage:
+    - "Both issues — norm violations (seen in 7 cases) and counterfactuals (seen in 5 cases) — produced at least one action."
+  preserve_compliance:
+    - "No preserve items to check."
+  speculative_edit_absence:
+    - "No actions on 1.1, 3.1, or nodes not cited in the feedback."

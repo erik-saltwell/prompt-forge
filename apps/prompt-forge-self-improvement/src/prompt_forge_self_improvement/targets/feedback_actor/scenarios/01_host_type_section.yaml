@@ -1,0 +1,57 @@
+name: host_type_section
+description: |
+  Feedback targets a Section node (id "1"). A naive actor may emit add_example
+  with host_id "1" (the Section), which is illegal. The correct action is to use
+  the Paragraph inside the section (id "1.1") as the host_id.
+
+  Tree IDs:
+    1      = Section "Task" (h1)
+    1.1    = Paragraph "Read a short story and answer a causal-judgement question."
+    1.2    = Section "Instructions" (h2)
+    1.2.1  = Paragraph "Answer with a single word: Yes or No."
+
+prompt_markdown: |
+  # Task
+
+  Read a short story and answer a causal-judgement question.
+
+  ## Instructions
+
+  Answer with a single word: Yes or No.
+
+signals:
+  - culprit_node_id: "1"
+    rationale: "The Task section lacks a worked example showing what causal reasoning looks like."
+    target_behavior: "Provide a concrete causal example so the model understands the expected reasoning pattern."
+    success_criterion: "At least one example in the prompt demonstrates causal reasoning with a Yes or No answer."
+    input_snippet: "Did the heavy rain cause the city to flood?"
+    output_snippet: "No"
+    seen_in_n_cases: 6
+
+preserve:
+  - "Keep the single-word Yes/No output instruction in the Instructions section."
+
+golden_actions:
+  reasoning: "Add a worked causal example to the task paragraph (host 1.1, the Paragraph inside Section 1)."
+  actions:
+    - action: add_example
+      host_id: "1.1"
+      text: "Heavy rain flooded the streets → Yes, the rain caused the flooding."
+
+criteria:
+  id_validity:
+    - "All IDs in the batch exist verbatim in the prompt tree."
+    - "No host_id refers to a node that doesn't exist in the tree."
+  host_type_correctness:
+    - "The add_example host_id is '1.1' (a Paragraph), not '1' (a Section)."
+    - "Section nodes cannot host annotations; host_id must be a Paragraph or ListItem."
+  issue_traceability:
+    - "The emitted action directly addresses the feedback signal about missing causal examples."
+  action_type_fitness:
+    - "add_example is appropriate when the model is confused by what causal reasoning looks like."
+  coverage:
+    - "The single high-sightings issue (seen in 6 cases) produced at least one action."
+  preserve_compliance:
+    - "The Yes/No output instruction (node 1.2.1) is not rewritten or deleted."
+  speculative_edit_absence:
+    - "No actions target nodes not mentioned in the feedback (e.g., node 1.2 or 1.2.1)."

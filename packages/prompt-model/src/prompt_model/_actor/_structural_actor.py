@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import re
+
 import structlog
 from pydantic import ValidationError
 
@@ -7,11 +9,18 @@ from .._actions.apply_batch import AppliedReport, apply_batch
 from .._actions.inputs import ActionBatch
 from .._llm import acomplete
 from .._prompt import Document
+from .._resources import load_prompt
 from ..config import LiteLLMConfig
 from ._render_prompt_strategy import RenderPromptStrategy
-from ._resources import load_prompt
 
 _log = structlog.get_logger()
+_CODE_FENCE_RE: re.Pattern[str] = re.compile(r"```(?:json)?\s*(.*?)\s*```", re.DOTALL)
+
+
+def _extract_json(text: str) -> str:
+    """Strip markdown code fences that LLMs add when not using structured output."""
+    m: re.Match[str] | None = _CODE_FENCE_RE.search(text)
+    return m.group(1) if m else text.strip()
 
 
 def _build_user_prompt(rendered_tree: str, preserve: list[str]) -> str:
@@ -41,14 +50,14 @@ async def _cleanup_structure(
     user_prompt: str = _build_user_prompt(rendered_tree, preserve)
     system_prompt: str = load_prompt("structural_actor")
     try:
-        batch: ActionBatch = await acomplete(
+        raw: str = await acomplete(
             system_prompt,
             user_prompt,
             llm_config,
-            response_format=ActionBatch,
             log_name="structural_actor",
         )
-    except ValidationError:
+        batch: ActionBatch = ActionBatch.model_validate_json(_extract_json(raw))
+    except (ValidationError, ValueError):
         return tree
     report: AppliedReport = apply_batch(tree, batch)
     _emit_action_events(batch, report)

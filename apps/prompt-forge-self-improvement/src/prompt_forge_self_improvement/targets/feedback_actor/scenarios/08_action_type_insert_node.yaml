@@ -1,0 +1,58 @@
+name: action_type_insert_node
+description: |
+  The prompt has no output format section at all — the culprit is the "document"
+  sentinel. The model produces verbose multi-sentence answers. The correct action is
+  insert_node to add a new Output Format section. A naive actor might try to add
+  guidance to an existing node, which is a wrong choice when a whole new section is
+  needed.
+
+  Tree IDs:
+    1      = Section "Task" (h1)
+    1.1    = Paragraph "Read a short story and answer the causal-judgement question."
+    1.2    = Section "Causal Rubric" (h2)
+    1.2.1  = Paragraph "Use human causal judgment considering norm violation, intentionality, and counterfactual necessity."
+
+prompt_markdown: |
+  # Task
+
+  Read a short story and answer the causal-judgement question.
+
+  ## Causal Rubric
+
+  Use human causal judgment considering norm violation, intentionality, and counterfactual necessity.
+
+signals:
+  - culprit_node_id: "document"
+    rationale: "No output format section exists. The model produces long explanations instead of the required single-word answer."
+    target_behavior: "The prompt must specify that the answer is exactly one word: Yes or No."
+    success_criterion: "A dedicated output section or paragraph specifies Yes/No as the only valid response."
+    input_snippet: "Did the storm cause the power outage?"
+    output_snippet: "While it is likely that the severe weather contributed to infrastructure stress, a definitive causal link is hard to establish..."
+    seen_in_n_cases: 15
+
+preserve: []
+
+golden_actions:
+  reasoning: "Insert a new Output Format section after node 1 to specify the single-word response format."
+  actions:
+    - action: insert_node
+      target: "1"
+      position: "after"
+      subtree: "# Output Format\n\nRespond with a single word: Yes or No. Do not include explanation or justification.\n"
+
+criteria:
+  id_validity:
+    - "The target id '1' exists in the prompt tree."
+  host_type_correctness:
+    - "No annotation actions in the batch."
+  issue_traceability:
+    - "The action inserts an output format specification, directly addressing the 'no output section' signal."
+  action_type_fitness:
+    - "insert_node is the correct choice when a required section is entirely absent from the prompt."
+    - "add_guidance to an existing node would be weaker — a dedicated section is clearer for this formatting constraint."
+  coverage:
+    - "The single very-high-sightings issue (seen in 15 cases) produced at least one action."
+  preserve_compliance:
+    - "No preserve items to check."
+  speculative_edit_absence:
+    - "No rewrites to 1.1, 1.2.1, or other existing nodes."

@@ -86,8 +86,8 @@ def _run_pipeline(
 
 def test_per_node_drop_returns_none_and_skips_structural() -> None:
     tree = parse_from_string("# alpha\n\nbody\n")
-    feedback_mock = AsyncMock(return_value=ActionBatch(reasoning="none", actions=[]))
-    structural_mock = AsyncMock(return_value=_structural_batch())
+    feedback_mock = AsyncMock(return_value=ActionBatch(reasoning="none", actions=[]).model_dump_json())
+    structural_mock = AsyncMock(return_value=_structural_batch().model_dump_json())
 
     result = _run_pipeline(
         tree, feedback_mock=feedback_mock, structural_mock=structural_mock, should_run_structural=always_cleanup_structure
@@ -99,8 +99,8 @@ def test_per_node_drop_returns_none_and_skips_structural() -> None:
 
 def test_predicate_false_returns_per_node_prompt_and_skips_structural() -> None:
     tree = parse_from_string("# alpha\n\nbody\n")
-    feedback_mock = AsyncMock(return_value=_per_node_batch())
-    structural_mock = AsyncMock(return_value=_structural_batch())
+    feedback_mock = AsyncMock(return_value=_per_node_batch().model_dump_json())
+    structural_mock = AsyncMock(return_value=_structural_batch().model_dump_json())
 
     result = _run_pipeline(
         tree, feedback_mock=feedback_mock, structural_mock=structural_mock, should_run_structural=never_cleanup_structure
@@ -113,8 +113,8 @@ def test_predicate_false_returns_per_node_prompt_and_skips_structural() -> None:
 
 def test_predicate_true_runs_structural_and_returns_its_document() -> None:
     tree = parse_from_string("# alpha\n\nbody\n")
-    feedback_mock = AsyncMock(return_value=_per_node_batch())
-    structural_mock = AsyncMock(return_value=_structural_batch())
+    feedback_mock = AsyncMock(return_value=_per_node_batch().model_dump_json())
+    structural_mock = AsyncMock(return_value=_structural_batch().model_dump_json())
 
     result = _run_pipeline(
         tree, feedback_mock=feedback_mock, structural_mock=structural_mock, should_run_structural=always_cleanup_structure
@@ -129,8 +129,8 @@ def test_structural_uses_override_config_when_provided() -> None:
     tree = parse_from_string("# alpha\n\nbody\n")
     feedback_cfg = _config("anthropic/claude-sonnet-4-6")
     structural_cfg = _config("anthropic/claude-haiku-4-5-20251001")
-    feedback_mock = AsyncMock(return_value=_per_node_batch())
-    structural_mock = AsyncMock(return_value=_structural_batch())
+    feedback_mock = AsyncMock(return_value=_per_node_batch().model_dump_json())
+    structural_mock = AsyncMock(return_value=_structural_batch().model_dump_json())
 
     _run_pipeline(
         tree,
@@ -148,8 +148,8 @@ def test_structural_uses_override_config_when_provided() -> None:
 def test_structural_falls_back_to_feedback_config_when_override_absent() -> None:
     tree = parse_from_string("# alpha\n\nbody\n")
     feedback_cfg = _config()
-    feedback_mock = AsyncMock(return_value=_per_node_batch())
-    structural_mock = AsyncMock(return_value=_structural_batch())
+    feedback_mock = AsyncMock(return_value=_per_node_batch().model_dump_json())
+    structural_mock = AsyncMock(return_value=_structural_batch().model_dump_json())
 
     _run_pipeline(
         tree,
@@ -180,7 +180,7 @@ def test_per_node_transport_error_propagates() -> None:
 
 def test_structural_transport_error_propagates() -> None:
     tree = parse_from_string("# alpha\n\nbody\n")
-    feedback_mock = AsyncMock(return_value=_per_node_batch())
+    feedback_mock = AsyncMock(return_value=_per_node_batch().model_dump_json())
     structural_mock = AsyncMock(side_effect=RuntimeError("503 from structural"))
 
     with pytest.raises(RuntimeError, match="503 from structural"):

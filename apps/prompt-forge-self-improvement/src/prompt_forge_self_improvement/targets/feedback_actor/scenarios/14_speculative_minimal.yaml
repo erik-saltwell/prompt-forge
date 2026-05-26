@@ -1,0 +1,56 @@
+name: speculative_minimal
+description: |
+  One clear, well-specified feedback issue targeting node 1.1. The correct response
+  is exactly one targeted action (or at most two). Tests that the actor does not emit
+  a "spray" of changes across the prompt just because it's making an edit.
+
+  Tree IDs:
+    1    = Section "Task" (h1)
+    1.1  = Paragraph "Answer causal questions about stories."
+    2    = Section "Output" (h1)
+    2.1  = Paragraph "Respond with Yes or No."
+
+prompt_markdown: |
+  # Task
+
+  Answer causal questions about stories.
+
+  # Output
+
+  Respond with Yes or No.
+
+signals:
+  - culprit_node_id: "1.1"
+    rationale: "'Causal questions about stories' is too brief — the model doesn't understand it should align with human judgment, not logical necessity."
+    target_behavior: "The task paragraph should specify that answers should reflect majority human causal judgment."
+    success_criterion: "The task paragraph mentions human judgment or majority-agreement as the standard."
+    input_snippet: "Did the politician's inflammatory speech cause the protests?"
+    output_snippet: "No"
+    seen_in_n_cases: 4
+
+preserve: []
+
+golden_actions:
+  reasoning: "Rewrite node 1.1 to add the human-judgment standard. No other changes needed."
+  actions:
+    - action: rewrite_node
+      id: "1.1"
+      text: "Answer causal-judgement questions about stories in a manner consistent with human causal reasoning — reflect what the majority of people would say."
+
+criteria:
+  id_validity:
+    - "The id '1.1' exists in the prompt tree."
+  host_type_correctness:
+    - "No annotation actions in the batch."
+  issue_traceability:
+    - "The action targets node 1.1 and addresses the 'no human-judgment standard' signal."
+  action_type_fitness:
+    - "rewrite_node is appropriate for sharpening a too-brief paragraph."
+  coverage:
+    - "The single issue (seen in 4 cases) produced at least one action."
+  preserve_compliance:
+    - "No preserve items to check."
+  speculative_edit_absence:
+    - "The batch contains at most 1-2 actions, all targeting node 1.1."
+    - "No actions on node 2.1 or section 2 — these were not cited in the feedback."
+    - "No opportunistic rewrites of the output format or any other node."

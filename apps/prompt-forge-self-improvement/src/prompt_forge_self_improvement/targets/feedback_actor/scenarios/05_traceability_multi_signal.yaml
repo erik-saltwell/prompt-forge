@@ -1,0 +1,87 @@
+name: traceability_multi_signal
+description: |
+  Three distinct signals all targeting node 2.1. The actor must emit actions that
+  address each signal — not just the first one. Tests that the actor reads and
+  responds to all issues in the feedback, not only the most salient one.
+
+  Tree IDs:
+    1    = Section "Task" (h1)
+    1.1  = Paragraph "Answer causal-judgement questions about stories."
+    2    = Section "Causal Judgment" (h1)
+    2.1  = Paragraph "Evaluate the cause-effect relationships in each story."
+    3    = Section "Output" (h1)
+    3.1  = Paragraph "Respond with Yes or No."
+
+prompt_markdown: |
+  # Task
+
+  Answer causal-judgement questions about stories.
+
+  # Causal Judgment
+
+  Evaluate the cause-effect relationships in each story.
+
+  # Output
+
+  Respond with Yes or No.
+
+signals:
+  - culprit_node_id: "2.1"
+    rationale: "The paragraph doesn't mention norm violation as a factor — the model ignores it."
+    target_behavior: "Explicitly instruct the model to weigh norm violations as making events more causal."
+    success_criterion: "The paragraph or an attached guidance item mentions norm violation."
+    input_snippet: "Did the employee violate safety protocol, causing the accident?"
+    output_snippet: "No"
+    seen_in_n_cases: 8
+  - culprit_node_id: "2.1"
+    rationale: "The paragraph doesn't address counterfactual necessity — the model ignores 'but-for' causation."
+    target_behavior: "Instruct the model to consider: would the outcome have occurred without this action?"
+    success_criterion: "The paragraph or an attached guidance item mentions counterfactual reasoning."
+    input_snippet: "Without the CEO's decision, would the loss have happened?"
+    output_snippet: "Yes"
+    seen_in_n_cases: 6
+  - culprit_node_id: "2.1"
+    rationale: "The paragraph doesn't mention intentionality — unintentional harms are systematically mis-judged."
+    target_behavior: "Instruct the model to treat intentional actions as stronger causes than accidental ones."
+    success_criterion: "Intentionality is mentioned as a factor that strengthens causal attribution."
+    input_snippet: "Did the driver accidentally cause the crash?"
+    output_snippet: "No"
+    seen_in_n_cases: 5
+
+preserve:
+  - "Keep the binary Yes/No output constraint."
+
+golden_actions:
+  reasoning: "Rewrite 2.1 to be more specific, then add guidance items for norm violation, counterfactuals, and intentionality."
+  actions:
+    - action: rewrite_node
+      id: "2.1"
+      text: "Evaluate the cause-effect relationships in each story using human causal judgment."
+    - action: add_guidance
+      host_id: "2.1"
+      text: "Weigh norm violations heavily — if the agent broke a rule or social norm to produce the outcome, judge this as strongly causal."
+    - action: add_guidance
+      host_id: "2.1"
+      text: "Apply counterfactual reasoning: would the outcome have occurred without this action? If not, it is a cause."
+    - action: add_guidance
+      host_id: "2.1"
+      text: "Treat intentional actions as stronger causes than accidental ones with the same effect."
+
+criteria:
+  id_validity:
+    - "All IDs in the batch (2.1) exist in the prompt tree."
+  host_type_correctness:
+    - "add_guidance host_id '2.1' is a Paragraph — valid."
+  issue_traceability:
+    - "At least one action addresses the norm-violation signal."
+    - "At least one action addresses the counterfactual signal."
+    - "At least one action addresses the intentionality signal."
+  action_type_fitness:
+    - "add_guidance is appropriate for teaching rules/conventions that apply consistently."
+    - "rewrite_node is appropriate if the existing text is insufficient to carry the new guidance."
+  coverage:
+    - "All three signals (sightings 8, 6, 5) produced at least one action each."
+  preserve_compliance:
+    - "The output format (node 3.1) is not modified."
+  speculative_edit_absence:
+    - "No actions on nodes 1.1, 3.1, or any node other than 2.1."

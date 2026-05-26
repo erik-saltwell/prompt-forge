@@ -1,0 +1,62 @@
+name: traceability_single_clear
+description: |
+  A single, clearly specified feedback signal about node 2.1. The actor must emit
+  exactly the action that addresses it — not a spray of edits across the tree.
+  Tests that the actor accurately traces its output to the one cited issue.
+
+  Tree IDs:
+    1    = Section "Task" (h1)
+    1.1  = Paragraph "Answer causal-judgement questions about stories."
+    2    = Section "Causal Rubric" (h1)
+    2.1  = Paragraph "Consider the human perspective when judging causation."
+    3    = Section "Output" (h1)
+    3.1  = Paragraph "Respond with Yes or No."
+
+prompt_markdown: |
+  # Task
+
+  Answer causal-judgement questions about stories.
+
+  # Causal Rubric
+
+  Consider the human perspective when judging causation.
+
+  # Output
+
+  Respond with Yes or No.
+
+signals:
+  - culprit_node_id: "2.1"
+    rationale: "'The human perspective' is too vague — the model cannot operationalize it."
+    target_behavior: "The rubric should name the specific factors humans use: norm violation, intentionality, counterfactual necessity, and moral responsibility."
+    success_criterion: "The rubric paragraph explicitly names at least three of the four factors."
+    input_snippet: "Did the engineer's mistake cause the bridge collapse?"
+    output_snippet: "No"
+    seen_in_n_cases: 7
+
+preserve:
+  - "Keep the binary Yes/No output format in section 3."
+
+golden_actions:
+  reasoning: "Rewrite node 2.1 to make the causal rubric concrete and operational."
+  actions:
+    - action: rewrite_node
+      id: "2.1"
+      text: "Apply human causal judgment by weighing norm violation, intentionality, counterfactual necessity, and moral responsibility. The answer should reflect what most people would say."
+
+criteria:
+  id_validity:
+    - "All IDs in the batch exist in the tree; no invented nodes like '2.2' or '4'."
+  host_type_correctness:
+    - "No annotation actions with invalid host types."
+  issue_traceability:
+    - "The emitted action targets node 2.1 and addresses the 'vague rubric' signal."
+    - "No action targets nodes 1.1, 3.1, or any node not cited in the feedback."
+  action_type_fitness:
+    - "rewrite_node is correct for a paragraph that is vague and needs sharper text."
+  coverage:
+    - "The single issue (seen in 7 cases) produced at least one action on node 2.1."
+  preserve_compliance:
+    - "Nodes 3.1 and section 3 are untouched."
+  speculative_edit_absence:
+    - "The batch contains only actions on node 2.1; no edits to 1.1, 3.1, or other nodes."

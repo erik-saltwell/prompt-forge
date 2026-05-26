@@ -43,7 +43,11 @@ def test_complete_returns_parsed_model_when_response_format_passed() -> None:
     assert isinstance(out, _Echo)
     assert out.text == "hello"
     assert out.count == 3
-    assert m.call_args.kwargs["response_format"] is _Echo
+    # response_format is sent as a json_schema dict (pattern constraints stripped for provider compat)
+    rf = m.call_args.kwargs["response_format"]
+    assert isinstance(rf, dict)
+    assert rf["type"] == "json_schema"
+    assert rf["json_schema"]["name"] == "_Echo"
 
 
 def test_complete_raises_when_model_does_not_support_response_schema() -> None:
@@ -75,7 +79,11 @@ def test_acomplete_returns_parsed_model_when_response_format_passed() -> None:
     assert isinstance(out, _Echo)
     assert out.text == "world"
     assert out.count == 7
-    assert mock.call_args.kwargs["response_format"] is _Echo
+    # response_format is sent as a json_schema dict (pattern constraints stripped for provider compat)
+    rf = mock.call_args.kwargs["response_format"]
+    assert isinstance(rf, dict)
+    assert rf["type"] == "json_schema"
+    assert rf["json_schema"]["name"] == "_Echo"
 
 
 def test_acomplete_raises_when_model_does_not_support_response_schema() -> None:

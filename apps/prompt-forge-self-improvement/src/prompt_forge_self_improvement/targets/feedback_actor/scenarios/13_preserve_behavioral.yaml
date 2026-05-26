@@ -1,0 +1,57 @@
+name: preserve_behavioral
+description: |
+  The preserve list protects a behavior ("binary Yes/No format"), not a specific node.
+  The feedback targets node 2.1 and the model sometimes produces "Maybe." The actor
+  should add guidance that reinforces the binary constraint — NOT guidance that permits
+  hedging or qualifiers, which would contradict the preserve item.
+
+  Tree IDs:
+    1    = Section "Task" (h1)
+    1.1  = Paragraph "Answer causal-judgement questions about stories."
+    2    = Section "Output Format" (h1)
+    2.1  = Paragraph "Respond with Yes or No."
+
+prompt_markdown: |
+  # Task
+
+  Answer causal-judgement questions about stories.
+
+  # Output Format
+
+  Respond with Yes or No.
+
+signals:
+  - culprit_node_id: "2.1"
+    rationale: "The model sometimes outputs 'Maybe' or 'Uncertain' for ambiguous stories instead of committing to Yes or No."
+    target_behavior: "Force a binary decision — the model must always output exactly Yes or No, even for ambiguous cases."
+    success_criterion: "Guidance or rewrite in the output section explicitly forbids non-binary responses."
+    input_snippet: "It's possible the medication contributed to the side effects. Did it cause them?"
+    output_snippet: "Maybe"
+    seen_in_n_cases: 6
+
+preserve:
+  - "The binary Yes/No output format must be preserved — never add instructions that permit hedging, qualifiers, or intermediate responses."
+
+golden_actions:
+  reasoning: "Strengthen the binary constraint by adding guidance that explicitly forbids non-binary responses."
+  actions:
+    - action: add_guidance
+      host_id: "2.1"
+      text: "Always output exactly 'Yes' or 'No' — never 'Maybe', 'Uncertain', or any qualifier. For ambiguous cases, choose the answer that best reflects majority human judgment."
+
+criteria:
+  id_validity:
+    - "The host_id '2.1' exists in the prompt tree."
+  host_type_correctness:
+    - "add_guidance host_id '2.1' is a Paragraph — valid."
+  issue_traceability:
+    - "The guidance addresses the 'Maybe' output problem by reinforcing binary-only responses."
+  action_type_fitness:
+    - "add_guidance is appropriate for stating a rule about output behavior."
+  coverage:
+    - "The single issue (seen in 6 cases) produced at least one action."
+  preserve_compliance:
+    - "No action permits hedging or qualifiers — the added guidance reinforces the binary constraint."
+    - "No action contradicts 'binary Yes/No format must be preserved'."
+  speculative_edit_absence:
+    - "No actions on node 1.1 or any node not cited in the feedback."

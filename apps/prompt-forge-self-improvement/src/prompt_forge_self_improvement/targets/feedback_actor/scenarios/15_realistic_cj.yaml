@@ -1,0 +1,88 @@
+name: realistic_cj
+description: |
+  Uses a realistic multi-section prompt derived from the CJ benchmark initial prompt.
+  Two signals targeting real sections. Tests the actor on a prompt that looks like
+  actual production content, not a toy example.
+
+  This uses a trimmed version of the CJ prompt to keep the scenario manageable.
+  Key IDs:
+    1      = Section "Task" (h1)
+    1.1    = Paragraph "The task is to read a short story..."
+    2      = Section "Causal Judgment" (h1)
+    2.1    = Paragraph "Evaluate the factors influencing human causal judgments..."
+    2.2    = List (unordered)
+    2.2.1  = ListItem "Assess whether actions/events that violate norms are judged to be more causal."
+    2.2.2  = ListItem "Consider the role of intentionality in determining strong causes."
+    2.2.3  = ListItem "Evaluate the impact of morality on the strength of causal relationships."
+    2.2.4  = ListItem "Analyze counterfactual scenarios to establish if an event is essential."
+    3      = Section "Design Considerations" (h1)
+    3.1    = Paragraph "The stories provided are balanced with a near-equal number of yes and no answers..."
+    3.2    = List (unordered)
+    3.2.1  = ListItem "Use the comment field in the JSON for additional context if available."
+    3.2.2  = ListItem "Refer to the source paper for each story to understand the human experiment context."
+    4      = Section "Output Format" (h1)
+    4.1    = Paragraph "Respond Yes or No to whether a specific cause led to an effect."
+
+prompt_markdown: |
+  # Task
+
+  The task is to read a short story involving multiple cause-effect events and answer causal questions in a manner consistent with human reasoning.
+
+  # Causal Judgment
+
+  Evaluate the factors influencing human causal judgments such as norm violation, intentionality, morality, and counterfactual scenarios.
+
+  - Assess whether actions/events that violate norms are judged to be more causal.
+  - Consider the role of intentionality in determining strong causes.
+  - Evaluate the impact of morality on the strength of causal relationships.
+  - Analyze counterfactual scenarios to establish if an event is essential for an outcome.
+
+  # Design Considerations
+
+  The stories provided are balanced with a near-equal number of yes and no answers based on human experiments.
+
+  - Use the comment field in the JSON for additional context if available.
+  - Refer to the source paper for each story to understand the human experiment context.
+
+  # Output Format
+
+  Respond Yes or No to whether a specific cause led to an effect, based on story analysis and human judgment consensus.
+
+signals:
+  - culprit_node_id: "2.1"
+    rationale: "The paragraph lists factors (norm violation, intentionality, morality, counterfactuals) but gives no guidance on how to prioritize or combine them when they conflict."
+    target_behavior: "The prompt should clarify how to weigh factors when they point in different directions (e.g., unintentional but norm-violating)."
+    success_criterion: "The paragraph or its guidance mentions a tie-breaking rule or priority order for the factors."
+    input_snippet: "The driver unintentionally ran a stop sign (norm violation) and caused a crash. Was the driver the cause?"
+    output_snippet: "No"
+    seen_in_n_cases: 8
+
+preserve:
+  - "Keep the four bullet points in section 2 (nodes 2.2.1–2.2.4) — they correctly enumerate the relevant factors."
+  - "Keep the Yes/No output format in section 4."
+
+golden_actions:
+  reasoning: "Add guidance to node 2.1 explaining how to prioritize factors when they conflict. The four bullet points are preserved."
+  actions:
+    - action: add_guidance
+      host_id: "2.1"
+      text: "When factors conflict (e.g., unintentional but norm-violating), use this priority order: (1) norm violation is the strongest signal, (2) intentionality amplifies attribution, (3) counterfactual necessity is the floor test, (4) morality is a secondary signal."
+
+criteria:
+  id_validity:
+    - "The host_id '2.1' exists in the prompt tree."
+    - "No invented IDs like '2.5', '5', or '2.1.1' appear."
+  host_type_correctness:
+    - "add_guidance host_id '2.1' is a Paragraph — valid."
+  issue_traceability:
+    - "The action adds factor-prioritization guidance, directly addressing the 'no conflict-resolution rule' signal."
+  action_type_fitness:
+    - "add_guidance is appropriate for stating a rule about how to combine and prioritize factors."
+  coverage:
+    - "The single high-sightings issue (seen in 8 cases) produced at least one action."
+  preserve_compliance:
+    - "Nodes 2.2.1, 2.2.2, 2.2.3, 2.2.4 (the four factor bullets) are not deleted or rewritten."
+    - "The output format in section 4 is not modified."
+  speculative_edit_absence:
+    - "No actions on 3.2.1 or 3.2.2 (Design Considerations) which are not in the feedback."
+    - "No rewrites to 1.1 or 4.1 which are not in the feedback."

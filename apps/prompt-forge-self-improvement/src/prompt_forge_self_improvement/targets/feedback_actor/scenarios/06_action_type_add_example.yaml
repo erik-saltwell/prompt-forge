@@ -1,0 +1,63 @@
+name: action_type_add_example
+description: |
+  The model is confused by conjunctive causation (both X and Y are necessary).
+  The feedback says the target "gets confused by edge cases." The correct action is
+  add_example to demonstrate the pattern. A naive actor might use rewrite_node instead,
+  which doesn't teach by instance and misses the "confused by cases" framing.
+
+  Tree IDs:
+    1      = Section "Task" (h1)
+    1.1    = Paragraph "Read a short story and answer the causal-judgement question."
+    1.2    = Section "Causal Rubric" (h2)
+    1.2.1  = Paragraph "Use the judgment most humans would agree with."
+    1.3    = Section "Output" (h2)
+    1.3.1  = Paragraph "Respond with Yes or No."
+
+prompt_markdown: |
+  # Task
+
+  Read a short story and answer the causal-judgement question.
+
+  ## Causal Rubric
+
+  Use the judgment most humans would agree with.
+
+  ## Output
+
+  Respond with Yes or No.
+
+signals:
+  - culprit_node_id: "1.2.1"
+    rationale: "The model incorrectly answers 'No' for conjunctive causation — cases where both X and Y are necessary for the outcome."
+    target_behavior: "The model should answer 'Yes' for each jointly necessary cause in conjunctive-causation scenarios."
+    success_criterion: "A conjunctive-causation example is present and correctly answered Yes for each necessary party."
+    input_snippet: "Both the engineer's faulty design AND the operator's error were required for the explosion. Did the engineer cause it?"
+    output_snippet: "No"
+    seen_in_n_cases: 9
+
+preserve:
+  - "Keep the existing rubric text in 1.2.1 — it is generally correct, just incomplete."
+
+golden_actions:
+  reasoning: "Add an example demonstrating conjunctive causation to teach the model by instance."
+  actions:
+    - action: add_example
+      host_id: "1.2.1"
+      text: "Both Alice's faulty wiring AND Bob's ignition were necessary for the fire. Did Alice cause it? → Yes. Did Bob cause it? → Yes. (Both jointly necessary causes get Yes.)"
+
+criteria:
+  id_validity:
+    - "All IDs in the batch exist in the prompt tree."
+  host_type_correctness:
+    - "add_example host_id '1.2.1' is a Paragraph — valid."
+  issue_traceability:
+    - "The action adds an example illustrating conjunctive causation, directly addressing the signal."
+  action_type_fitness:
+    - "add_example is the correct choice when the model is confused by a specific class of inputs — teach by demonstration."
+    - "rewrite_node alone would not be appropriate here because the issue is a specific input pattern, not vague wording."
+  coverage:
+    - "The single high-sightings issue (seen in 9 cases) produced at least one action."
+  preserve_compliance:
+    - "The rubric text in 1.2.1 is not rewritten (it is preserved per the preserve list)."
+  speculative_edit_absence:
+    - "No actions on 1.1, 1.3.1, or any node not cited in the feedback."

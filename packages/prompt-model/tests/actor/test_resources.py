@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import pytest
-from prompt_model._actor._resources import load_prompt
+from prompt_model._resources import load_prompt
 
 _ACTION_DISCRIMINATORS: list[str] = [
     "rewrite_node",

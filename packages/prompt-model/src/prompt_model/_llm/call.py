@@ -1,6 +1,6 @@
 import os
 from datetime import datetime
-from typing import Any, overload
+from typing import Any, cast, overload
 
 import litellm
 from pydantic import BaseModel
@@ -131,6 +131,22 @@ def _is_ollama(model: str) -> bool:
     return model.startswith("ollama_chat/") or model.startswith("ollama/")
 
 
+def _strip_patterns(obj: object) -> object:
+    """Recursively remove ``"pattern"`` keywords from a JSON Schema dict.
+
+    Anthropic's structured-output validator rejects regex pattern constraints
+    (e.g. the ``\\S`` shorthand used by ``NonBlankStr``).  Stripping them from
+    the *wire* schema is safe because ``_parse_response`` still calls
+    ``model_validate_json`` with the full Pydantic model, which enforces every
+    constraint on the returned value.
+    """
+    if isinstance(obj, dict):
+        return {k: _strip_patterns(v) for k, v in cast(dict[str, object], obj).items() if k != "pattern"}
+    if isinstance(obj, list):
+        return [_strip_patterns(v) for v in cast(list[object], obj)]
+    return obj
+
+
 def _set_response_format(kwargs: dict[str, Any], response_format: type[BaseModel]) -> None:
     model: str = kwargs["model"]
     if _is_ollama(model):
@@ -145,7 +161,15 @@ def _set_response_format(kwargs: dict[str, Any], response_format: type[BaseModel
         return
     if not litellm.supports_response_schema(model=model):
         raise StructuredOutputUnsupportedError(model)
-    kwargs["response_format"] = response_format
+    # Strip regex ``pattern`` constraints before sending to the provider.
+    # Anthropic rejects patterns like ``\S`` that use Perl-style shorthands
+    # unsupported by their JSON Schema validator.  Python-side validation via
+    # ``model_validate_json`` in ``_parse_response`` still enforces them.
+    raw_schema: dict[str, object] = cast(dict[str, object], _strip_patterns(response_format.model_json_schema()))
+    kwargs["response_format"] = {
+        "type": "json_schema",
+        "json_schema": {"name": response_format.__name__, "schema": raw_schema},
+    }
 
 
 def _parse_response[T: BaseModel](response: Any, response_format: type[T] | None) -> str | T:

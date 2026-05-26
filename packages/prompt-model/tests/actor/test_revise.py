@@ -98,8 +98,8 @@ def test_returns_empty_when_aggregation_produces_no_buckets() -> None:
 def test_fans_out_one_pipeline_per_bucket() -> None:
     # Two distinct culprit ids → two buckets.
     candidate = _candidate(results=[_metric_result("1.1", "2.1")])
-    feedback_mock = AsyncMock(return_value=_valid_batch())
-    structural_mock = AsyncMock(return_value=_empty_batch())  # structural is a no-op pass-through
+    feedback_mock = AsyncMock(return_value=_valid_batch().model_dump_json())
+    structural_mock = AsyncMock(return_value=_empty_batch().model_dump_json())  # structural is a no-op pass-through
 
     result = _run_revise(candidate, feedback_mock, structural_mock)
 
@@ -113,8 +113,8 @@ def test_fans_out_one_pipeline_per_bucket() -> None:
 def test_drops_buckets_whose_per_node_pass_yields_nothing() -> None:
     candidate = _candidate(results=[_metric_result("1.1", "2.1")])
     # Per-node returns empty actions for every call → every bucket drops.
-    feedback_mock = AsyncMock(return_value=_empty_batch())
-    structural_mock = AsyncMock(return_value=_empty_batch())
+    feedback_mock = AsyncMock(return_value=_empty_batch().model_dump_json())
+    structural_mock = AsyncMock(return_value=_empty_batch().model_dump_json())
 
     result = _run_revise(candidate, feedback_mock, structural_mock)
 
@@ -125,7 +125,7 @@ def test_drops_buckets_whose_per_node_pass_yields_nothing() -> None:
 def test_transport_error_propagates() -> None:
     candidate = _candidate(results=[_metric_result("1.1")])
     feedback_mock = AsyncMock(side_effect=RuntimeError("503"))
-    structural_mock = AsyncMock(return_value=_empty_batch())
+    structural_mock = AsyncMock(return_value=_empty_batch().model_dump_json())
 
     with pytest.raises(RuntimeError, match="503"):
         _run_revise(candidate, feedback_mock, structural_mock)
@@ -135,8 +135,8 @@ def test_structural_cleanup_predicate_override_disables_structural_pass() -> Non
     from prompt_model._actor._structural_strategy import never_cleanup_structure
 
     candidate = _candidate(results=[_metric_result("1.1")])
-    feedback_mock = AsyncMock(return_value=_valid_batch())
-    structural_mock = AsyncMock(return_value=_empty_batch())
+    feedback_mock = AsyncMock(return_value=_valid_batch().model_dump_json())
+    structural_mock = AsyncMock(return_value=_empty_batch().model_dump_json())
 
     with (
         patch("prompt_model._actor.revise.acomplete", feedback_mock),
@@ -169,8 +169,8 @@ def test_render_strategy_override_is_used() -> None:
 
     renderer: RenderPromptStrategy = _SentinelRenderer()
     candidate = _candidate(results=[_metric_result("1.1")])
-    feedback_mock = AsyncMock(return_value=_valid_batch())
-    structural_mock = AsyncMock(return_value=_empty_batch())
+    feedback_mock = AsyncMock(return_value=_valid_batch().model_dump_json())
+    structural_mock = AsyncMock(return_value=_empty_batch().model_dump_json())
 
     with (
         patch("prompt_model._actor.revise.acomplete", feedback_mock),
