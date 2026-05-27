@@ -1,0 +1,43 @@
+# Criterion
+
+{{ criterion }}
+
+# Evaluation steps
+
+{% for step in evaluation_steps -%}
+{{ loop.index }}. {{ step }}
+{% endfor %}
+
+# Scoring rubric
+
+{% for band in scoring_rubric -%}
+- Score {{ band.score_range.minimum }}{% if band.score_range.maximum != band.score_range.minimum %}-{{ band.score_range.maximum }}{% endif %}: {{ band.expected_outcome }}
+{% endfor %}
+
+# Case to evaluate
+
+## Prompt
+
+{{ rendered_prompt }}
+
+## Input
+
+{{ input }}
+
+## Output
+
+{{ output }}
+
+{% if requires_ground_truth %}## Reference answer
+
+{{ ground_truth }}
+
+{% endif %}# Your task
+
+Apply the evaluation steps above to judge the output against the criterion.
+
+Return a JSON object with these fields, in order:
+- `score`: an integer from {{ score_min }} to {{ score_max }} (inclusive), per the rubric. Emit this field first.
+- `assessment`: a concise narrative explaining the score.
+- `signal`: a single `IssueSignal` object if the output fails the criterion, otherwise `null`. When present, cite the `culprit_node_id` from the `<!-- id -->` markers in the prompt above; if the issue is not localizable to a single node, use the string `"document"`.
+- `preserve`: a list of aspects of the current prompt that are working and should not be broken by edits.
