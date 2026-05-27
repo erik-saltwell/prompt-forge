@@ -1,0 +1,48 @@
+name: duplicate_section
+description: |
+  Two sibling h2 sections both instruct on output format. The previous
+  (content-focused) pass likely added a redundant "Output format" section
+  while editing. The structural actor must delete the duplicate.
+
+  Tree IDs:
+    1     = Section "Task" (h1)
+    1.1   = Paragraph intro
+    1.2   = Section "Output format" (h2)   ← original
+    1.2.1 = Paragraph "Respond with a single word: Yes or No."
+    1.3   = Section "Steps" (h2)
+    1.3.1 = Paragraph step description
+    1.4   = Section "Output format" (h2)   ← duplicate, should be deleted
+    1.4.1 = Paragraph "Your answer must be Yes or No, nothing else."
+
+  Either delete_node 1.4 or move 1.4.1 into 1.2 then delete 1.4 is acceptable.
+
+prompt_markdown: |
+  # Task
+
+  Read a short story and answer a causal-judgement question.
+
+  ## Output format
+
+  Respond with a single word: Yes or No.
+
+  ## Steps
+
+  Identify the cause described in the story and decide whether human intuition
+  treats it as the cause.
+
+  ## Output format
+
+  Your answer must be Yes or No, nothing else.
+
+preserve:
+  - "Keep the single-word Yes/No output instruction."
+
+defects:
+  - kind: duplicate_section
+    culprit_node_ids: ["1.4"]
+    collateral_node_ids: ["1.2", "1.4.1"]
+    description: |
+      h2 'Output format' at id 1.4 duplicates h2 'Output format' at id 1.2.
+      Both sections instruct the target on the same Yes/No output format.
+      The cleanup is delete_node 1.4 (collateral 1.2 is the surviving twin;
+      1.4.1 is the duplicate body that goes with it).

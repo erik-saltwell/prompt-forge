@@ -6,7 +6,6 @@ from pathlib import Path
 import structlog
 from prompt_model import optimize_prompt
 from prompt_model.config import EvalCase, OptimizerConfig
-from prompt_model_metrics import GenericLLMJudgeMetric
 
 from prompt_forge.settings import PromptForgeSettings
 
@@ -69,8 +68,8 @@ async def amain() -> None:
     )
 
     metrics = []
-    for mc in settings.metrics:
-        metrics.append(GenericLLMJudgeMetric(name=mc.name, description=mc.description, rubric=mc.rubric, judge_llm=settings.judge_llm))
+    # for mc in settings.metrics:
+    #     metrics.append(GenericLLMJudgeMetric(name=mc.name, description=mc.description, rubric=mc.rubric, judge_llm=settings.judge_llm))
 
     if not metrics:
         parser.error("No metrics configured in settings.yaml. At least one metric is required.")

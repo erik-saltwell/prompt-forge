@@ -1,0 +1,40 @@
+name: wrong_container
+description: |
+  An unordered list contains explicitly sequenced steps ("First,", "Then,",
+  "Finally,"). The structural actor should delete the unordered list and
+  insert an ordered list with the same items — rewrite_node cannot change
+  List.ordered.
+
+  Tree IDs:
+    1     = Section "Task" (h1)
+    1.1   = Paragraph intro
+    1.2   = Section "Steps" (h2)
+    1.2.1 = List (ordered=false)
+    1.2.1.1 = ListItem "First, read the story carefully."
+    1.2.1.2 = ListItem "Then, identify the causal claim."
+    1.2.1.3 = ListItem "Finally, answer Yes or No."
+
+prompt_markdown: |
+  # Task
+
+  Read a short story and answer a causal-judgement question.
+
+  ## Steps
+
+  - First, read the story carefully.
+  - Then, identify the causal claim.
+  - Finally, answer Yes or No.
+
+preserve:
+  - "Keep the three-step workflow (read, identify, answer)."
+
+defects:
+  - kind: wrong_container
+    culprit_node_ids: ["1.2.1"]
+    collateral_node_ids: ["1.2", "1.2.1.1", "1.2.1.2", "1.2.1.3"]
+    description: |
+      List 1.2.1 is unordered but its items use explicit ordinal markers
+      ('First,', 'Then,', 'Finally,'), making it semantically a sequence.
+      Fix: delete_node 1.2.1 and insert_node anchored inside 1.2 with the
+      same items as an ordered list (1. ... 2. ... 3. ...). Collateral 1.2
+      is the destination parent.

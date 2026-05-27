@@ -13,6 +13,7 @@ dependencies = [
     "litellm",
     "scikit-learn",
     "structlog>=25.5.0",
+    "datasets>=2.20.0",
 ]
 
 [project.scripts]

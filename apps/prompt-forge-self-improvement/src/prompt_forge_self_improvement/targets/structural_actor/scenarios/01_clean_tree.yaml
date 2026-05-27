@@ -1,0 +1,43 @@
+name: clean_tree
+description: |
+  Well-formed prompt with no structural defects. The structural actor must emit
+  an empty actions list. Any action is scope creep / false-positive by definition.
+
+  Tree IDs:
+    1     = Section "Task" (h1)
+    1.1   = Paragraph intro
+    1.2   = Section "Inputs" (h2)
+    1.2.1 = Paragraph describing inputs
+    1.3   = Section "Outputs" (h2)
+    1.3.1 = Paragraph describing outputs
+    1.4   = Section "Examples" (h2)
+    1.4.1 = Paragraph example A
+    1.4.2 = Paragraph example B
+
+  The Inputs/Outputs pair is an intentional structural pairing — must NOT be
+  treated as a duplicate.
+
+prompt_markdown: |
+  # Task
+
+  Read a short story and answer with a single word.
+
+  ## Inputs
+
+  A short story (1-3 paragraphs) describing one or more events.
+
+  ## Outputs
+
+  The single word `Yes` or `No` (with no punctuation).
+
+  ## Examples
+
+  Example A: The rain caused the flood -> Yes.
+
+  Example B: The clock ticked -> No.
+
+preserve:
+  - "Keep the single-word Yes/No output instruction."
+  - "Keep the parallel Inputs/Outputs structure."
+
+defects: []

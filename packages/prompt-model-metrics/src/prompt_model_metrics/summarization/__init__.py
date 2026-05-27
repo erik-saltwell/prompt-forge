@@ -1,10 +1,9 @@
-"""Summarization metrics."""
+from __future__ import annotations
 
 from .alignment import AlignmentMetric
-from .completeness import CompletenessMetric, CoverageMetric
+from .coverage import CoverageMetric
 
 __all__ = [
     "AlignmentMetric",
-    "CompletenessMetric",
     "CoverageMetric",
 ]

@@ -1,6 +1,6 @@
 """Shared metric library for prompt-forge projects."""
 
-from .base import GenericLLMJudgeMetric, GEvalMetric, HallucinationMetric, JsonCorrectnessMetric
+from .base import GEvalMetric, HallucinationMetric, JsonCorrectnessMetric
 from .benchmarking import CausalJudgementCorrectness
 from .self_learning import (
     ActionabilityMetric,
@@ -18,7 +18,7 @@ from .self_learning import (
     build_feedback_actor_metrics,
     build_hybrid_judge_metrics,
 )
-from .summarization import AlignmentMetric, CompletenessMetric, CoverageMetric
+from .summarization import AlignmentMetric, CoverageMetric
 
 __all__ = [
     "ActionabilityMetric",
@@ -26,13 +26,11 @@ __all__ = [
     "ActorCoverageMetric",
     "AlignmentMetric",
     "CausalJudgementCorrectness",
-    "CompletenessMetric",
     "CoverageMetric",
     "CulpritIdValidityMetric",
     "CulpritLocalizationMetric",
     "DiagnosisSpecificityMetric",
     "GEvalMetric",
-    "GenericLLMJudgeMetric",
     "HallucinationMetric",
     "HostTypeCorrectnessMetric",
     "IdValidityMetric",

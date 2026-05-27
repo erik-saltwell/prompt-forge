@@ -18,6 +18,13 @@ from .hybrid_judge import (
     SuggestedChangeCalibrationMetric,
     build_hybrid_judge_metrics,
 )
+from .structural_actor import (
+    StructuralAllowedActionsMetric,
+    StructuralDefectRecallMetric,
+    StructuralPreserveRespectMetric,
+    StructuralScopeCreepMetric,
+    build_structural_actor_metrics,
+)
 
 __all__ = [
     "ActionabilityMetric",
@@ -31,7 +38,12 @@ __all__ = [
     "IssueTraceabilityMetric",
     "PreserveComplianceMetric",
     "SpeculativeEditAbsenceMetric",
+    "StructuralAllowedActionsMetric",
+    "StructuralDefectRecallMetric",
+    "StructuralPreserveRespectMetric",
+    "StructuralScopeCreepMetric",
     "SuggestedChangeCalibrationMetric",
     "build_feedback_actor_metrics",
     "build_hybrid_judge_metrics",
+    "build_structural_actor_metrics",
 ]

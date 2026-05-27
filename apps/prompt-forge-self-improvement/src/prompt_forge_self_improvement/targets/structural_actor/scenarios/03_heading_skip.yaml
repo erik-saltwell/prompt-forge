@@ -1,0 +1,44 @@
+name: heading_skip
+description: |
+  An h2 contains an h4 directly with no h3 in between — a heading-level skip.
+  The structural actor should delete the skipped h4 section and re-insert at
+  h3 level (rewrite_node cannot change `level`).
+
+  Tree IDs:
+    1     = Section "Task" (h1)
+    1.1   = Paragraph intro
+    1.2   = Section "Guidelines" (h2)
+    1.2.1 = Paragraph "Follow these rules carefully."
+    1.2.2 = Section "Edge cases" (h4)  ← level-skip from h2 directly to h4
+    1.2.2.1 = Paragraph describing an edge case
+
+  The correct fix is delete_node 1.2.2 and insert_node with `### Edge cases` body
+  at the same position (anchored after 1.2.1).
+
+prompt_markdown: |
+  # Task
+
+  Classify the sentence as positive, negative, or neutral.
+
+  ## Guidelines
+
+  Follow these rules carefully.
+
+  #### Edge cases
+
+  Mixed-sentiment sentences with both praise and criticism should be classified
+  as neutral unless one tone clearly dominates.
+
+preserve:
+  - "Keep the three-class output (positive, negative, neutral)."
+
+defects:
+  - kind: heading_skip
+    culprit_node_ids: ["1.2.2"]
+    collateral_node_ids: ["1.2", "1.2.1", "1.2.2.1"]
+    description: |
+      Section 1.2.2 is at level 4 but its parent context is level 2 (1.2) —
+      level skip of 2. Fix: delete_node 1.2.2 and insert_node with the same
+      content at level 3 (### Edge cases). Collateral 1.2 is the parent context,
+      1.2.1 is the anchor for the re-insert, and 1.2.2.1 is the body being
+      preserved across the level repair.

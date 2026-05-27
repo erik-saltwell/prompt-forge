@@ -1,17 +1,14 @@
 target_llm:
-  model: "ollama_chat/qwen2.5:14b-instruct"
+  model: "openai/gpt-4o"
   temperature: 0.0
-  api_base: "http://localhost:11434"
 
 actor_llm:
-  model: "ollama_chat/qwen2.5:14b-instruct"
+  model: "openai/gpt-4o"
   temperature: 0.5
-  api_base: "http://localhost:11434"
 
 judge_llm:
-  model: "ollama_chat/qwen2.5:14b-instruct"
+  model: "openai/gpt-4o"
   temperature: 0.0
-  api_base: "http://localhost:11434"
 
 iterations: 16
 early_stop_patience: 3
