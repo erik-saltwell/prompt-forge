@@ -8,12 +8,16 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-from prompt_model.tracing import initialize_tracing
+from dotenv import find_dotenv, load_dotenv
 
-from .cj.runner import format_report as format_cj_report
-from .cj.runner import run_cj_benchmark
-from .ge.runner import format_report as format_ge_report
-from .ge.runner import run_ge_benchmark
+load_dotenv(find_dotenv(usecwd=True))
+
+from prompt_model.tracing import initialize_tracing  # noqa: E402
+
+from .cj.runner import format_report as format_cj_report  # noqa: E402
+from .cj.runner import run_cj_benchmark  # noqa: E402
+from .ge.runner import format_report as format_ge_report  # noqa: E402
+from .ge.runner import run_ge_benchmark  # noqa: E402
 
 _DEFAULT_LOG_DIR: Path = Path.cwd() / "logs"
 

@@ -4,10 +4,14 @@ import sys
 from pathlib import Path
 
 import structlog
-from prompt_model import optimize_prompt
-from prompt_model.config import EvalCase, OptimizerConfig
+from dotenv import find_dotenv, load_dotenv
 
-from prompt_forge.settings import PromptForgeSettings
+load_dotenv(find_dotenv(usecwd=True))
+
+from prompt_model import optimize_prompt  # noqa: E402
+from prompt_model.config import EvalCase, OptimizerConfig  # noqa: E402
+
+from prompt_forge.settings import PromptForgeSettings  # noqa: E402
 
 _log = structlog.get_logger()
 

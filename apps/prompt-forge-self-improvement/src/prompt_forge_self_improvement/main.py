@@ -10,10 +10,13 @@ from pathlib import Path
 
 import structlog
 import structlog.dev
+from dotenv import find_dotenv, load_dotenv
 from structlog.typing import EventDict, WrappedLogger
 
-from ._registry import REGISTRY
-from ._runner import run_target
+load_dotenv(find_dotenv(usecwd=True))
+
+from ._registry import REGISTRY  # noqa: E402
+from ._runner import run_target  # noqa: E402
 
 
 class _JsonlTee:

@@ -1168,6 +1168,7 @@ dependencies = [
     { name = "prompt-model" },
     { name = "prompt-model-metrics" },
     { name = "pydantic" },
+    { name = "python-dotenv" },
     { name = "pyyaml" },
 ]
 
@@ -1176,6 +1177,7 @@ requires-dist = [
     { name = "prompt-model", editable = "packages/prompt-model" },
     { name = "prompt-model-metrics", editable = "packages/prompt-model-metrics" },
     { name = "pydantic" },
+    { name = "python-dotenv", specifier = ">=1.0" },
     { name = "pyyaml" },
 ]
 
@@ -1188,6 +1190,7 @@ dependencies = [
     { name = "litellm" },
     { name = "prompt-model" },
     { name = "prompt-model-metrics" },
+    { name = "python-dotenv" },
     { name = "scikit-learn" },
     { name = "structlog" },
 ]
@@ -1198,6 +1201,7 @@ requires-dist = [
     { name = "litellm" },
     { name = "prompt-model", editable = "packages/prompt-model" },
     { name = "prompt-model-metrics", editable = "packages/prompt-model-metrics" },
+    { name = "python-dotenv", specifier = ">=1.0" },
     { name = "scikit-learn" },
     { name = "structlog", specifier = ">=25.5.0" },
 ]
@@ -1210,6 +1214,7 @@ dependencies = [
     { name = "litellm" },
     { name = "prompt-model" },
     { name = "prompt-model-metrics" },
+    { name = "python-dotenv" },
     { name = "pyyaml" },
     { name = "structlog" },
 ]
@@ -1219,6 +1224,7 @@ requires-dist = [
     { name = "litellm" },
     { name = "prompt-model", editable = "packages/prompt-model" },
     { name = "prompt-model-metrics", editable = "packages/prompt-model-metrics" },
+    { name = "python-dotenv", specifier = ">=1.0" },
     { name = "pyyaml", specifier = ">=6.0" },
     { name = "structlog", specifier = ">=25.5.0" },
 ]
