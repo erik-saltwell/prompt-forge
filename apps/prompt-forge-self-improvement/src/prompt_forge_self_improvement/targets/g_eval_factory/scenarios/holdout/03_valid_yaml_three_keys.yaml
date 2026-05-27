@@ -1,0 +1,5 @@
+name: valid_yaml_three_keys
+description: "Holdout: False / compound / deterministic — format AND schema check."
+axes: { requires_gt: false, structure: compound, judgment: deterministic }
+criterion: "Output is valid YAML with exactly three top-level keys: name, version, and description."
+requires_ground_truth_expected: false

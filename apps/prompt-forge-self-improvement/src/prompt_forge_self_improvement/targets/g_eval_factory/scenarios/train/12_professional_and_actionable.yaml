@@ -1,0 +1,5 @@
+name: professional_and_actionable
+description: "False / compound / qualitative — voice plus a concrete-content requirement."
+axes: { requires_gt: false, structure: compound, judgment: qualitative }
+criterion: "Output is written in a professional voice and includes at least one concrete next step the reader can take."
+requires_ground_truth_expected: false

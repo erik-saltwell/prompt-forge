@@ -1,0 +1,5 @@
+name: is_engaging_intro
+description: "False / atomic / qualitative — subjective quality, easy to write vague bands."
+axes: { requires_gt: false, structure: atomic, judgment: qualitative }
+criterion: "Output reads as an engaging introductory paragraph that makes the reader want to keep reading."
+requires_ground_truth_expected: false

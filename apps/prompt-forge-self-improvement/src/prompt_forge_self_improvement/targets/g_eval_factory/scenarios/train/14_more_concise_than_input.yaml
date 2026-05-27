@@ -1,0 +1,5 @@
+name: more_concise_than_input
+description: "False / compound / comparative — comparison is input-vs-output, no external reference required."
+axes: { requires_gt: false, structure: compound, judgment: comparative }
+criterion: "Output is shorter than the input by at least 30%, while preserving the input's main idea."
+requires_ground_truth_expected: false

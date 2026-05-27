@@ -1,0 +1,5 @@
+name: preserves_speakers_voice
+description: "Holdout: True / compound / qualitative — voice preservation AND filler removal vs reference transcript."
+axes: { requires_gt: true, structure: compound, judgment: qualitative }
+criterion: "Output preserves the speaker's voice from the reference transcript while removing filler words and false starts."
+requires_ground_truth_expected: true

@@ -25,6 +25,8 @@ uv run prompt-forge-self-improvement \
 |--------|-------------|
 | `feedback-actor` | The per-node feedback actor prompt (`_actor/_resources/feedback_actor.md`) |
 | `hybrid-judge` | The hybrid metric judge prompt (`_metrics/_resources/hybrid_judge.md`) |
+| `structural-actor` | The structural cleanup actor prompt (`_resources/structural_actor.md`) |
+| `g-eval-factory` | The G-Eval context factory prompt (`g_eval/_resources/context_factory_prompt.md`). Scenarios under `targets/g_eval_factory/scenarios/{train,holdout}/`; only `train/` enters the optimizer loop. |
 
 ## Adding a New Target
 

@@ -1,0 +1,5 @@
+name: starts_with_summary_and_under_limit
+description: "False / compound / deterministic — two independent checks AND-ed together."
+axes: { requires_gt: false, structure: compound, judgment: deterministic }
+criterion: "Output starts with a one-sentence summary and is under 200 words total."
+requires_ground_truth_expected: false

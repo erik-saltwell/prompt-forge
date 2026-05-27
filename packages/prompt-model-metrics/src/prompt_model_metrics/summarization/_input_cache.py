@@ -11,7 +11,6 @@ from ._resources import render_prompt_resource
 from .prompt_schemas import PromptClaims, PromptQuestions
 
 MAX_SIZE: int = 500
-MAX_QUESTION_COUNT: int = 20
 
 
 @dataclass
@@ -20,8 +19,9 @@ class InputData:
     questions: list[str] = field(default_factory=list)
 
 
-_lock: asyncio.Lock = asyncio.Lock()
+_cache_lock: asyncio.Lock = asyncio.Lock()
 _cache: cachetools.LRUCache[str, InputData] = cachetools.LRUCache(maxsize=MAX_SIZE)
+_in_flight: dict[str, asyncio.Task[InputData]] = {}
 
 
 def estimate_question_count(text: str) -> int:
@@ -64,8 +64,48 @@ async def _create_input_data(input: str, litellm_config: LiteLLMConfig) -> Input
     return InputData(truths, questions)
 
 
+async def _discard_in_flight(input: str) -> None:
+    async with _cache_lock:
+        _in_flight.pop(input, None)
+
+
+async def _create_and_cache(input: str, litellm_config: LiteLLMConfig) -> InputData:
+    try:
+        input_data: InputData = await _create_input_data(input, litellm_config)
+    except asyncio.CancelledError:
+        await _discard_in_flight(input)
+        raise
+    except Exception:
+        await _discard_in_flight(input)
+        raise
+
+    async with _cache_lock:
+        _cache[input] = input_data
+        _in_flight.pop(input, None)
+    return input_data
+
+
 async def get_or_add(input: str, litellm_config: LiteLLMConfig) -> InputData:
-    async with _lock:
-        if input not in _cache:
-            _cache[input] = await _create_input_data(input, litellm_config)
-        return _cache[input]
+    async with _cache_lock:
+        cached: InputData | None = _cache.get(input)
+        if cached is not None:
+            return cached
+
+        task: asyncio.Task[InputData] | None = _in_flight.get(input)
+        if task is None:
+            task = asyncio.create_task(_create_and_cache(input, litellm_config))
+            _in_flight[input] = task
+
+    return await asyncio.shield(task)
+
+
+async def reset_cache() -> None:
+    """Clear the input cache. Test-only seam."""
+    async with _cache_lock:
+        tasks: list[asyncio.Task[InputData]] = list(_in_flight.values())
+        _cache.clear()
+        _in_flight.clear()
+
+    for task in tasks:
+        task.cancel()
+    await asyncio.gather(*tasks, return_exceptions=True)

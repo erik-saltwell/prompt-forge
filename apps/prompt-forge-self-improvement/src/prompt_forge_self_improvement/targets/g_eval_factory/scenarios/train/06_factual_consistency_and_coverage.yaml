@@ -1,0 +1,5 @@
+name: factual_consistency_and_coverage
+description: "True / compound / comparative — factual consistency PLUS entity coverage threshold."
+axes: { requires_gt: true, structure: compound, judgment: comparative }
+criterion: "Output is factually consistent with the reference, and at least 80% of the named entities present in the reference also appear in the output."
+requires_ground_truth_expected: true

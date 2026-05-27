@@ -1,0 +1,5 @@
+name: contains_required_phrase
+description: "False / atomic / deterministic — literal substring presence."
+axes: { requires_gt: false, structure: atomic, judgment: deterministic }
+criterion: "Output contains the literal phrase 'Thank you for contacting support'."
+requires_ground_truth_expected: false

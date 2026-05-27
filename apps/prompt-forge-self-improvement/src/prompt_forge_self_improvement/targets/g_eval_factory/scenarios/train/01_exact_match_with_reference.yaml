@@ -1,0 +1,5 @@
+name: exact_match_with_reference
+description: "True / atomic / deterministic — strict equality against a reference."
+axes: { requires_gt: true, structure: atomic, judgment: deterministic }
+criterion: "Output exactly matches the reference answer character-for-character."
+requires_ground_truth_expected: true

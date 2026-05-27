@@ -1,0 +1,5 @@
+name: exact_numerical_answer
+description: "Holdout: True / atomic / deterministic — numeric equality with reference."
+axes: { requires_gt: true, structure: atomic, judgment: deterministic }
+criterion: "Output's final numerical answer equals the reference number."
+requires_ground_truth_expected: true

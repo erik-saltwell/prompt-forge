@@ -1,0 +1,5 @@
+name: faithful_and_complete
+description: "True / compound / qualitative — faithfulness AND completeness vs reference."
+axes: { requires_gt: true, structure: compound, judgment: qualitative }
+criterion: "Output is faithful to the reference answer and includes all material claims from the reference without introducing new ones."
+requires_ground_truth_expected: true

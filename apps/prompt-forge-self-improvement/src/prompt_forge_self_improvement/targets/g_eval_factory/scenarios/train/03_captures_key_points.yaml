@@ -1,0 +1,5 @@
+name: captures_key_points
+description: "True / atomic / comparative — coverage of key points from a reference."
+axes: { requires_gt: true, structure: atomic, judgment: comparative }
+criterion: "Output captures all key points present in the reference answer."
+requires_ground_truth_expected: true

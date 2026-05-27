@@ -1,0 +1,5 @@
+name: structured_match
+description: "True / compound / deterministic — structural equality of JSON keys and values."
+axes: { requires_gt: true, structure: compound, judgment: deterministic }
+criterion: "Output JSON has the same keys as the reference JSON, and each primitive value matches the reference exactly."
+requires_ground_truth_expected: true

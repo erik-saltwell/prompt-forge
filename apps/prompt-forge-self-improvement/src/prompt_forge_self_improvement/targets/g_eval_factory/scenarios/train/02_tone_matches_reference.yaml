@@ -1,0 +1,5 @@
+name: tone_matches_reference
+description: "True / atomic / qualitative — tone alignment with a reference."
+axes: { requires_gt: true, structure: atomic, judgment: qualitative }
+criterion: "Output's tone matches the tone of the reference answer (e.g., formal vs casual)."
+requires_ground_truth_expected: true

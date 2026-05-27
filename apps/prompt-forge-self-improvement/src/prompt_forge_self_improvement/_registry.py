@@ -18,17 +18,21 @@ from prompt_model import Metric
 from prompt_model._metrics._resources import load_metric_resource
 from prompt_model._resources import load_prompt
 from prompt_model.config import EvalCase, LiteLLMConfig
+from prompt_model_metrics.g_eval._resources import load_resource as load_g_eval_resource
 from prompt_model_metrics.self_learning import (
     build_feedback_actor_metrics,
+    build_g_eval_factory_metrics,
     build_hybrid_judge_metrics,
     build_structural_actor_metrics,
 )
 
 from .targets.feedback_actor._scenario_loader import load_all_scenarios
+from .targets.g_eval_factory._scenario_loader import load_all_scenarios as load_g_eval_factory_scenarios
 from .targets.hybrid_judge._scenario_loader import load_all_scenarios as load_hybrid_judge_scenarios
 from .targets.structural_actor._scenario_loader import load_all_scenarios as load_structural_actor_scenarios
 
 _FEEDBACK_ACTOR_SCENARIOS: Path = Path(__file__).parent / "targets" / "feedback_actor" / "scenarios"
+_G_EVAL_FACTORY_SCENARIOS: Path = Path(__file__).parent / "targets" / "g_eval_factory" / "scenarios"
 _HYBRID_JUDGE_SCENARIOS: Path = Path(__file__).parent / "targets" / "hybrid_judge" / "scenarios"
 _STRUCTURAL_ACTOR_SCENARIOS: Path = Path(__file__).parent / "targets" / "structural_actor" / "scenarios"
 
@@ -58,6 +62,18 @@ REGISTRY: dict[str, TargetConfig] = {
         seed_prompt_loader=lambda: load_metric_resource("hybrid_judge"),
         eval_case_loader=lambda: load_hybrid_judge_scenarios(_HYBRID_JUDGE_SCENARIOS),
         metrics_factory=build_hybrid_judge_metrics,
+    ),
+    "g-eval-factory": TargetConfig(
+        name="g-eval-factory",
+        description=(
+            "Optimize the G-Eval context_factory system prompt "
+            "(prompt_model_metrics/g_eval/_resources/context_factory_prompt.md). "
+            "The factory turns a natural-language criterion into a structured judging context "
+            "(evaluation_steps, scoring_rubric, requires_ground_truth)."
+        ),
+        seed_prompt_loader=lambda: load_g_eval_resource("context_factory_prompt"),
+        eval_case_loader=lambda: load_g_eval_factory_scenarios(_G_EVAL_FACTORY_SCENARIOS),
+        metrics_factory=build_g_eval_factory_metrics,
     ),
     "structural-actor": TargetConfig(
         name="structural-actor",

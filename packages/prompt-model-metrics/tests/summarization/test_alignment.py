@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 from typing import Any
 
+import pytest
 from prompt_model.config import LiteLLMConfig
 from prompt_model_metrics.summarization import _input_cache, alignment
 from prompt_model_metrics.summarization.prompt_schemas import (
@@ -19,6 +20,11 @@ _PROMPT = "# Summarize\n\nWrite a concise summary of the input."
 _INPUT = "Alice founded Acme in 2010. The company grew to 500 employees by 2020."
 _OUTPUT_FAITHFUL = "Alice started Acme in 2010, which reached 500 staff by 2020."
 _OUTPUT_HALLUCINATED = "Alice founded Acme in 2015 and it has 1000 employees today."
+
+
+@pytest.fixture(autouse=True)
+def clear_input_cache() -> None:
+    asyncio.run(_input_cache.reset_cache())
 
 
 def _yes(claim: str) -> ClaimVerdict:

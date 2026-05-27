@@ -1,0 +1,5 @@
+name: is_polite
+description: "False / atomic / qualitative — single tone attribute, no reference needed."
+axes: { requires_gt: false, structure: atomic, judgment: qualitative }
+criterion: "Output is polite and respectful in tone."
+requires_ground_truth_expected: false
