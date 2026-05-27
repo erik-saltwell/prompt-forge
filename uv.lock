@@ -1281,6 +1281,7 @@ dependencies = [
     { name = "cachetools" },
     { name = "jinja2" },
     { name = "prompt-model" },
+    { name = "pyyaml" },
 ]
 
 [package.metadata]
@@ -1288,6 +1289,7 @@ requires-dist = [
     { name = "cachetools", specifier = ">=7.1.4" },
     { name = "jinja2", specifier = ">=3.1.6" },
     { name = "prompt-model", editable = "packages/prompt-model" },
+    { name = "pyyaml", specifier = ">=6.0" },
 ]
 
 [[package]]

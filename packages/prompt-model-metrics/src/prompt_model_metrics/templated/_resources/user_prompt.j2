@@ -1,0 +1,29 @@
+{% set actual_input_text = actual_input | default('', true) | trim %}
+{% set actual_output_text = actual_output | default('', true) | trim %}
+{% set expected_output_text = expected_output | default('', true) | trim %}
+{% set prompt_text_value = prompt_text | default('', true) | trim %}
+
+{% if prompt_text_value %}
+<prompt_text>
+{{ prompt_text_value }}
+</prompt_text>
+{% endif %}
+
+{% if actual_input_text %}
+<actual_input>
+{{ actual_input_text }}
+</actual_input>
+{% endif %}
+
+{% if actual_output_text %}
+<actual_output>
+{{ actual_output_text }}
+</actual_output>
+{% endif %}
+
+{% if expected_output_text %}
+<expected_output>
+{{ expected_output_text }}
+</expected_output>
+{% endif %}
+

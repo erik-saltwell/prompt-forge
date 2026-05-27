@@ -1,14 +1,12 @@
 from __future__ import annotations
 
-from typing import NamedTuple
-
 from pydantic import BaseModel, Field
 
 SCORE_MIN: int = 1
 SCORE_MAX: int = 5
 
 
-class ScoreRange(NamedTuple):
+class ScoreRange(BaseModel):
     minimum: int
     maximum: int
 
@@ -23,6 +21,8 @@ class PromptContext(BaseModel):
     evaluation_steps: list[str] = Field(default_factory=list)
     scoring_rubric: list[ScoringRubric] = Field(default_factory=list)
     requires_ground_truth: bool = False
+    definitions: list[str] = Field(default_factory=list)
+    important_reminders: list[str] = Field(default_factory=list)
 
     def normalize_score(self, score: float) -> float:
         if score < SCORE_MIN or score > SCORE_MAX:
@@ -45,6 +45,22 @@ class PromptContextDraft(BaseModel):
     requires_ground_truth: bool = Field(
         description="True iff the criterion is reference-based and cannot be judged without a ground-truth value.",
     )
+    definitions: list[str] = Field(
+        default_factory=list,
+        description=(
+            "Optional definitions of important terms used in the criterion or evaluation steps. "
+            "Include only when a term is ambiguous, domain-specific, or used in a non-obvious way; "
+            "leave empty otherwise."
+        ),
+    )
+    important_reminders: list[str] = Field(
+        default_factory=list,
+        description=(
+            "Optional last-mile reminders shown to the judge immediately before it scores. "
+            "Use for high-leverage cautions a judge might overlook (e.g. common false-positive patterns, "
+            "edge cases the rubric depends on). Leave empty if nothing warrants restating."
+        ),
+    )
 
     def to_context(self, criterion: str) -> PromptContext:
         return PromptContext(
@@ -52,4 +68,6 @@ class PromptContextDraft(BaseModel):
             evaluation_steps=list(self.evaluation_steps),
             scoring_rubric=list(self.scoring_rubric),
             requires_ground_truth=self.requires_ground_truth,
+            definitions=list(self.definitions),
+            important_reminders=list(self.important_reminders),
         )

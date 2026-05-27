@@ -48,7 +48,7 @@ def reset_cache() -> None:
         _key_locks.clear()
 
 
-async def create_prompt_context(criterion: str, llm_config: LiteLLMConfig) -> PromptContext:
+async def _create_prompt_context(criterion: str, llm_config: LiteLLMConfig) -> PromptContext:
     """Get or build the PromptContext for a criterion.
 
     Thread-safe: same-key requests serialise on one LLM call; different-key requests
@@ -76,7 +76,7 @@ async def create_prompt_context(criterion: str, llm_config: LiteLLMConfig) -> Pr
             user_prompt=criterion,
             config=llm_config,
             response_format=PromptContextDraft,
-            log_name="g_eval:context_factory",
+            log_name="templated:context_factory",
         )
         context: PromptContext = draft.to_context(criterion)
         _cache_put(key, context)

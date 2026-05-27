@@ -1,7 +1,6 @@
 """Tests for the concrete metrics.
 
 Behaviors under test per metric:
-  GEvalMetric:          criteria string appears in system prompt; returns valid MetricResult
   HallucinationMetric:  input (not ground_truth) appears in user prompt as context
   JsonCorrectnessMetric: valid JSON → score=1.0, no judge; invalid JSON → score=0.0, judge fires
 """
@@ -13,7 +12,7 @@ import asyncio
 import pytest
 from prompt_model._metrics.result import MetricResult
 from prompt_model.config import LiteLLMConfig
-from prompt_model_metrics import GEvalMetric, HallucinationMetric, JsonCorrectnessMetric
+from prompt_model_metrics import HallucinationMetric, JsonCorrectnessMetric
 
 _CONFIG = LiteLLMConfig(model="fake/model")
 _PROMPT_MD = "# Task\n\nDo the thing.\n"
@@ -26,39 +25,6 @@ def _stub_acomplete(result: MetricResult = _OK_RESULT):
         return result
 
     return _inner
-
-
-# ─────────────────────────────────────────────
-# GEvalMetric
-# ─────────────────────────────────────────────
-
-
-def test_g_eval_criteria_appears_in_system_prompt(monkeypatch: pytest.MonkeyPatch) -> None:
-    captured: list[str] = []
-
-    async def _stub(system_prompt: str, user_prompt: str, config: LiteLLMConfig, *, response_format=None, log_name=None):
-        captured.append(system_prompt)
-        return _OK_RESULT
-
-    monkeypatch.setattr("prompt_model._metrics.base_llm_judge.acomplete", _stub)
-    metric = GEvalMetric(_CONFIG, criteria="The output must be concise.")
-    asyncio.run(metric.evaluate(_PROMPT_MD, "input", "output", None))
-    assert "The output must be concise." in captured[0]
-
-
-def test_g_eval_returns_valid_metric_result(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr("prompt_model._metrics.base_llm_judge.acomplete", _stub_acomplete())
-    metric = GEvalMetric(_CONFIG, criteria="Be helpful.")
-    result: MetricResult = asyncio.run(metric.evaluate(_PROMPT_MD, "input", "output", None))
-    assert isinstance(result, MetricResult)
-    assert result.metric_name == metric.name
-
-
-def test_g_eval_name_reflects_criteria(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Each GEvalMetric instance has a distinct name derived from its criteria."""
-    m1 = GEvalMetric(_CONFIG, criteria="Be concise.")
-    m2 = GEvalMetric(_CONFIG, criteria="Be accurate.")
-    assert m1.name != m2.name
 
 
 # ─────────────────────────────────────────────

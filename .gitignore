@@ -40,3 +40,7 @@ logs/
 /logs/
 logs/
 logs
+
+.optimizer_runs
+/.optimizer_runs/
+.optimizer_runs/

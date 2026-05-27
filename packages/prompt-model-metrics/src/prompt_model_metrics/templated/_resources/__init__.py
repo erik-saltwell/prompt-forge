@@ -3,7 +3,9 @@ from __future__ import annotations
 from functools import cache
 from importlib.resources import files
 
-from jinja2 import Template
+from jinja2 import Environment
+
+_TEMPLATE_ENV: Environment = Environment(trim_blocks=True, lstrip_blocks=True)
 
 
 @cache
@@ -19,7 +21,7 @@ def _load_template_source(name: str) -> str:
 
 
 def render_template(name: str, **context: object) -> str:
-    return Template(_load_template_source(name)).render(**context)
+    return _TEMPLATE_ENV.from_string(_load_template_source(name)).render(**context).strip()
 
 
 @cache

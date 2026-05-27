@@ -21,5 +21,15 @@ Produce a JSON object with exactly these four fields:
    - Do not use qualitative magnitude words like 'modest', 'substantial', 'minor', or 'significant' in band descriptions unless an evaluation step defines that qualifier with a concrete numeric cutoff or enumerated category. Adjacent bands must be separable by a step output, not by an undefined adjective.
    :::
 4. `requires_ground_truth` — `true` if and only if a reference / expected output is needed to judge the criterion (e.g. "factually consistent with the reference answer"). `false` for criteria that judge the output on its own merits (e.g. "is under 50 words", "is polite in tone").
+5. `definitions` — an optional list of short definitions of important terms used in the criterion or evaluation_steps. Include a definition only when the term is ambiguous, domain-specific, or used in a non-obvious way and a judge could plausibly misread the criterion without it. Omit (empty list) when every term is self-evident. Each entry is a single line of the form `term — definition`.
+   ::: guidance
+   - Do not define common English words or terms whose meaning is already pinned down by the surrounding evaluation_steps. Definitions are for terms that, if read with the wrong sense, would change which outputs the judge accepts.
+   - Prefer one tight sentence per term. If a definition needs more than one sentence, the term probably needs its own evaluation step instead.
+   :::
+6. `important_reminders` — an optional list of last-mile reminders shown to the judge immediately before it scores. Include a reminder only when it materially reduces a likely judging mistake — for example, a common false-positive pattern, a frequently-overlooked edge case the rubric depends on, or a property of the criterion that is easy to forget once the judge is deep in the case. Omit (empty list) when the evaluation_steps already make the right behavior obvious.
+   ::: guidance
+   - Reminders are not a place to restate the criterion or the rubric — those are already shown to the judge. A reminder must add something the steps and rubric do not already make salient.
+   - Cap each reminder at one sentence. If you have more than three reminders, prefer folding the content back into evaluation_steps instead.
+   :::
 
 Return only the JSON object. No prose before or after.

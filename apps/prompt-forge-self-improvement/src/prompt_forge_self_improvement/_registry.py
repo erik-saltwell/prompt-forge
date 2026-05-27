@@ -18,13 +18,13 @@ from prompt_model import Metric
 from prompt_model._metrics._resources import load_metric_resource
 from prompt_model._resources import load_prompt
 from prompt_model.config import EvalCase, LiteLLMConfig
-from prompt_model_metrics.g_eval._resources import load_resource as load_g_eval_resource
 from prompt_model_metrics.self_learning import (
     build_feedback_actor_metrics,
     build_g_eval_factory_metrics,
     build_hybrid_judge_metrics,
     build_structural_actor_metrics,
 )
+from prompt_model_metrics.templated._resources import load_resource as load_templated_metric_resource
 
 from .targets.feedback_actor._scenario_loader import load_all_scenarios
 from .targets.g_eval_factory._scenario_loader import load_all_scenarios as load_g_eval_factory_scenarios
@@ -67,11 +67,11 @@ REGISTRY: dict[str, TargetConfig] = {
         name="g-eval-factory",
         description=(
             "Optimize the G-Eval context_factory system prompt "
-            "(prompt_model_metrics/g_eval/_resources/context_factory_prompt.md). "
+            "(prompt_model_metrics/templated/_resources/context_factory_prompt.md). "
             "The factory turns a natural-language criterion into a structured judging context "
             "(evaluation_steps, scoring_rubric, requires_ground_truth)."
         ),
-        seed_prompt_loader=lambda: load_g_eval_resource("context_factory_prompt"),
+        seed_prompt_loader=lambda: load_templated_metric_resource("context_factory_prompt"),
         eval_case_loader=lambda: load_g_eval_factory_scenarios(_G_EVAL_FACTORY_SCENARIOS),
         metrics_factory=build_g_eval_factory_metrics,
     ),
